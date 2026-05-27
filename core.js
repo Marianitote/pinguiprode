@@ -202,20 +202,37 @@ function standings(){
    VALIDACIÓN DE COMODINES (reglamento 2026)
    ===================================================================== */
 function quotaLeft(uid,type){
+  const max = type==="sang" ? 3 : 2; // 3 sanguijuelas / 2 nitros por fase
   const g=APP.comodines.filter(c=>c.type===type&&c.by_user===uid&&c.phase==="grupos").length;
   const k=APP.comodines.filter(c=>c.type===type&&c.by_user===uid&&c.phase!=="grupos").length;
-  return { grupos:Math.max(0,2-g), elim:Math.max(0,2-k) }; // 2 por fase en 2026
+  return { grupos:Math.max(0,max-g), elim:Math.max(0,max-k) };
 }
-// kickoff de la "fecha" = primer partido de esa jornada/fase
-function kickoffOfDate(phase,jor){
-  const ms=FIXTURE.filter(m=> phase==="grupos" ? (m.phase==="grupos"&&m.jor===jor) : m.phase===phase);
+// kickoff del primer partido de la FASE (para grupos, la fase entera arranca con el inaugural)
+function phaseStart(phase){
+  const ms=FIXTURE.filter(m=>m.phase===phase);
   const times=ms.map(m=>m.kickoff).filter(Boolean).map(t=>new Date(t).getTime());
-  return times.length?new Date(Math.min(...times)).toISOString():null;
+  return times.length?new Date(Math.min(...times)):null;
 }
-// ¿pasó el corte de 1h antes del primer partido de esa fecha?
-function pastCutoff(phase,jor){
-  const ko=kickoffOfDate(phase,jor); if(!ko) return false; // sin horario cargado, no se bloquea
-  return Date.now() > (new Date(ko).getTime() - REGLAMENTO_2026.corteHoras*3600*1000);
+// Ventana de comodines: 6:00 a 12:00 (hora Argentina) del día del primer partido de la fase.
+// Devuelve null si está dentro de la ventana, o un texto explicando por qué no.
+function comodinWindowError(phase){
+  const start=phaseStart(phase);
+  if(!start) return null; // sin horarios cargados, no bloqueamos
+  // componentes de fecha (año/mes/día) del primer partido, en hora Argentina
+  const tz='America/Argentina/Buenos_Aires';
+  const arY=Number(new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric'}).format(start));
+  const arM=Number(new Intl.DateTimeFormat('en-CA',{timeZone:tz,month:'numeric'}).format(start))-1;
+  const arD=Number(new Intl.DateTimeFormat('en-CA',{timeZone:tz,day:'numeric'}).format(start));
+  // 06:00 y 12:00 hora AR (UTC-3) como instantes UTC
+  const open =Date.UTC(arY,arM,arD, 6+3,0,0);
+  const close=Date.UTC(arY,arM,arD,12+3,0,0);
+  const now=Date.now();
+  if(now<open){
+    const f=new Intl.DateTimeFormat('es-AR',{timeZone:tz,day:'numeric',month:'long'}).format(new Date(open));
+    return `Los comodines de esta fase se piden el ${f} de 6:00 a 12:00 (hora argentina). Todavía no abrió.`;
+  }
+  if(now>close) return "Cerró la ventana para pedir comodines de esta fase (era de 6:00 a 12:00 del día del primer partido).";
+  return null;
 }
 function dateUsed(uid,phase,jor){ // ¿ya pidió algún comodín en esa fecha?
   return APP.comodines.find(c=>c.by_user===uid&&sameDate(c,{phase,jor}));
@@ -229,15 +246,15 @@ function askedNitro(uid,phase,jor){
 
 function validateSang(by,target,phase,jor){
   if(by===target) return "No podés retarte a vos mismo.";
-  if(pastCutoff(phase,jor)) return "Pasó el límite (1 h antes del primer partido de esa fecha).";
+  const win=comodinWindowError(phase); if(win) return win;
   const tb=standings(); const me=tb.find(r=>r.id===by), tg=tb.find(r=>r.id===target);
   if(me.pos===1) return "El que va primero no puede retar.";
   const diff=me.pos-tg.pos;
   if(diff<=0) return "Solo podés retar a alguien por encima tuyo.";
   if(diff>3) return "Solo podés retar hasta 3 posiciones por encima."; // 2026: 3 posiciones
   const isG=phase==="grupos"; const q=quotaLeft(by,"sang");
-  if(isG&&q.grupos<=0) return "Ya usaste tus 2 sanguijuelas de esta fase.";
-  if(!isG&&q.elim<=0) return "Ya usaste tus 2 sanguijuelas de esta fase.";
+  if(isG&&q.grupos<=0) return "Ya usaste tus 3 sanguijuelas de esta fase.";
+  if(!isG&&q.elim<=0) return "Ya usaste tus 3 sanguijuelas de esta fase.";
   // interacción 2026: no sang+nitro misma fecha
   if(askedNitro(by,phase,jor)) return "No podés usar Sanguijuela y Nitro en la misma fecha.";
   // no retar a quien pidió nitro
@@ -250,7 +267,7 @@ function validateSang(by,target,phase,jor){
   return null;
 }
 function validateNitro(by,phase,jor){
-  if(pastCutoff(phase,jor)) return "Pasó el límite (1 h antes del primer partido de esa fecha).";
+  const win=comodinWindowError(phase); if(win) return win;
   const isG=phase==="grupos"; const q=quotaLeft(by,"nitro");
   if(isG&&q.grupos<=0) return "Ya usaste tus 2 nitros de esta fase.";
   if(!isG&&q.elim<=0) return "Ya usaste tus 2 nitros de esta fase.";

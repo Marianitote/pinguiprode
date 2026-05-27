@@ -14,6 +14,9 @@ function closeModal(){const m=$("#modalBg");if(m)m.remove();}
 /* ---------- BOOT ---------- */
 async function boot(){
   try{
+    // Si venimos del link de reseteo de contraseña, el evento puede haberse
+    // disparado antes de registrar el listener. Lo detectamos por la URL.
+    if(!RECOVERING && /type=recovery/.test(location.hash)){ RECOVERING=true; renderResetPassword(); return; }
     await loadSession();
     if(!APP.user){ renderAuth(); return; }
     // logueado pero sin perfil → crear perfil
@@ -22,8 +25,16 @@ async function boot(){
     render();
   }catch(e){ console.error(e); app.innerHTML=`<div class="auth-wrap"><div class="card"><div class="sec-title">Error</div><p class="lead">${esc(e.message||e)}</p><p class="note" style="margin-top:10px">Si recién configuraste Supabase, revisá que las claves en config.js sean correctas.</p></div></div>`; }
 }
+// flag para no re-renderizar la app encima de la pantalla de nueva contraseña
+let RECOVERING=false;
 // re-cargar cuando cambia la sesión (ej: al volver del mail de confirmación)
-sb.auth.onAuthStateChange((_e,_s)=>{ boot(); });
+sb.auth.onAuthStateChange((event,_s)=>{
+  // si el usuario entró desde el link de "recuperar contraseña", mostramos la
+  // pantalla para escribir la clave nueva en vez de entrar normal a la app
+  if(event==="PASSWORD_RECOVERY"){ RECOVERING=true; renderResetPassword(); return; }
+  if(RECOVERING) return; // ya está en la pantalla de nueva clave, no pisar
+  boot();
+});
 
 /* ---------- AUTH ---------- */
 let AUTH_MODE="in"; // 'in' | 'up'
@@ -67,8 +78,39 @@ async function doAuth(){
 }
 async function forgotPass(){
   const email=$("#email").value.trim(); if(!email) return toast("Escribí tu mail primero","err");
-  const {error}=await sb.auth.resetPasswordForEmail(email);
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});
   if(error) toast(traduceError(error),"err"); else toast("Te mandamos un mail para resetear","ok");
+}
+
+/* ---------- NUEVA CONTRASEÑA (al entrar desde el link de reseteo) ---------- */
+function renderResetPassword(){
+  app.innerHTML=`<div class="auth-wrap">
+    <div class="hero" style="text-align:center">
+      <div class="logo" style="justify-content:center;font-size:24px"><span class="peng">🐧</span> Pingüi<b>Prode</b></div>
+      <div class="big" style="font-size:42px;margin-top:8px">🔑</div>
+      <h1 style="font-size:30px;margin-top:6px">Nueva contraseña</h1>
+      <p class="lead">Elegí tu contraseña nueva (mínimo 6 caracteres).</p>
+    </div>
+    <div class="card">
+      <label class="field">Contraseña nueva</label>
+      <input id="np1" type="password" placeholder="••••••••" autocomplete="new-password">
+      <label class="field" style="margin-top:12px">Repetir contraseña</label>
+      <input id="np2" type="password" placeholder="••••••••" autocomplete="new-password">
+      <button class="btn primary full" style="margin-top:16px" onclick="doResetPassword()">Guardar contraseña</button>
+    </div>
+  </div>`;
+}
+async function doResetPassword(){
+  const p1=$("#np1").value, p2=$("#np2").value;
+  if(!p1||p1.length<6) return toast("La contraseña debe tener al menos 6 caracteres","err");
+  if(p1!==p2) return toast("Las contraseñas no coinciden","err");
+  try{
+    const {error}=await sb.auth.updateUser({password:p1});
+    if(error) throw error;
+    RECOVERING=false;
+    toast("¡Contraseña actualizada! 🐧","ok");
+    await boot(); // ya queda logueado con la nueva clave
+  }catch(e){ toast(traduceError(e),"err"); }
 }
 function traduceError(e){
   const m=(e.message||"").toLowerCase();
@@ -168,9 +210,9 @@ function renderInicio(v){
     </div>`;
   }
   v.innerHTML+=`<div class="card flat"><div class="sec-title">Comodines · resumen</div>
-    <p class="note" style="line-height:1.7"><b>🃏 Sanguijuela:</b> 2 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó.<br>
+    <p class="note" style="line-height:1.7"><b>🃏 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó.<br>
     <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal. No lo usan 1º ni 2°.<br>
-    <span style="color:var(--muted)">Se piden hasta 1 hora antes del partido. Ojo: no podés usar ambos en la misma fecha.</span></p></div>`;
+    <span style="color:var(--muted)">Se piden de 6 a 12 (hora argentina) del día del primer partido de cada fase. Ojo: no podés usar ambos en la misma fecha.</span></p></div>`;
 }
 function confirmLock(){
   modal(`<h3>🔒 Enviar definitivo</h3>
@@ -345,7 +387,7 @@ function renderTabla(v){
 function renderComodines(v){
   const uid=APP.user.id;
   let html=`<div class="card" style="margin-top:18px"><div class="sec-title">Comodines</div>
-    <p class="note">Pedí tus sanguijuelas y nitros respetando las reglas. Se pueden solicitar hasta 1 hora antes del primer partido de la fecha.</p></div>`;
+    <p class="note">Pedí tus sanguijuelas y nitros respetando las reglas. Se solicitan en la ventana de <b>6:00 a 12:00 (hora argentina)</b> del día del primer partido de cada fase.</p></div>`;
   if(!isAdmin()){
     const qs=quotaLeft(uid,"sang"), qn=quotaLeft(uid,"nitro");
     html+=`<div class="como sang"><div class="ic">🃏</div><div class="info"><b>Sanguijuela</b> — robá puntos<br><span class="note">Quedan: ${qs.grupos} en grupos · ${qs.elim} en eliminatorias</span></div><button class="btn sm primary" onclick="openSang()">Usar</button></div>
@@ -380,7 +422,7 @@ async function confirmSang(){
   const target=$("#sangT").value; if(!target) return toast("No hay rival válido","err");
   const d=dateOptions()[+$("#sangD").value];
   const err=validateSang(APP.user.id,target,d.phase,d.jor); if(err) return toast(err,"err");
-  try{ await requestComodin("sang",target,d.phase,d.jor,kickoffOfDate(d.phase,d.jor)); closeModal(); render(); toast("Sanguijuela activada 🃏","ok"); }
+  try{ await requestComodin("sang",target,d.phase,d.jor,phaseStart(d.phase)?.toISOString()||null); closeModal(); render(); toast("Sanguijuela activada 🃏","ok"); }
   catch(e){ toast(e.message,"err"); }
 }
 function openNitro(){
@@ -393,7 +435,7 @@ function openNitro(){
 async function confirmNitro(){
   const d=dateOptions()[+$("#nitroD").value];
   const err=validateNitro(APP.user.id,d.phase,d.jor); if(err) return toast(err,"err");
-  try{ await requestComodin("nitro",null,d.phase,d.jor,kickoffOfDate(d.phase,d.jor)); closeModal(); render(); toast("Nitro activado 🔥","ok"); }
+  try{ await requestComodin("nitro",null,d.phase,d.jor,phaseStart(d.phase)?.toISOString()||null); closeModal(); render(); toast("Nitro activado 🔥","ok"); }
   catch(e){ toast(e.message,"err"); }
 }
 
