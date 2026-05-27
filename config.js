@@ -4,8 +4,8 @@
    👉 PEGÁ ACÁ TUS DOS CLAVES DE SUPABASE (ver la guía, paso 3).
       Las encontrás en: Supabase → Project Settings → API
    ===================================================================== */
-const SUPABASE_URL  = "https://TU-PROYECTO.supabase.co";   // ← reemplazá
-const SUPABASE_ANON = "TU-CLAVE-ANON-PUBLIC";              // ← reemplazá
+const SUPABASE_URL  = "https://fbhbanxbylevmgbtftvj.supabase.co";   // ← reemplazá
+const SUPABASE_ANON = "sb_publishable_rRYltthbM6X5pOoaKjc8qA_bOjG7nby";              // ← reemplazá
 
 /* ---------------------------------------------------------------------
    Reglamento 2026 (resumen mostrado dentro de la app)
