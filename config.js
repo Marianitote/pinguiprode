@@ -5,60 +5,52 @@
       Las encontrás en: Supabase → Project Settings → API
    ===================================================================== */
 const SUPABASE_URL  = "https://fbhbanxbylevmgbtftvj.supabase.co";   // ← reemplazá
-const SUPABASE_ANON = "sb_publishable_rRYltthbM6X5pOoaKjc8qA_bOjG7nby";              // ← reemplazá
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiaGJhbnhieWxldm1nYnRmdHZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODEzNDksImV4cCI6MjA5NTE1NzM0OX0.VG8aUZT0iF_Rs0QV26uRTyyXtB3RQWFNwu5Y2Q-n56Q";              // ← reemplazá
 
 /* ---------------------------------------------------------------------
    Reglamento 2026 (resumen mostrado dentro de la app)
    --------------------------------------------------------------------- */
 const REGLAMENTO_2026 = {
-  bono: 3000,
+  bono: 50000,
   premio: "Copa y camiseta de la selección",
   tarjetas: [
-    {n:"PICADA",   pts:18,  desc:"Una sola pregunta que se disputa ANTES del comienzo del Mundial. Fecha límite: 8/11."},
-    {n:"PRINCIPAL",pts:289, desc:"Todos los partidos del Mundial (1ª y 2ª fase) + cuadro de honor (botas y balón de oro/plata/bronce). 144 pts en grupos + 145 en eliminatorias. Fecha límite: 18/11."},
-    {n:"WASABI",   pts:null,desc:"Las preguntas que hacen único a este prode. Al lado de cada una se indica cuánto vale. Fecha límite: 18/11."},
+    {n:"PRINCIPAL",pts:null, desc:"Todos los partidos del Mundial (grupos + eliminatorias) armados como un CUADRO autocompletado: cargás los grupos, la app calcula qué equipos pasan según tus predicciones, y vas armando R32 → Octavos → Cuartos → Semi → Final. Cuadro de honor (Campeón, Sub, 3°, botas y balón). Fecha límite: 11 de junio."},
+    {n:"WASABI",   pts:null,desc:"Las preguntas que hacen único a este prode. Al lado de cada una se indica cuánto vale. Fecha límite: 11 de junio."},
   ],
   sanguijuela: [
     "3 sanguijuelas por fase para succionar puntos a un rival.",
-    "Se piden en la ventana de 6:00 a 12:00 (hora argentina) del día del primer partido de cada fase.",
+    "Se piden en la ventana de 6:00 a 12:00 (hora argentina) de cualquier día con partidos, y valen para los partidos de ESE día. El cupo es por fase (no por día).",
     "Solo se puede retar a quien esté hasta 3 posiciones por encima. El 1º no puede retar.",
     "Se juegan SOLO los puntos de la Tarjeta Principal (sin los de la última fecha: mejor jugador, goleador, etc.).",
-    "Si el retador hace MÁS puntos que el retado: se lleva todos sus puntos y el retado suma cero esa fecha.",
+    "Si el retador hace MÁS puntos que el retado: se lleva todos sus puntos y el retado suma cero ese día.",
     "Si el retador hace MENOS: pierde el 50% de los puntos que sacó el retado.",
-    "Un jugador no puede ser retado por dos a la vez (vale el primer aviso).",
+    "Si empatan en puntos: la sanguijuela se neutraliza, no pasa nada (ninguno gana ni pierde puntos).",
+    "Un jugador no puede ser retado por dos el mismo día (vale el primer aviso).",
     "No se puede retar más de dos veces a la misma persona en una fase.",
+    "Una persona no puede recibir más de tres retos en una misma fase.",
     "No son acumulables entre fases.",
   ],
   nitro: [
     "2 nitros por fase.",
-    "Se piden en la ventana de 6:00 a 12:00 (hora argentina) del día del primer partido de cada fase.",
-    "Multiplica por 3 los puntos de la Tarjeta Principal de esa fecha.",
+    "Se piden en la ventana de 6:00 a 12:00 (hora argentina) de cualquier día con partidos, y valen para los partidos de ESE día. El cupo es por fase (no por día).",
+    "Multiplica por 3 los puntos de la Tarjeta Principal del día en que se usa.",
     "El 1° y el 2° no pueden usar nitro.",
     "No son acumulables entre fases.",
   ],
   interaccion: [
     "Nitros y Sanguijuelas no pueden interceder entre sí.",
-    "Un jugador no puede usar Sanguijuela y Nitro en la misma fecha (si pide ambas, pierde la 2ª que pida).",
-    "Un jugador retado no puede usar su Nitro (si lo pide igual, lo pierde).",
-    "Quien pidió Nitro no puede ser retado (quien lo rete pierde su sanguijuela).",
+    "Un jugador no puede usar Sanguijuela y Nitro el mismo día.",
+    "Un jugador retado no puede usar su Nitro.",
+    "Quien pidió Nitro no puede ser retado.",
   ],
-  ventanaComodines: "6:00 a 12:00 (hora argentina) del día del primer partido de cada fase",
-  nahuelito: [
-    "Hay un participante que nadie conoce, pero ahí está: El Nahuelito.",
-    "Es un BOT que completa sus tarjetas con una fórmula random.",
-    "No pelea por el premio; su única motivación es que alguien termine por debajo de él.",
-    "Usa sus sanguijuelas en las fechas 3, 6 y 8 contra quien esté justo por encima. Si va primero, las usa en la primera fecha que pierda esa posición.",
-    "No avisa: su aviso es 'ahora' y siempre tiene prioridad.",
-    "Usa sus nitros solo cuando está en la Zona de Pobreza y tenga nitros disponibles.",
-    "Los demás SÍ pueden usar sus sanguijuelas contra El Nahuelito.",
-  ],
+  ventanaComodines: "6:00 a 12:00 (hora argentina) de cualquier día con partidos · valen para ese día",
 };
 
 /* ---------------------------------------------------------------------
    Equipos (48) y grupos del Mundial 2026
    --------------------------------------------------------------------- */
 const TEAMS = {
-  MEX:{n:"México",f:"🇲🇽",g:"A"}, RSA:{n:"Sudáfrica",f:"🇿🇦",g:"A"}, KOR:{n:"Corea del Sur",f:"🇰🇷",g:"A"}, CZE:{n:"Chequia",f:"🇨🇿",g:"A"},
+  MEX:{n:"México",f:"🇲🇽",g:"A"}, RSA:{n:"Sudáfrica",f:"🇿🇦",g:"A"}, KOR:{n:"Corea del Sur",f:"🇰🇷",g:"A"}, CZE:{n:"República Checa",f:"🇨🇿",g:"A"},
   CAN:{n:"Canadá",f:"🇨🇦",g:"B"}, BIH:{n:"Bosnia y Herz.",f:"🇧🇦",g:"B"}, QAT:{n:"Qatar",f:"🇶🇦",g:"B"}, SUI:{n:"Suiza",f:"🇨🇭",g:"B"},
   BRA:{n:"Brasil",f:"🇧🇷",g:"C"}, MAR:{n:"Marruecos",f:"🇲🇦",g:"C"}, HAI:{n:"Haití",f:"🇭🇹",g:"C"}, SCO:{n:"Escocia",f:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",g:"C"},
   USA:{n:"Estados Unidos",f:"🇺🇸",g:"D"}, PAR:{n:"Paraguay",f:"🇵🇾",g:"D"}, AUS:{n:"Australia",f:"🇦🇺",g:"D"}, TUR:{n:"Türkiye",f:"🇹🇷",g:"D"},
@@ -158,13 +150,86 @@ const PHASES=[
 
 /* Puntajes Tarjeta Principal */
 const PTS={ grupos:{exact:5,result:3,gd:1}, ko:{exact:7,result:4,advance:3},
-  extra:{champion:20,runnerup:12,third:8, boot_gold:12,boot_silver:8,boot_bronze:5, ball_gold:10,ball_silver:6,ball_bronze:4} };
+  // Cuadro de honor (planilla COMIPRO): Campeón +4, Sub +3, 3° +2, Botas +3/+2/+1, Balones +3/+2/+1
+  extra:{champion:4,runnerup:3,third:2, boot_gold:3,boot_silver:2,boot_bronze:1, ball_gold:3,ball_silver:2,ball_bronze:1},
+  // Puntos extra del cuadro autocompletado (Punto 30)
+  cuadro:{ pos_grupo:1, clas_r32:1, clas_r16:1, clas_qf:2, clas_sf:3, clas_finals:4 } };
 
-/* Preguntas de ejemplo (editables desde el panel admin) */
-const SEED_PICADA = { id:"pic1", t:"¿Cuántos goles se convierten en el partido inaugural (México vs Sudáfrica)?", pts:18, type:"num" };
+/* Plantel argentino — lista oficial de 26 confirmada por Scaloni y AFA el 28/5/2026.
+   Fuente: La Nación / AFA (https://www.lanacion.com.ar - 28 de mayo de 2026). */
+const PLANTEL_ARG = [
+  // Arqueros (3)
+  "Emiliano Martínez","Gerónimo Rulli","Juan Musso",
+  // Defensores (8)
+  "Cristian Romero","Facundo Medina","Gonzalo Montiel","Leonardo Balerdi",
+  "Lisandro Martínez","Nahuel Molina","Nicolás Otamendi","Nicolás Tagliafico",
+  // Volantes (7)
+  "Alexis Mac Allister","Enzo Fernández","Exequiel Palacios","Giovani Lo Celso",
+  "Leandro Paredes","Rodrigo De Paul","Valentín Barco",
+  // Delanteros (8)
+  "Giuliano Simeone","José Manuel López","Julián Álvarez","Lautaro Martínez",
+  "Lionel Messi","Nicolás González","Nicolás Paz","Thiago Almada",
+];
+
+/* (La Tarjeta Picada se eliminó del prode — no había tiempo para definirla bien.) */
 const SEED_WASABI = [
-  {id:"w1", t:"¿Qué jugador argentino comete la primera infracción del Mundial?", pts:50, type:"player"},
-  {id:"w2", t:"Cantidad de tarjetas rojas en todo el Mundial", pts:30, type:"num"},
-  {id:"w3", t:"Goleador del Mundial (Bota de Oro)", pts:40, type:"player", noComo:true},
-  {id:"w4", t:"¿Qué participante sale último (Zona de Pobreza)?", pts:60, type:"participant"},
+  {id:"w1", t:"Cantidad de participantes que aciertan el resultado exacto de México - Sudáfrica", pts:10, type:"num"},
+  {id:"w2", t:"Cantidad de participantes que aciertan al campeón", pts:10, type:"num", ac:"Los puntos se dan al finalizar el mundial y NO cuentan para el uso de comodines", noComo:true},
+  {id:"w3", t:"Cantidad de rojas en todo el mundial", pts:10, type:"num"},
+  {id:"w4", t:"Cantidad de amarillas en todo el mundial", pts:10, type:"num"},
+  {id:"w5", t:"¿Qué participante sale primero?", pts:16, type:"participant", ac:"Previo a la contabilización de los puntos de las preguntas 5, 6, 7 y 8", noComo:true},
+  {id:"w6", t:"¿Qué participante sale segundo?", pts:10, type:"participant", noComo:true},
+  {id:"w7", t:"¿Qué participante sale último?", pts:18, type:"participant", noComo:true},
+  {id:"w8", t:"¿Qué participante sale anteúltimo?", pts:12, type:"participant", noComo:true},
+  {id:"w9", t:"¿Qué jugador argentino recibe la 1° tarjeta amarilla?", pts:10, type:"player", ac:"Si no hay amarillas no se suman puntos"},
+  {id:"w10", t:"¿Qué jugador argentino recibe la 1° tarjeta roja?", pts:16, type:"player", ac:"Si no hay rojas no se suman puntos"},
+  {id:"w11", t:"Primer jugador argentino en hacer el lagarto", pts:22, type:"player", ac:"Si ninguno lo hace no se suman puntos"},
+  {id:"w12", t:"¿Qué argentino lanza su primer garzo en televisión?", pts:22, type:"player", ac:"Tiene que ser jugador de campo, no vale suplente. Si nadie lo hace no se suman puntos"},
+  {id:"w13", t:"Primer participante en alertar sobre garzo argentino x grupo de wapp durante el partido", pts:12, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
+  {id:"w14", t:"¿Qué argentino es el primero en pedir TARJETA?", pts:10, type:"player", ac:"Gesto inequívoco, con mano levantada simulando tarjeta en la mano. Si nadie lo hace no se suman puntos"},
+  {id:"w15", t:"Primer participante en alertar sobre gesto de tarjeta x grupo de wapp durante el partido", pts:12, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
+  {id:"w16", t:"Equipo con más faltas cometidas", pts:10, type:"team", ac:"Los puntos se dan al finalizar el mundial y NO cuentan para el uso de comodines", noComo:true},
+  {id:"w17", t:"Equipo con más amarillas", pts:12, type:"team"},
+  {id:"w18", t:"Cantidad de partidos que Argentina juega con camiseta SUPLENTE", pts:10, type:"num"},
+  {id:"w19", t:"1er jugador del mundial en levantar/agarrar la Copa del Mundo", pts:10, type:"text", ac:"Cualquier jugador del Mundial (no solo argentinos). Escribí el nombre completo"},
+  {id:"w20", t:"Cantidad de Followers en INSTAGRAM con los que finaliza Antonela Roccuzzo el mundial (@antonelaroccuzzo)", pts:10, type:"num", ac:"Gana el más cercano. Formato de respuesta: 39M, 40M, 41M, etc. Los puntos se dan al finalizar el mundial y NO cuentan para el uso de comodines", noComo:true},
+  {id:"w21", t:"¿En qué minuto mete Argentina su gol más temprano? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w22", t:"¿En qué minuto mete Argentina su gol más tardío? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w23", t:"¿Quién patea el primer penal argentino?", pts:16, type:"player", ac:"Si no hay penal no se suman puntos"},
+  {id:"w24", t:"Equipo que le convierte el primer gol a Argentina", pts:16, type:"team"},
+  {id:"w25", t:"Autor del primer gol a favor de Argentina", pts:16, type:"player", ac:"Si es gol en contra del rival no cuenta"},
+  {id:"w26", t:"Autor del segundo gol a favor de Argentina", pts:16, type:"player", ac:"Si es gol en contra del rival no cuenta"},
+  {id:"w27", t:"¿En el primer partido de Argentina qué equipo gana el sorteo?", pts:10, type:"choice", options:["Argentina","Argelia"]},
+  {id:"w28", t:"¿En el primer partido de Argentina el arquero de qué equipo es el primero en tocar la pelota?", pts:10, type:"choice", options:["Argentina","Argelia"], ac:"El equipo del arquero"},
+  {id:"w30", t:"¿En el primer partido de Argentina quién es el jugador de la selección argentina que realiza el primer saque lateral?", pts:10, type:"player"},
+  {id:"w31", t:"Argentino que ejecuta el primer tiro libre", pts:10, type:"player"},
+  {id:"w32", t:"Primer argentino que queda en offside", pts:10, type:"player"},
+  {id:"w33", t:"Primer reemplazo: Sale", pts:16, type:"player"},
+  {id:"w34", t:"Primer reemplazo: Entra", pts:16, type:"player"},
+  {id:"w35", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:10, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
+  {id:"w36", t:"¿Quién comete la primera infracción?", pts:10, type:"player"},
+  {id:"w37", t:"¿Quién recibe la primera infracción?", pts:18, type:"player"},
+  {id:"w38", t:"¿En qué minuto mete Argentina su gol más temprano? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w39", t:"¿En qué minuto mete Argentina su gol más tardío? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w40", t:"Primera amarilla argentina", pts:10, type:"player", ac:"Si no hay no se suman puntos"},
+  {id:"w41", t:"Primera roja argentina", pts:10, type:"player", ac:"Si no hay rojas no se suman puntos"},
+  {id:"w42", t:"Primer reemplazo: Sale", pts:16, type:"player"},
+  {id:"w43", t:"Primer reemplazo: Entra", pts:16, type:"player"},
+  {id:"w44", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:10, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
+  {id:"w45", t:"¿Quién comete la primera infracción?", pts:10, type:"player"},
+  {id:"w46", t:"¿Quién recibe la primera infracción?", pts:18, type:"player"},
+  {id:"w47", t:"¿Quién patea el primer penal argentino? Los penales de definición por penales cuentan en este punto", pts:10, type:"player", ac:"Si no hay penales no se suman puntos"},
+  {id:"w48", t:"Equipo que le convierte el primer gol a Argentina (en los 120')", pts:22, type:"team"},
+  {id:"w49", t:"Autor del primer gol a favor de Argentina", pts:16, type:"player", ac:"Si es gol en contra del rival no cuenta"},
+  {id:"w50", t:"Primer jugador argentino en hacer el lagarto", pts:22, type:"player", ac:"El que se acuesta en la barrera. Si nadie lo hace no se suman puntos"},
+  {id:"w51", t:"¿Cuántos goles de tiro libre directo en todo el Mundial?", pts:8, type:"num"},
+  {id:"w52", t:"¿Cuántos goles olímpicos (de córner directo) en todo el Mundial?", pts:12, type:"num"},
+  {id:"w53", t:"¿Habrá algún partido que termine 0-0 en fase de grupos? (Sí/No)", pts:6, type:"yesno"},
+  {id:"w54", t:"Primer árbitro que muestra una roja en el Mundial (nacionalidad)", pts:8, type:"text", ac:"Si no hay rojas no se suman puntos"},
+  {id:"w55", t:"¿Cuántas veces se ve a Messi tomando agua/Gatorade en la final si Argentina llega?", pts:10, type:"num", ac:"Si Argentina no juega la final no se suman puntos"},
+  {id:"w56", t:"¿Aparece algún streaker (invasor de cancha) durante el torneo? (Sí/No)", pts:12, type:"yesno", ac:"Bonus +3 si acertás el partido"},
+  {id:"w57", t:"Primer país en quedar eliminado matemáticamente del Mundial", pts:10, type:"team"},
+  {id:"w58", t:"¿En qué minuto del partido inaugural (México vs Sudáfrica) se mete el primer gol?", pts:8, type:"num", ac:"Gana el más cercano. Si no hay gol, todos suman 0"},
+  {id:"w59", t:"Cantidad de partidos que se definen por penales en eliminatorias", pts:10, type:"num"},
+  {id:"w60", t:"¿Algún jugador se saca la camiseta para festejar y se come amarilla? (Sí/No)", pts:6, type:"yesno"},
 ];
