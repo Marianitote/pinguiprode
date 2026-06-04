@@ -62,7 +62,7 @@ async function loadAll(){
 
 async function ensureMyPredRow(){
   if(APP.myPred) return APP.myPred;
-  const {data,error}=await sb.from('predictions').insert({user_id:APP.user.id}).select().maybeSingle();
+  const {data,error}=await sb.from('predictions').upsert({user_id:APP.user.id},{onConflict:'user_id',ignoreDuplicates:true}).select().maybeSingle();
   if(error) throw error; APP.myPred=data; return data;
 }
 async function saveMyPred(patch){
@@ -411,6 +411,8 @@ function autoWasabiAnswers(){
   }).map(p=>({name:p.display_name, total:partialTotal(p.id)}));
   rows.sort((a,b)=> b.total-a.total);
   if(!rows.length) return {};
+  // Si el máximo puntaje es 0, no hay posiciones reales todavía
+  if(rows[0].total === 0) return {};
   // agrupar por puntaje para detectar empates
   const groups=[]; let cur=null;
   rows.forEach(r=>{
