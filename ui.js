@@ -1,922 +1,3 @@
-/
-Claude finished the response
-
-Orden de las preguntas de la tarjeta WASBI basándonos en el orden que tenemos ahora publicado.
-
-Las preguntas 1 a la 20 y de la 37 a 59 son PREGUNTAS GENERALES. 
- 
-De la Pregunta 21 a la 26 son PREGUNTAS DE LA FASE DE GRUPOS 
-
-Las preguntas son PREGUNTAS GENERALES 
-
-Las Preguntas 27, 28 y 29  son PREGUNTAS DEL PRIMER PARTIDO DE ARGENTINA
-
-Las Preguntas 30 a 34 son PREGUNTAS DEL SEGUNDO PARTIDO
-
-LAs Preguntas 35 y 36 son PREGUNTAS DEL TERCER PARTIDO
-
-Lo que necesitamos, además de agruparlas en este nuevo orden, es que queden visualmente destacadas, Con un título arriba que las englobe y que se vea visualmente cuáles pertenecen a ese mismo grupo.
-
-Avisame si se entiende.
-May 30
-
-¡Sí, se entiende perfectamente! Querés reorganizar las preguntas de la tarjeta WASBI agrupándolas visualmente por categorías, con un título que las englobe y que quede claro visualmente cuáles pertenecen a cada grupo.
-
-Antes de arrancar, necesito ver el contenido actual de la tarjeta. ¿Podés compartirme el archivo o el documento con las preguntas tal como están publicadas ahora?
-
-Lo estoy trabajando en otro chat pero te trabaste y estás en un loop donde me tirás error. Si sigo por acá vamos a tener que arrancar de cero o podés ver el otro chat y ciontinuar el proyecto?
-May 30
-Relevant chats
-
-Encontré el chat. Puedo ver el contexto del proyecto, pero el otro chat está trabado y no puedo continuar desde allí directamente — tenés que seguir acá.
-
-Lo bueno es que ya tengo el contexto completo del proyecto WASBI. Para poder aplicar los cambios de agrupación visual que pedís, necesito que me compartas el archivo actual (el código o documento de la tarjeta) acá en este chat.
-
-¿Podés pegarlo o subir el archivo?
-
-Acá está la última versión.
-May 30
-
-Perfecto, déjame leer los archivos para entender la estructura actual.
-Ran 2 commands, viewed a file
-
-Perfecto, ya tengo todo el contexto. Ahora déjame leer el ui.js para entender cómo se renderiza la tarjeta WASABI actualmente.
-Ran 2 commands
-
-Perfecto, ahora tengo todo lo que necesito. Entiendo completamente la estructura. La función renderWasabi itera sobre APP.wasabiQs de manera lineal sin ningún agrupamiento. Voy a modificarla para agregar los encabezados de sección en los momentos correctos.
-
-Los grupos según lo que pediste son:
-
-    w1–w20 → PREGUNTAS GENERALES
-    w21–w26 → PREGUNTAS DE LA FASE DE GRUPOS
-    w27, w28, w30 → PREGUNTAS DEL PRIMER PARTIDO DE ARGENTINA
-    w31–w34 → PREGUNTAS DEL SEGUNDO PARTIDO
-    w35, w36 → PREGUNTAS DEL TERCER PARTIDO
-    w37–w60 → PREGUNTAS GENERALES (continuación)
-
-Voy a implementar esto:
-Ran 3 commands, edited a file
-
-Ahora agrego los estilos CSS para las secciones en el index.html:
-Ran 2 commands
-
-Ahora verifico que los cambios quedaron bien:
-Ran 2 commands
-
-Todo perfecto. Copio los archivos modificados a outputs:
-Ran a command, read a file
-
-Listo. Los cambios que hice son:
-
-ui.js — dentro de renderWasabi() reemplacé el forEach simple por uno con lógica de secciones. Antes de renderizar cada pregunta, verifica si su ID coincide con el inicio de un grupo, y si es así cierra la sección anterior y abre una nueva con título y color propio:
-Sección	Color	Preguntas
-🌍 Preguntas Generales	Azul	w1–w20
-🏟️ Preguntas de la Fase de Grupos	Violeta	w21–w26
-🇦🇷 Primer Partido de Argentina	Verde	w27, w28, w30
-🇦🇷 Segundo Partido de Argentina	Ámbar	w31–w34
-🇦🇷 Tercer Partido de Argentina	Rojo	w35, w36
-🌍 Preguntas Generales	Azul	w37–w60
-
-index.html — agregué 4 líneas de CSS: el contenedor .wasabi-section tiene borde del color de la sección, fondo suave del mismo color, y .wasabi-section-title muestra el título en mayúsculas con el ícono. Todo usa una variable CSS --sc para que cada sección tenga su propio color sin repetir código.
-Ui
-JS 
-Index
-Code · HTML 
-
-Te había pasado estos cambios en el chat que se trabó. Avisame si los entendiste y aplicaste. 
-
-Te paso nuevos ajustes. Ya casi estamos.
-Una vez que cargaste todos los resultados que necesito que muestre cómo quedaron las posiciones en los grupos. Quien queda 1ro de su grupo, 2do de su grupo y los no clasificados. Esto debería ser luego de apretar por primera vez "Cargar y mandar a comipro". Luego de apretar esa primera vez debería ver el resultado y una vez visto, darle confirmar y enviar.
-
- En  R32 aclarar que el combo "avanza" se completa solo si se pone empate.  
-
-Cambiemos Chequia por República Checa en el listado de equipos.
-May 30
-
-Dejame primero verificar qué cambios del chat trabado ya están o no están aplicados en los archivos que me pasaste.
-Ran 6 commands
-
-Ahora tengo todo el contexto. Voy a implementar los tres cambios:
-
-    Vista previa de clasificados antes del confirm de grupos
-    Nota en R32 sobre el combo "avanza"
-    Chequia → República Checa
-
-Change Chequia to República Checa in config.js
-
-Ahora el cambio en R32 — la nota sobre el combo "avanza":
-Ran 2 commands
-
-Ahora el cambio más importante: la vista previa de clasificados antes del confirm. Necesito modificar confirmSendStage para que cuando es grupos, primero muestre la tabla de clasificados y luego el botón de confirmar:
-Ran 3 commands
-
-Todo correcto. Copio los archivos modificados:
-Ran a command, read a file
-
-Los tres cambios aplicados:
-
-1. Vista previa de clasificados (el más importante) Cuando el usuario aprieta "Confirmar grupos y armar R32", ahora en lugar de ir directo al modal de confirmación, primero aparece un modal con la tabla completa de los 12 grupos, mostrando para cada equipo su posición (1°, 2°, 3°, 4°), puntos, diferencia de goles, y un badge claro de si clasifica ✅ o está eliminado ❌. Los 8 mejores terceros también aparecen como "Clasifica (mejor 3ro)" en azul. Solo después de revisar eso se puede apretar "Confirmar y armar R32" o "Volver a editar".
-
-2. Nota en R32 Aparece un texto aclaratorio justo arriba de los cruces: "💡 El combo "Avanza" aparece solo cuando ponés empate en el marcador."
-
-3. Chequia → República Checa Cambiado en config.js donde se define el objeto TEAMS.
-Ui
-JS 
-Config
-JS 
-
-Perecto. Necesito un paso a paso de como hacer el lanzamiento final de cero y no un test de prueba.
-May 30
-
-Para darte el paso a paso exacto, necesito entender un poco mejor cómo está armado el deploy actual.
-Ran 5 commands
-
-Tengo todo lo que necesito. El proyecto es un sitio estático (4 archivos: index.html, config.js, core.js, ui.js) con Supabase como backend. Acá va el paso a paso completo de lanzamiento de cero:
-Check frontend design skill
-
-V
-Connecting to visualize...
-
-Eso es todo el flujo. Un par de cosas importantes a tener en cuenta:
-
-El paso más crítico es el TRUNCATE + el INSERT del results. Si no insertás la fila de results con id=1 después de vaciar, la app explota al querer cargar resultados porque busca esa fila y no la encuentra.
-
-El orden importa: primero subís los archivos, después entrás vos para que se cree tu perfil, y recién ahí te hacés admin por SQL. No al revés, porque si te marcás admin antes de tener perfil no existe la fila para actualizar.
-
-¿Tenés Netlify ya conectado a GitHub o estás haciendo deploy manual?
-
-Esta armado en Vercel no sé que es Netfly
-May 30
-
-Perfecto, cambiamos Netlify por Vercel — el flujo es prácticamente igual. El paso 5 queda así:
-
-Si Vercel está conectado a GitHub (lo más probable): cada vez que hacés un commit al repo, Vercel detecta el cambio y despliega automáticamente. Entrás a vercel.com → tu proyecto → pestaña Deployments y confirmás que el último dice Ready (tarda menos de un minuto).
-
-Si no está conectado: entrás a vercel.com, importás el proyecto desde GitHub manualmente la primera vez, y de ahí en adelante queda automático.
-
-El resto del paso a paso es idéntico — Supabase, archivos, admin y apertura no cambian en nada.
-
-¿Querés que actualice el visual con Vercel en lugar de Netlify, o con eso alcanza?
-
-Sí. Vos me propusiste hacerlo en vercel desde el comienzo. nevcesito el paso a paso con todos los archivos para escargar.
-May 30
-Ran 2 commands, read a file
-
-Ahí están los 4 archivos finales para descargar. Y acá el paso a paso completo con Vercel:
-
-V
-Connecting to visualize...
-
-Los 4 archivos están listos para descargar arriba. El orden crítico es ese: primero limpiás Supabase, después subís los archivos a GitHub, y recién cuando Vercel muestra "Ready" entrás vos primero para crear tu perfil y hacerte admin. Si te hacés admin antes de entrar al sitio, no existe la fila en profiles y el UPDATE no encuentra nada.
-Index
-Code · HTML 
-Config
-JS 
-Core
-JS 
-Ui
-JS 
-
-Paso 2 veo esto. Estamos OK?
-May 30
-
-Sí, perfecto. Eso es exactamente lo que tiene que aparecer:
-
-    id = 1 ✅
-    main, extra, wasabi, picada todos en {} (vacíos) ✅
-    updated_at con fecha de hoy ✅
-
-La tabla results está lista. Seguí con el paso 3 — subir los archivos a GitHub.
-
-Necesito agregar todos estos mails a la vez:
-Prattagan@hotmail.com
-mborderes@hotmail.com
-agustin.richards@gmail.com
-franciscosambrizzi@gmail.com
-Nicolas@laharrague.com
-metcheverri@gmail.com
-juansetchart@yahoo.com.ar
-Damiancavanagh79@gmail.com
-Ebanca@gmail.com
-Mmedinger@gmail.com
-Mroribas@gmail.com
-
-Y este mail como admin:
-comisionprode@gmail.com
-May 30
-
-Dos scripts para correr en Supabase SQL Editor, uno tras otro:
-
-Primero los jugadores:
-sql
-
-INSERT INTO allowed_emails (email) VALUES
-('prattagan@hotmail.com'),
-('mborderes@hotmail.com'),
-('agustin.richards@gmail.com'),
-('franciscosambrizzi@gmail.com'),
-('nicolas@laharrague.com'),
-('metcheverri@gmail.com'),
-('juansetchart@yahoo.com.ar'),
-('damiancavanagh79@gmail.com'),
-('ebanca@gmail.com'),
-('mmedinger@gmail.com'),
-('mroribas@gmail.com');
-
-Después el admin:
-sql
-
-INSERT INTO allowed_emails (email) VALUES ('comisionprode@gmail.com');
-
-Una vez que entre al sitio con ese mail, corré esto para hacerlo admin:
-sql
-
-UPDATE profiles SET is_admin = true WHERE email = 'comisionprode@gmail.com';
-
-Los emails los normalicé todos a minúsculas — la app los compara en minúsculas así que es importante que estén así en la base.
-
-?Cómo reviso que estén todos ok?
-May 30
-
-En Supabase → SQL Editor corré esto:
-sql
-
-SELECT email FROM allowed_emails ORDER BY email;
-
-Te tiene que aparecer una lista con los 12 emails (11 jugadores + el admin). Verificás que estén todos y que ninguno tenga errores de tipeo.
-
-Me aparecen s´ølo estos.
-May 30
-
-Solo aparecen 4 de 12 — el INSERT principal no corrió bien. Fijate también que mroribas@gmail.com quedó como mroribasmt@gmail.com, está mal.
-
-Corré este script que agrega los que faltan y corrige el error:
-sql
-
--- Corregir el que quedó mal
-UPDATE allowed_emails SET email = 'mroribas@gmail.com' WHERE email = 'mroribasmt@gmail.com';
-
--- Agregar los que faltan
-INSERT INTO allowed_emails (email) VALUES
-('prattagan@hotmail.com'),
-('mborderes@hotmail.com'),
-('agustin.richards@gmail.com'),
-('franciscosambrizzi@gmail.com'),
-('nicolas@laharrague.com'),
-('metcheverri@gmail.com'),
-('juansetchart@yahoo.com.ar'),
-('damiancavanagh79@gmail.com');
-
-Después volvé a correr SELECT email FROM allowed_emails ORDER BY email; para confirmar que están los 12.
-
-Lancé todo de cero, entré y veo más jugadores. Yo soy Truman. El resto era jugadores de prueba en versiones anteriores. 
-Y tampoco entiendo por qué aparecemos en zonas distintas si todos tenemos puntaje 0.
-May 30
-
-Dos temas:
-
-Los jugadores de prueba — quedaron perfiles viejos en la tabla profiles. Corré esto en SQL Editor para borrar solo los que no son reales:
-sql
-
-DELETE FROM profiles WHERE email NOT IN (SELECT email FROM allowed_emails);
-
-Eso limpia cualquier perfil que no esté en tu lista de emails habilitados.
-
-Las zonas con todos en 0 — es normal por diseño. Las zonas (La Élite, Midfield, Zona de Pobreza) se calculan por posición relativa, no por puntaje absoluto. Con 3 jugadores el sistema los divide igual aunque todos tengan 0. Cuando haya más jugadores y puntos reales, las zonas van a tener más sentido. No hay nada roto.
-
-Corré el DELETE y contame cuántos perfiles quedan.
-
-Quedó el Perfil de Penk que no debería figurar ya que no se hizo usuario en el nuevo deploy. Su mail es mmedinger@gmail.com. Va a ser un jugador en el prode real y era uno en el prode de prueba. Pero acá no debería figurar.
-May 30
-
-Claro, el problema es que mmedinger@gmail.com está en allowed_emails, entonces el DELETE anterior no lo tocó. Ese perfil es un remanente del prode de prueba que no se limpió bien.
-
-Borralo directamente:
-sql
-
-DELETE FROM profiles WHERE email = 'mmedinger@gmail.com';
-
-Cuando Penk entre al sitio con su mail se crea su perfil nuevo y limpio, como si fuera la primera vez.
-
-Todo impecable. Listo para lanzar. Armame un texto copado y corto para mandar por whatsapp donde se explique bien cómo se loguean, tarjetas a cargar y demás. Bien cortito. Está muy claro en la app.
-May 30
-
-Acá va:
-
-🌶️ PINGÜIPRODE MUNDIAL 2026 🏆
-
-El prode está abierto. Tienen hasta el 11 de junio para cargar sus tarjetas.
-
-Cómo entrar:
-
-    Abrí el link 👉 [URL del sitio]
-    Poné tu mail y te llega un código para entrar (sin contraseña)
-    Listo
-
-Qué cargar: 🟦 Tarjeta Principal — el cuadro completo del Mundial: fase de grupos, clasificados y toda la eliminatoria hasta la final 🌶️ Tarjeta Wasabi — las preguntas especiales del prode
-
-Las dos tarjetas se cierran solas el 11 de junio. Una vez enviadas, no se pueden editar.
-
-Todo lo demás está explicado en la app. Cualquier duda, me preguntan.
-
-¡Que gane el mejor! 🇦🇷
-
-Reemplazá [URL del sitio] con el link de Vercel y ya está. ¿Querés que ajuste el tono o agregue algo?
-
-Perfecto. Haceme una versión con más emoción. POné quién es la comisión sacándo el texto del footer de la app
-May 30
-
-Déjame leer el footer de la app:
-Ran 3 commands
-
-Joya, acá va:
-
-🔥 SE ABRE EL PINGÜIPRODE MUNDIAL 2026 🔥🏆🇦🇷
-
-Llegó el momento. El prode más competitivo, más injusto y más divertido del grupo está oficialmente abierto. Tienen hasta el 11 de junio para dejar todo cargado.
-
-Cómo entrar:
-
-    Abrí el link 👉 [URL del sitio]
-    Ponés tu mail → te llega un código → entrás. Sin contraseña, sin dramas.
-
-Qué cargar: 🟦 Tarjeta Principal — el cuadro completo: grupos, clasificados y toda la eliminatoria hasta la final 🌶️ Tarjeta Wasabi — las preguntas que nos van a hacer sufrir partido a partido
-
-Las tarjetas se cierran solas el 11 de junio. Después de eso, no hay excusas.
-
-El premio: Copa + camiseta de la Selección 🏆🎽 El bono: $50.000 💸
-
-Suerte a todos. La van a necesitar.
-
-— La Comisión Prode (COMIPRO) 🏛️ Presidente: Pinki Tapia · Secretario: Claude Tapia · El Mago del Kremlin: M. Infantino · Tesorero: E. Tiviggino
-
-¿Algún ajuste antes de mandarlo?
-
-Perdón es una Apple MacBook (modelo A1534)
-May 30
-
-No entendí a qué hace referencia esto, ¿me das más contexto? ¿Es algo relacionado al proyecto o lo mandaste al chat equivocado? 😄
-
-Tengo un problema. Después de cargar el primer grupo me tira este error.
-May 30
-
-El error dice que la columna bracket no existe en la tabla predictions de Supabase. Hay que crearla. Corré esto en SQL Editor:
-sql
-
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bracket JSONB DEFAULT '{}';
-
-Después recargá la app y probá confirmar de nuevo.
-May 30
-
-Faltan varias columnas. Agregalas todas de una sola vez:
-sql
-
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS bracket JSONB DEFAULT '{}';
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS stages_sent JSONB DEFAULT '{}';
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS locked JSONB DEFAULT '{}';
-
-Recargá la app y probá de nuevo.
-May 30
-
-El problema es que sent_at está definida como TIMESTAMPTZ pero la app le manda un objeto JSON con las fechas por etapa (ej: {"grupos":"2026-05-30T20:12:06.846Z"}). Hay que cambiarla a JSONB:
-sql
-
-ALTER TABLE predictions DROP COLUMN sent_at;
-ALTER TABLE predictions ADD COLUMN sent_at JSONB DEFAULT '{}';
-
-Recargá y probá de nuevo.
-
-Necesito resetear al jugador mroribas@gmail.com para que pueda seguir cargando su tarjeta principal
-May 30
-
-Corré esto en SQL Editor:
-sql
-
-UPDATE predictions SET 
-  main = '{}',
-  bracket = '{}',
-  stages_sent = '{}',
-  locked = '{}',
-  sent_at = '{}'
-WHERE email = 'mroribas@gmail.com';
-
-Eso le borra todo lo que tenía cargado y puede empezar de cero con la tarjeta principal. Si también querés resetearle la wasabi y la extra, avisame.
-
-Necesito resetear la posibilidad de carga pero sin borrar lo que ya cargó.
-May 30
-
-Entonces solo hay que limpiar los flags de envío, sin tocar los datos:
-sql
-
-UPDATE predictions SET 
-  stages_sent = '{}',
-  locked = '{}',
-  sent_at = '{}'
-WHERE email = 'mroribas@gmail.com';
-
-Así puede volver a editar y reenviar, pero todo lo que ya cargó sigue intacto.
-May 30
-
-La tabla predictions no tiene columna email, usa user_id. Necesitamos buscar el id del usuario primero:
-sql
-
-UPDATE predictions SET 
-  stages_sent = '{}',
-  locked = '{}',
-  sent_at = '{}'
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'mroribas@gmail.com');
-
-May 30
-
-La columna locked es booleana, no JSONB. Corré esto:
-sql
-
-UPDATE predictions SET 
-  stages_sent = '{}',
-  locked = false,
-  sent_at = '{}'
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'mroribas@gmail.com');
-
-Aún no empezó el mundial y Penk ya aparece con 16 puntos en wasabi. ¿Por qué es eso?
-Jun 2
-
-Eso pasa porque Penk completó la tarjeta Wasabi y tiene preguntas de tipo bonus que se asignan automáticamente (las que dijiste que "se completan solas"). Esos puntos se cuentan aunque el Mundial no haya empezado.
-
-Verificalo en SQL Editor:
-sql
-
-SELECT wasabi FROM predictions 
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'mmedinger@gmail.com');
-
-Así ves exactamente qué tiene cargado. Si los puntos bonus no deberían contarse hasta que empiece el torneo, es un ajuste en la lógica de scoring del core.js. ¿Querés que lo revisemos?
-
-Revisemos eso. Los puntos bonus se suman al final del mundial cuando se carguen esas respuestas.
-Jun 2
-
-Déjame ver cómo se calculan los puntos de wasabi en el core:
-Ran 4 commands
-
-Ahora entiendo todo. Los puntos bonus se asignan cuando res["bonus_"+q.id] === uid, es decir cuando vos desde Admin cargás quién ganó ese bonus. El problema es que Penk ya tiene 16 puntos de wasabi sin ser bonus — son preguntas regulares que ya tienen respuesta correcta cargada en results.wasabi. Verificalo:
-Check the non-bonus wasabi scoring condition
-
-La lógica está bien — solo suma si res[q.id] tiene valor. Entonces el problema es que en tu tabla results.wasabi hay respuestas cargadas de las pruebas anteriores. Verificalo y limpialo:
-sql
-
--- Ver qué hay cargado en results wasabi
-SELECT wasabi FROM results WHERE id = 1;
-
-Si aparece algo distinto de {}, limpialo con:
-sql
-
-UPDATE results SET wasabi = '{}' WHERE id = 1;
-
-Eso debería bajar los puntos de Penk a 0 instantáneamente.
-
-¿en dónde tengo que correr ese código?
-Jun 2
-
-En Supabase → SQL Editor, igual que todos los queries anteriores. Pegás el SELECT primero para ver qué hay, y si aparece algo distinto de {} corrés el UPDATE.
-
-Hice ese cambio y ahora no abre la app.
-Jun 2
-
-Corré esto para ver qué tiene la tabla results ahora:
-sql
-
-SELECT * FROM results WHERE id = 1;
-
-Y mandame una captura de lo que aparece.
-
-El jugador juansetchart@yahoo.com.ar cargó la tarjeta wasabi y le apareció este error.
-Jun 4
-
-Son dos problemas separados. Vamos por orden:
-
-1. La app que no abre — probablemente el UPDATE de results borró algo que la app necesita. Corré esto:
-sql
-
-SELECT * FROM results WHERE id = 1;
-
-Mandame la captura para ver qué quedó.
-
-2. El error de Juan — row-level security policy for table "predictions" significa que no tiene fila propia en predictions todavía. Corré esto para crearla:
-sql
-
-INSERT INTO predictions (user_id)
-VALUES ((SELECT id FROM profiles WHERE email = 'juansetchart@yahoo.com.ar'))
-ON CONFLICT DO NOTHING;
-
-Empezá por el SELECT de results para ver qué pasó con la app.
-Jun 4
-
-El problema está en la columna extra — tiene datos ({"third":"","cha...}) que son de prueba y probablemente están malformados o la app no los espera así. wasabi y main están bien en {}.
-
-Corré esto para limpiar solo el extra:
-sql
-
-UPDATE results SET extra = '{}' WHERE id = 1;
-
-Después recargá la app y contame si abre.
-
-Esperá. Estoy viendo que puso un nombre de usuario con espacio y caracteres especiales. Puede ser eso?
-Jun 4
-
-Sí, puede ser un factor pero no debería romper la app — los nombres de display son solo texto. El problema de que no abría era el extra con datos malformados.
-
-¿La app abre ahora después del UPDATE de extra?
-
-UPDATE results SET extra = '{}' WHERE id = 1;
-Jun 4
-
-¿Lo corriste ya en SQL Editor y la app sigue sin abrir, o todavía no lo corriste?
-
-Hice todo lo que me dijiste. ¿Le digoq ue pruebe ahora?
-Jun 4
-
-Sí, decile que recargue la página y pruebe entrar de nuevo. Si sigue con error que te mande una captura.
-
-EL judaor me dice: Maestro! Ahi hice el reseteo y me sigue tirando el mismo error. Puede el COMIPRO simplificar mi nombre, x ejemplo sacando el (5) y ahí vuelvo a probar mañana? Gracias!
-Jun 4
-
-Corré esto en SQL Editor:
-sql
-
-UPDATE profiles SET display_name = 'Lagarto Juancho' 
-WHERE email = 'juansetchart@yahoo.com.ar';
-
-Y decile que recargue y pruebe de nuevo. El error de RLS de predictions igual sigue pendiente — ¿corriste el INSERT que te pasé antes para crearle la fila?
-
-Si
-Jun 4
-
-Entonces el problema del RLS persiste. Corré esto para verificar que la fila se creó bien:
-sql
-
-SELECT * FROM predictions 
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'juansetchart@yahoo.com.ar');
-
-¿Aparece una fila o nada?
-
-Completé yo la wasabi y me tira el mismo error.
-Jun 4
-
-El problema es la política RLS de Supabase que bloquea inserts desde la app. Corré esto para ver las políticas actuales:
-sql
-
-SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'predictions';
-
-Mandame la captura para ver qué políticas tiene la tabla y lo arreglamos.
-Jun 4
-
-El problema está claro. La política pd_insert_own tiene qual = NULL — eso significa que el WITH CHECK está vacío y Supabase bloquea todos los inserts. Hay que corregirla:
-sql
-
-DROP POLICY pd_insert_own ON predictions;
-CREATE POLICY pd_insert_own ON predictions
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-Después recargá la app y probá enviar de nuevo.
-
-DROP POLICY pd_insert_own ON predictions;
-CREATE POLICY pd_insert_own ON predictions
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-Jun 4
-
-¿Lo corriste ya? ¿Qué resultado te dio?
-
-Success
-Jun 4
-
-Perfecto. Ahora probá enviar la tarjeta Wasabi de nuevo desde la app y contame si pasa el error o funciona.
-Jun 4
-
-Sigue fallando. El problema es que la app intenta hacer un INSERT pero el jugador ya tiene fila en predictions — debería hacer un UPDATE. Verifiquemos qué está pasando exactamente en el código:
-Find how predictions are saved in core.js
-
-El problema está en la línea 65 — cuando no encuentra fila para el usuario, intenta hacer un INSERT. La política nueva lo permite, pero la fila ya existe en algunos casos y en otros no. El fix más sólido es cambiar el INSERT por un UPSERT:
-Ran 2 commands
-
-También necesitamos agregar la política de UPSERT en Supabase. Corré esto en SQL Editor:
-sql
-
-CREATE POLICY pd_upsert_own ON predictions
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-Espera — ya tenemos pd_insert_own con eso. El problema real puede ser que falta habilitar el upsert a nivel RLS. Corré esto:
-sql
-
-ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS pd_insert_own ON predictions;
-CREATE POLICY pd_insert_own ON predictions
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-Luego copio el core.js actualizado:
-Ran a command, read a file
-
-Dos cosas para hacer en orden:
-
-1. En Supabase SQL Editor:
-sql
-
-ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS pd_insert_own ON predictions;
-CREATE POLICY pd_insert_own ON predictions
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-2. Subí el core.js nuevo a GitHub — cambié el INSERT por UPSERT para que nunca choque con filas existentes.
-
-Después recargá y probá.
-Core
-JS 
-
-Corrí el código, reemplacé el cor.js en supbase y continúa el mismo error.
-Jun 4
-
-Déjame ver exactamente qué pasa cuando la app intenta guardar. Corré esto en SQL Editor para ver si el usuario tiene fila en predictions:
-sql
-
-SELECT p.user_id, pr.email, p.wasabi
-FROM predictions p
-JOIN profiles pr ON pr.id = p.user_id
-ORDER BY pr.email;
-
-Mandame la captura para ver quién tiene fila y quién no.
-Jun 4
-
-Todos tienen fila en predictions, así que el INSERT no debería estar fallando. El problema entonces es otro — la app está intentando hacer un INSERT nuevo en lugar de un UPDATE porque el core.js viejo todavía está en Vercel.
-
-Confirmame: ¿subiste el core.js nuevo a GitHub (y Vercel lo deployó) o lo subiste a Supabase? Porque Supabase no tiene nada que ver con el core.js — ese archivo vive en Vercel.
-
-Como hago un redeplu en vercel? Me faltó eso.
-Jun 4
-
-Igual que antes — todo pasa por GitHub:
-
-    Abrí tu repositorio en github.com
-    Buscá el archivo core.js y hacé clic en el ícono del lápiz (editar)
-    Borrá todo el contenido y pegá el contenido del core.js nuevo que descargaste
-    Abajo ponés un mensaje tipo "fix upsert predictions" y hacés clic en Commit changes
-
-Vercel detecta el commit automáticamente y despliega en menos de un minuto. Cuando en Vercel → Deployments aparezca Ready, recargá la app y probá.
-Jun 4
-
-Sigue el mismo error. El upsert no alcanza porque el problema es la política RLS del UPDATE, no del INSERT. Fijate que la política pd_update_unlocked requiere locked = false, pero cuando la fila se creó desde SQL el campo locked puede ser NULL en lugar de false.
-
-Corré esto para corregir todos los NULLs:
-sql
-
-UPDATE predictions SET locked = false WHERE locked IS NULL;
-
-Después probá enviar de nuevo.
-
-Persiste el error
-Jun 4
-
-Vamos a hacer un diagnóstico más profundo. Corré esto:
-sql
-
-SELECT p.user_id, pr.email, p.locked, p.sent_at, p.stages_sent
-FROM predictions p
-JOIN profiles pr ON pr.id = p.user_id
-WHERE pr.email = 'comisionprode@gmail.com';
-
-Mandame la captura.
-Jun 4
-
-comisionprode@gmail.com no tiene fila en predictions. Por eso falla — intenta hacer UPDATE pero no hay nada que actualizar, entonces cae al INSERT que choca con RLS. Creala manualmente:
-sql
-
-INSERT INTO predictions (user_id, locked)
-VALUES (
-  (SELECT id FROM profiles WHERE email = 'comisionprode@gmail.com'),
-  false
-);
-
-Después probá enviar de nuevo.
-
-Pero mi usuario es mroribas@gmail
-Y el otro usuario que no puede tiene otro mail.
-Jun 4
-
-Perdón, confundí los usuarios. Corré esto para crear la fila a los que les falta — lo hacemos para todos de una sola vez y nos evitamos el problema para cualquier jugador nuevo:
-sql
-
-INSERT INTO predictions (user_id, locked)
-SELECT id, false FROM profiles
-WHERE id NOT IN (SELECT user_id FROM predictions)
-ON CONFLICT DO NOTHING;
-
-Eso crea la fila a cualquier jugador que no la tenga. Probá enviar de nuevo después.
-
-Me parece que ningún usuario está pudiendo cargar la wasabi.
-Jun 4
-
-Tiene sentido — el problema es global. Corré el INSERT masivo que te pasé y después avisales a todos que recarguen y prueben.
-
-¿Ya lo corriste o necesitás que te lo repita?
-
-Sigue el error
-Jun 4
-
-Vamos a ver exactamente qué está pasando. Corré esto:
-sql
-
-SELECT pr.email, p.user_id, p.locked
-FROM predictions p
-JOIN profiles pr ON pr.id = p.user_id
-ORDER BY pr.email;
-
-Mandame la captura para ver si todos tienen fila y qué valor tiene locked.
-Jun 4
-
-Todos tienen fila y locked = false. El problema entonces no es de datos sino de la política RLS del UPDATE. La política pd_update_unlocked tiene esta condición:
-sql
-
-(user_id = auth.uid()) AND (locked = false)
-
-El problema es que cuando la app intenta hacer el UPDATE de wasabi, Supabase también verifica el WITH CHECK — y si el resultado del update haría que locked cambie, puede bloquearlo. Vamos a reemplazar esa política por una más permisiva:
-sql
-
-DROP POLICY pd_update_unlocked ON predictions;
-CREATE POLICY pd_update_own ON predictions
-  FOR UPDATE
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
-
-Corré eso y probá de nuevo.
-
-Bien. Funcionó.
-Jun 4
-
-Perfecto, por fin. El problema era la política RLS del UPDATE que era demasiado restrictiva.
-
-Para que quede documentado, el esquema final de políticas que funciona en la tabla predictions es:
-
-    pd_admin_all — admin puede todo
-    pd_insert_own — cada usuario puede insertar solo su fila
-    pd_read_own — cada usuario lee solo su fila
-    pd_update_own — cada usuario puede actualizar solo su fila (sin restricción de locked)
-
-¿Hay algo más que necesites o seguimos con el lanzamiento?
-
-Cuando un jugador carga sus tarjetas se va guardando lo que va cargando pero el problema es que no lo deja cambiar eso que ya cargó la primera vez. Aunque aún no haya apretado el botón de confirmar y cerrar la tarjeta.
-Jun 4
-
-Déjame ver cómo funciona el guardado automático en el código:
-Ran 2 commands
-
-El problema está claro. En setPred (línea 305) verifica cardSent(card) — si la tarjeta fue enviada, bloquea. Pero el problema que describís es diferente: el jugador no envió pero igual no puede editar. Verifiquemos qué devuelve cardSent:
-Ran 2 commands
-
-Encontré el problema. cardSent devuelve true si APP.myPred.locked = true — y eso bloquea la edición aunque no hayas enviado esa tarjeta puntual.
-
-El problema viene de acá: cuando el jugador envió la wasabi, el código marca locked = true si ambas tarjetas están enviadas. Pero si locked quedó en true por algún motivo en las pruebas anteriores, bloquea todo.
-
-Corré esto para desbloquear a todos:
-sql
-
-UPDATE predictions SET locked = false, sent_at = '{}', stages_sent = '{}';
-
-Eso resetea todos los flags de envío para todos los jugadores. Los datos que cargaron (wasabi, main) no se tocan.
-
-me borró todo lo que cargúe de la R32 en adelante 🤪
-Jun 4
-
-Uy, perdón — el sent_at y stages_sent vacíos hicieron que la app pierda el estado de la R32. Los datos del bracket siguen en la base, solo se perdió el tracking de qué etapas estaban confirmadas.
-
-Corré esto para ver qué tenés guardado:
-sql
-
-SELECT pr.email, p.bracket, p.stages_sent, p.sent_at
-FROM predictions p
-JOIN profiles pr ON pr.id = p.user_id
-WHERE pr.email = 'mroribas@gmail.com';
-
-Mandame la captura para ver si el bracket sigue intacto y lo recuperamos.
-
-EL usuario con problemas era mmedinger
-Jun 4
-
-El bracket de Penk tiene {"qf":[],"sf":[]} — está casi vacío, solo tiene la estructura pero sin datos. Y sent_at tiene {"grupos":"2026-... lo que significa que confirmó grupos pero la R32 en adelante no tiene nada guardado.
-
-Básicamente el bracket se perdió. Va a tener que volver a cargar la R32 en adelante.
-
-Lo que sí podemos hacer es restaurarle el estado correcto para que la app lo deje continuar desde la R32:
-sql
-
-UPDATE predictions SET 
-  stages_sent = '{"grupos": true}',
-  sent_at = (SELECT sent_at FROM predictions WHERE user_id = (SELECT id FROM profiles WHERE email = 'mmedinger@gmail.com'))
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'mmedinger@gmail.com');
-
-Pero antes de correr eso — ¿el sent_at que aparece en la captura tiene la fecha completa de grupos? Necesito verla entera. ¿Podés agrandar esa celda o hacer click en la fila para ver el contenido completo?
-
-Uhh ya corrí este código:
-UPDATE predictions SET 
-  stages_sent = '{"grupos": true}',
-  sent_at = (SELECT sent_at FROM predictions WHERE user_id = (SELECT id FROM profiles WHERE email = 'mmedinger@gmail.com'))
-WHERE user_id = (SELECT id FROM profiles WHERE email = 'mmedinger@gmail.com');
-Jun 4
-
-No hay drama, ese código no cambió nada importante — solo seteó stages_sent con grupos=true, que es correcto.
-
-El problema real es que el bracket de Penk está vacío y va a tener que cargarlo de nuevo. Decile que entre a la app, debería ver la R32 disponible para cargar desde cero.
-
-¿Entra bien o le sigue tirando algún error?
-
-¿Por qué Truman aparece con puntos wasabi?  Todos los jugadores deberían estar en 0 hasta que empiece el mundial.
-Jun 4
-
-Es el mismo problema de antes — vos (Truman) tenés respuestas cargadas en wasabi que coinciden con valores en results.wasabi. Corré esto para verificar:
-sql
-
-SELECT wasabi FROM results WHERE id = 1;
-
-Si aparece algo distinto de {}, limpialo con:
-sql
-
-UPDATE results SET wasabi = '{}' WHERE id = 1;
-
-Los resultados reales se cargan recién cuando empiece el Mundial, así que results.wasabi tiene que estar vacío hasta entonces.
-
-UPDATE results SET wasabi = '{}' WHERE id = 1;
-Jun 4
-
-¿Lo corriste y funcionó? ¿Truman ahora aparece en 0?
-
-Sigo apareciendo con 34 puntos
-Jun 4
-
-Corré esto para ver exactamente qué tiene results ahora:
-sql
-
-SELECT wasabi, extra, main FROM results WHERE id = 1;
-
-Mandame la captura.
-Jun 4
-
-results está todo vacío — el problema no viene de ahí. Los 34 puntos de wasabi se están calculando de otra manera.
-
-Déjame ver el código de scoring más en detalle:
-Read autoWasabiAnswers and wasabiTotal functions
-
-Encontré el problema. Las preguntas w5, w6, w7, w8 se calculan automáticamente comparando posiciones en la tabla — y vos (Truman) estás primero en la tabla con 0 puntos pero sos el único con wasabi cargada, entonces autoWasabiAnswers te pone como el que acertó w5 (1° puesto) y te suma puntos.
-
-El problema es que estas preguntas no deberían calcularse hasta que el Mundial esté avanzado y haya puntajes reales. La solución es que autoWasabiAnswers devuelva vacío si todos tienen 0 puntos:
-Ran 2 commands, read a file
-
-Subí este core.js a GitHub para que Vercel lo despliegue. El fix es simple: si el puntaje máximo de todos los jugadores es 0, las preguntas w5-w8 no se calculan y devuelven vacío. Una vez que empiece el Mundial y haya puntos reales, empiezan a funcionar.
-Core
-JS 
-
-Sigo apareciendo con 34
-Jun 4
-
-El core.js nuevo todavía no está en Vercel. ¿Ya lo subiste a GitHub?
-
-Listo. Ahí estamos todo sen cero.
-Jun 4
-
-Perfecto, todo en orden. 🎉
-
-Ahora sí el prode está listo para el lanzamiento — todos en 0, base limpia, y los puntos van a empezar a moverse cuando empiece el Mundial el 11 de junio. ¿Necesitás algo más?
-
-¿No hay forma de que todos estemos en zona de pobreza ya que aún no ha comenzado el mundial y estamos todos con 0 puntos?
-3:33 PM
-
-Tiene sentido — con todos en 0 no tiene lógica dividir en zonas. La solución más limpia es que cuando todos tienen 0 puntos, no se muestren las zonas y aparezca un solo bloque con todos.
-
-¿Querés que lo implemente?
-
-dale
-3:33 PM
-Ran 4 commands, read a file
-
-Subí el ui.js a GitHub. Cuando Vercel despliegue, con todos en 0 va a aparecer un solo bloque sin divisiones de zonas. En cuanto alguien sume el primer punto, las zonas vuelven a aparecer automáticamente.
-Ui
-JS 
-
-perfecto. Ahora aparecemos todos y no hay sectores pero estaría bueno que aparezcan los sectores y todos estemos en zona de pobreza. Ya que todos arrancamos de abajo. Y que también se vea que hay zon Midfield y La Elite.
-3:37 PM
-
-Buena idea. Entonces cuando todos tienen 0, mostrar las tres zonas pero con todos en "Zona de pobreza". Lo implemento:
-Ran 3 commands, read a file
-
-Subí el ui.js a GitHub. Cuando Vercel despliegue vas a ver las tres zonas, con La Élite y Midfield mostrando "Sin jugadores todavía" y todos en Zona de Pobreza. En cuanto empiece el Mundial y haya puntos, se distribuyen solos.
-Ui
-JS 
-
-
-Claude is AI and can make mistakes. Please double-check responses.
-Ui · JS
 /* =====================================================================
    PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
@@ -929,7 +10,7 @@ function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><spa
 function isAdmin(){return APP.profile?.is_admin;}
 function modal(html){let m=document.createElement("div");m.className="modal-bg";m.id="modalBg";m.innerHTML=`<div class="modal">${html}</div>`;m.onclick=e=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
 function closeModal(){const m=$("#modalBg");if(m)m.remove();}
- 
+
 /* ---------- BOOT ---------- */
 async function boot(){
   try{
@@ -954,7 +35,7 @@ sb.auth.onAuthStateChange((event,_s)=>{
   if(RECOVERING) return; // ya está en la pantalla de nueva clave, no pisar
   boot();
 });
- 
+
 /* ---------- AUTH ---------- */
 let AUTH_MODE="in"; // 'in' | 'up'
 function renderAuth(){
@@ -1000,7 +81,7 @@ async function forgotPass(){
   const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});
   if(error) toast(traduceError(error),"err"); else toast("Te mandamos un mail para resetear","ok");
 }
- 
+
 /* ---------- NUEVA CONTRASEÑA (al entrar desde el link de reseteo) ---------- */
 function renderResetPassword(){
   app.innerHTML=`<div class="auth-wrap">
@@ -1039,7 +120,7 @@ function traduceError(e){
   if(m.includes("password")) return "La contraseña debe tener al menos 6 caracteres.";
   return e.message||"Algo salió mal";
 }
- 
+
 /* ---------- CREAR PERFIL (primera vez tras confirmar mail) ---------- */
 function renderCreateProfile(){
   app.innerHTML=`<div class="auth-wrap">
@@ -1059,7 +140,7 @@ async function doCreateProfile(){
   try{ await createProfile(n); await loadAll(); render(); toast("¡Perfil creado! 🐧","ok"); }
   catch(e){ toast(traduceError(e),"err"); }
 }
- 
+
 /* ---------- NAV SHELL ---------- */
 function render(){
   app.innerHTML=topbar()+tabsBar()+`<div class="wrap" id="view"></div>`;
@@ -1088,7 +169,7 @@ function menuUser(){
     <button class="btn ghost full" onclick="closeModal();signOut()">Cerrar sesión</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeModal()">Volver</button>`);
 }
- 
+
 /* =====================================================================
    PESTAÑA · INICIO
    ===================================================================== */
@@ -1175,7 +256,7 @@ function renderInicio(v){
     <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2°.<br>
     <span style="color:var(--muted)">Se piden cualquier día de la fase entre las 6 y las 12 (hora argentina) y valen para los partidos de ese día. Ojo: no podés usar ambos en el mismo día.</span></p></div>`;
 }
- 
+
 /* helper input según tipo */
 /* Helpers reutilizables para listas ordenadas */
 // ordena strings respetando acentos y ñ (Á va antes de B; ñ va entre n y o)
@@ -1194,7 +275,7 @@ function playersOnly(){
     return true;
   });
 }
- 
+
 function inputFor(q,val,card,locked){
   const dis=locked?"disabled":"";
   const onCh=`onchange="setPred('${card}','${q.id}',this.value)"`;
@@ -1219,13 +300,13 @@ function inputFor(q,val,card,locked){
 }
 function lockMsg(){return `<div class="lock-banner">🔒 Tarjeta cerrada. No se puede editar.</div>`;}
 function adminHint(ic,txt){return `<div class="card"><div class="empty"><div class="big">${ic}</div>${txt}</div></div>`;}
- 
+
 async function setPred(card,qid,value){
   if(cardSent(card)){ toast("Esta tarjeta ya fue enviada","err"); return; }
   const obj={...(APP.myPred?.[card]||{})}; obj[qid]=value;
   try{ await saveMyPred({[card]:obj}); render(); }catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* =====================================================================
    PESTAÑA · PRINCIPAL
    ===================================================================== */
@@ -1250,7 +331,7 @@ async function ensureDefaults(){
     _prepopulatedDefaults = true;
   }catch(e){ console.warn("No se pudieron poblar defaults:", e.message); }
 }
- 
+
 function renderPrincipal(v){
   if(isAdmin()){ v.innerHTML=adminHint("⚽","Los resultados reales de los partidos se cargan en <b>⚙ Admin → Resultados</b>."); return; }
   const main=APP.myPred?.main||{};
@@ -1276,14 +357,14 @@ function renderPrincipal(v){
   // pre-poblar defaults antes de renderizar (solo la primera vez)
   ensureDefaults().then(()=>prStageArea());
 }
- 
+
 /* Render del área activa según la etapa seleccionada */
 function prStageArea(){
   const area=$("#prArea"); if(!area) return;
   if(PR_PHASE==="grupos"){ return prAreaGrupos(area); }
   return prAreaElim(area, PR_PHASE);
 }
- 
+
 /* ETAPA GRUPOS: 12 grupos siempre visibles (no colapsan) — se pintan de verde al completarse */
 function prAreaGrupos(area){
   const sent=stageSent("grupos"); const main=APP.myPred?.main||{};
@@ -1314,7 +395,7 @@ function prAreaGrupos(area){
   }
   area.innerHTML=`<div class="card">${html}</div>${footer}`;
 }
- 
+
 /* ETAPA ELIMINATORIA (r32, r16, qf, sf, tpfinal) */
 function prAreaElim(area, stage){
   if(!canEnterStage(stage)){
@@ -1361,7 +442,7 @@ function prAreaElim(area, stage){
   }
   area.innerHTML=html+footer;
 }
- 
+
 /* Render de un cruce de eliminatoria con equipos REALES (los del jugador) */
 function bracketMatchRow(m,stage,sent){
   const dis=sent?"disabled":"";
@@ -1383,7 +464,7 @@ function teamByCode(c){
   const t=TEAMS[c]; if(!t) return `<span class="flag">⬜</span><span class="nm">${esc(c)}</span>`;
   return `<span class="flag">${t.f}</span><span class="nm">${esc(t.n)}</span>`;
 }
- 
+
 /* Cuadro de honor (solo se muestra en tpfinal) — puntos ajustados a tu planilla */
 function extrasBlock(locked){
   const ex=APP.myPred?.extra||{}; const dis=locked?"disabled":"";
@@ -1403,7 +484,7 @@ function extrasBlock(locked){
       <div><label class="field">⚽ Balón de bronce (+1)</label>${isel('ball_bronze','3º mejor')}</div>
     </div></div>`;
 }
- 
+
 /* Helpers: cargar marcadores en grupos y en bracket */
 function matchRow(m,p,locked){p=p||{};const dis=locked?"disabled":"";
   const answered = p.h!=null && p.h!=="" && p.a!=null && p.a!=="";
@@ -1431,7 +512,7 @@ async function setBScore(stage,slotId,key,val){
   }
   catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* Confirmación de envío de etapa */
 function confirmSendStage(stage){
   const lbl = STAGE_LABEL[stage];
@@ -1494,7 +575,7 @@ async function doSendStage(stage){
     render(); toast(`${STAGE_LABEL[stage]} enviada 🔒`,"ok");
   }catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* =====================================================================
    PESTAÑA · WASABI
    ===================================================================== */
@@ -1572,7 +653,7 @@ async function doSendCard(card){
   try{ await sendCard(card); closeModal(); render(); toast("Tarjeta enviada y cerrada 🔒","ok"); }
   catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* =====================================================================
    PESTAÑA · TABLA  (privacidad: NO muestra respuestas ajenas)
    ===================================================================== */
@@ -1608,10 +689,11 @@ function standingsTableHTML(opts){
   let lastZone=null, out="";
   // Si todos en 0, mostrar las tres zonas vacías primero excepto pobreza que tiene todos
   if(allZero){
+    const emptyRow = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0;font-style:italic">Sin jugadores aún</td></tr>';
     out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band elite"></span>${ZONE_LABELS["elite"]}</td></tr>`;
-    out+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0;font-style:italic">Sin jugadores todavía</td></tr>`;
+    out+=emptyRow;
     out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band midfield"></span>${ZONE_LABELS["midfield"]}</td></tr>`;
-    out+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0;font-style:italic">Sin jugadores todavía</td></tr>`;
+    out+=emptyRow;
     out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band pobreza"></span>${ZONE_LABELS["pobreza"]}</td></tr>`;
   }
   tb.forEach(r=>{
@@ -1643,14 +725,14 @@ function standingsTableHTML(opts){
       ${out}
     </table></div>${glos}`;
 }
- 
+
 function renderTabla(v){
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Tabla general</div>
     <p class="note">Posiciones y puntajes de todos. Las flechas muestran cuánto subió o bajó cada uno desde la fecha anterior. Las respuestas de cada jugador son privadas: solo ves las tuyas.</p>
     ${standingsTableHTML({inline:false})}</div>
     <p class="note" style="text-align:center;margin-top:12px">🔒 No se pueden ver los pronósticos de los demás (ni los tuyos los ven ellos).</p>`;
 }
- 
+
 /* =====================================================================
    PESTAÑA · COMODINES
    ===================================================================== */
@@ -1684,7 +766,7 @@ function renderComodines(v){
 }
 function nameOf(uid){ return APP.profiles.find(p=>p.id===uid)?.display_name||"?"; }
 async function delComo(id){ await sb.from('comodines').delete().eq('id',id); await loadAll(); render(); toast("Comodín eliminado"); }
- 
+
 function openSang(preTarget){
   const tb=standings(); const me=tb.find(r=>r.id===APP.user.id);
   if(!me) return toast("No estás en la tabla.","err");
@@ -1721,7 +803,7 @@ async function confirmNitro(){
   try{ await requestComodin("nitro",null); closeModal(); render(); toast("Nitro activado 🔥","ok"); }
   catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* =====================================================================
    PESTAÑA · REGLAMENTO
    ===================================================================== */
@@ -1736,7 +818,7 @@ function renderReglamento(v){
     <details class="fold"><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
     <details class="fold"><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>`;
 }
- 
+
 /* =====================================================================
    PESTAÑA · ADMIN (COMIPRO)
    ===================================================================== */
@@ -1793,7 +875,7 @@ async function setRes(id,k,val){
   try{ await adminSaveResults({main}); toast("Resultado guardado","ok"); if(k!=="pen"&&ADM_PHASE!=="grupos") admResultados($("#admArea")); }catch(e){ toast(e.message,"err"); }
 }
 async function setResExtra(k,val){ const extra={...(APP.results.extra||{})}; extra[k]=val; try{ await adminSaveResults({extra}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
- 
+
 function admWasabi(area){
   const res=APP.results.wasabi||{};
   // las preguntas 5-8 se calculan automáticamente (punto 27) — NO se cargan acá
@@ -1830,7 +912,7 @@ function admWasabi(area){
   area.innerHTML=html;
 }
 async function setResWas(id,val){ const wasabi={...(APP.results.wasabi||{})}; wasabi[id]=val; try{ await adminSaveResults({wasabi}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
- 
+
 async function admMails(area){
   const list=await adminListEmails();
   area.innerHTML=`<div class="card"><div class="sec-title">Mails habilitados</div>
@@ -1841,7 +923,7 @@ async function admMails(area){
   </div>`;
 }
 async function addMail(){ const m=$("#newMail").value.trim(); if(!m)return; try{ await adminAddEmail(m); toast("Mail habilitado","ok"); admMails($("#admArea")); }catch(e){ toast(e.message,"err"); } }
- 
+
 function admJugadores(area){
   area.innerHTML=`<div class="card"><div class="sec-title">Jugadores · estado de pago</div>
     <p class="note">Marcá quién pagó el bono de $${REGLAMENTO_2026.bono.toLocaleString('es-AR')}. Solo vos (COMIPRO) ves y editás esto.</p>
@@ -1849,7 +931,7 @@ function admJugadores(area){
       <button class="btn sm ${hasPaid(p.id)?'primary':'ghost'}" onclick="togglePaid('${p.id}',${!hasPaid(p.id)})">${hasPaid(p.id)?'✅ Pagó':'Marcar pago'}</button></div>`).join("")}</div></div>`;
 }
 async function togglePaid(uid,val){ try{ await adminSetPaid(uid,val); renderAdmin($("#view")); }catch(e){ toast(e.message,"err"); } }
- 
+
 /* ---------- ADMIN: ver/editar tarjetas de jugadores (con bitácora) ---------- */
 let ADM_VIEWUID="";
 function admTarjetas(area){
@@ -1908,7 +990,7 @@ async function doAdminEdit(uid,card,field,value){
   try{ await adminEditPred(uid,card,field,value); toast("Corregido y registrado en bitácora","ok"); admTarjetas($("#admArea")); }
   catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* ---------- ADMIN: exportar todo a Excel ---------- */
 function admExport(area){
   area.innerHTML=`<div class="card"><div class="sec-title">📤 Exportar respaldo</div>
@@ -1924,7 +1006,7 @@ async function doExport(){
     buildExcel(log);
   }catch(e){ toast(e.message,"err"); }
 }
- 
+
 /* genera y descarga el respaldo en Excel.
    Usa formato SpreadsheetML (XML de Excel) nativo, sin librerías externas:
    funciona offline y lo abren Excel y Google Sheets. Varias hojas en un archivo. */
@@ -1963,7 +1045,7 @@ function buildExcel(log){
   const bit=[["Fecha","Jugador","Tarjeta","Campo","Valor anterior","Valor nuevo"]];
   (log||[]).forEach(e=>bit.push([fmtTime(e.created_at),APP.profiles.find(x=>x.id===e.target_user)?.display_name||"?",
     e.card,e.field,e.old_value||"",e.new_value||""]));
- 
+
   const xml=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -1981,8 +1063,6 @@ ${sheet("Bitacora",bit)}
   setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast("Excel descargado ✓","ok");
 }
- 
+
 /* ---------- ARRANQUE ---------- */
 boot();
- 
-
