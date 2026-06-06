@@ -683,9 +683,10 @@ function standingsTableHTML(opts){
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
+  const allZero = tb.every(r=>r.total===0);
   let lastZone=null, out="";
   tb.forEach(r=>{
-    if(r.zone!==lastZone){
+    if(!allZero && r.zone!==lastZone){
       out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band ${r.zone}"></span>${ZONE_LABELS[r.zone]}</td></tr>`;
       lastZone=r.zone;
     }
@@ -702,8 +703,9 @@ function standingsTableHTML(opts){
       ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}</td>`}</tr>`;
   });
   const headLast = opts.inline?'<th>Acción</th>':'<th>Total</th>';
+  const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
-    <b>Referencias:</b> <span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;
+    <b>Referencias:</b> ${zonaRef}
     <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
     🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 usó nitro</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
