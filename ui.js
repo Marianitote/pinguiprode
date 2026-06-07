@@ -1,13 +1,3 @@
-// Clon de seguridad por si ui.js no ve el core a tiempo
-if (typeof standings !== 'function') {
-    window.standings = function() {
-        console.log("Standings emulado de emergencia para destrabar el login");
-        return [];
-    };
-}
-if (typeof cardSent !== 'function') {
-    window.cardSent = function() { return false; };
-}
 /* =====================================================================
    PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
@@ -261,24 +251,6 @@ function renderInicio(v){
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela (en la fila de un rival reteable).</p>
     ${standingsTableHTML({inline:true})}
   </div>
-  ${(()=>{
-    const myPens=(APP.myPred?.penalties||[]);
-    if(!myPens.length) return '';
-    const total=myPens.reduce((s,p)=>s+(+p.pts||0),0);
-    const rows=myPens.map(pen=>{
-      const fecha=new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px">
-        <span style="color:#ef4444;font-weight:700;flex-shrink:0">⚡ -${pen.pts}pts</span>
-        <span style="flex:1">${esc(pen.reason)}</span>
-        <span style="color:var(--muted);font-size:11px">${fecha}</span>
-      </div>`;
-    }).join('');
-    return `<div class="card" style="border-color:#ef4444;background:rgba(239,68,68,.06)">
-      <div class="sec-title" style="color:#ef4444">⚡ Penalizaciones aplicadas</div>
-      <p class="note" style="margin-bottom:10px">El COMIPRO aplicó descuentos en tus puntos. Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
-      ${rows}
-    </div>`;
-  })()}
   <div class="card flat"><div class="sec-title">Comodines · resumen</div>
     <p class="note" style="line-height:1.7"><b>🩸 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado en su día, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó; si empatan, no pasa nada.<br>
     <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2°.<br>
@@ -711,24 +683,11 @@ function standingsTableHTML(opts){
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
-  const allZero = tb.every(r=>r.total===0);
-  // Si todos tienen 0, forzamos zona pobreza para todos visualmente
-  const displayZone = r => allZero ? "pobreza" : r.zone;
   let lastZone=null, out="";
-  // Si todos en 0, mostrar las tres zonas vacías primero excepto pobreza que tiene todos
-  if(allZero){
-    const emptyRow = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0;font-style:italic">Sin jugadores aún</td></tr>';
-    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band elite"></span>${ZONE_LABELS["elite"]}</td></tr>`;
-    out+=emptyRow;
-    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band midfield"></span>${ZONE_LABELS["midfield"]}</td></tr>`;
-    out+=emptyRow;
-    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band pobreza"></span>${ZONE_LABELS["pobreza"]}</td></tr>`;
-  }
   tb.forEach(r=>{
-    const dz = displayZone(r);
-    if(!allZero && dz!==lastZone){
-      out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band ${dz}"></span>${ZONE_LABELS[dz]}</td></tr>`;
-      lastZone=dz;
+    if(r.zone!==lastZone){
+      out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band ${r.zone}"></span>${ZONE_LABELS[r.zone]}</td></tr>`;
+      lastZone=r.zone;
     }
     const arrow = r.move==null ? "" :
       r.move>0 ? `<span class="move up">▲${r.move}</span>` :
@@ -736,17 +695,15 @@ function standingsTableHTML(opts){
       `<span class="move same">=</span>`;
     const recv = recibioSang(r.id)?`<span class="recv-sang" title="Ya recibió sanguijuela (no puede recibir otra esta fecha)">🩸</span>`:"";
     const nit = usoNitro(r.id)?`<span class="recv-sang" title="Usó nitro">🔥</span>`:"";
-    const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
-    out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
+    out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${r.zone}">
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
-      <td class="name">${esc(r.name)}${recv}${nit}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td class="name">${esc(r.name)}${recv}${nit}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}</td>`}</tr>`;
   });
   const headLast = opts.inline?'<th>Acción</th>':'<th>Total</th>';
-  const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
-    <b>Referencias:</b> ${zonaRef}
+    <b>Referencias:</b> <span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;
     <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
     🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 usó nitro</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
@@ -856,64 +813,11 @@ function renderAdmin(v){
   if(!isAdmin()){ v.innerHTML=adminHint("🔒","Solo el COMIPRO."); return; }
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
-      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["export","📤 Exportar"]]
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
     </div></div><div id="admArea"></div>`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
-  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,export:admExport}[ADM])($("#admArea"));
-}
-function admPenalizaciones(area){
-  const players = APP.profiles.filter(p=>!p.is_admin);
-  let html = `<div class="card"><div class="sec-title">⚡ Penalizaciones</div>
-    <p class="note" style="margin-bottom:14px">Descuentos manuales de puntos. Se restan del total general del jugador y son visibles para él.</p>
-    <div class="grid2" style="gap:10px;margin-bottom:18px">
-      <div><label class="field">Jugador</label>
-        <select id="penPlayer">${players.map(p=>`<option value="${p.id}">${p.display_name||p.email}</option>`).join('')}</select>
-      </div>
-      <div><label class="field">Puntos a descontar</label>
-        <input id="penPts" type="number" min="1" placeholder="ej: 5" style="width:100%">
-      </div>
-    </div>
-    <div style="margin-bottom:14px"><label class="field">Motivo (obligatorio)</label>
-      <input id="penReason" placeholder="ej: Penalización por error en carga" style="width:100%">
-    </div>
-    <button class="btn gold" onclick="doApplyPenalty()">⚡ Aplicar descuento</button>
-    <div style="margin-top:22px;border-top:1px solid var(--line);padding-top:14px">
-      <div class="sec-title" style="font-size:13px;margin-bottom:10px">Historial de penalizaciones</div>`;
-
-  // listar todas las penalizaciones existentes
-  let hayPenas = false;
-  players.forEach(p=>{
-    const pred = APP.preds?.find(pr=>pr.user_id===p.id);
-    const pens = pred?.penalties||[];
-    if(!pens.length) return;
-    hayPenas = true;
-    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${p.display_name||p.email}</b>`;
-    pens.forEach((pen,i)=>{
-      const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
-        <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
-        <span style="flex:1;color:var(--muted)">${esc(pen.reason)}</span>
-        <span style="color:var(--muted);font-size:11px">${fecha}</span>
-      </div>`;
-    });
-    html+=`</div>`;
-  });
-  if(!hayPenas) html+=`<p class="note">No hay penalizaciones aplicadas todavía.</p>`;
-  html+=`</div></div>`;
-  area.innerHTML=html;
-}
-async function doApplyPenalty(){
-  const uid=$("#penPlayer").value;
-  const pts=+($("#penPts").value||0);
-  const reason=$("#penReason").value.trim();
-  if(!pts||pts<=0){ toast("Ingresá los puntos a descontar","err"); return; }
-  if(!reason){ toast("El motivo es obligatorio","err"); return; }
-  try{
-    await adminApplyPenalty(uid,pts,reason);
-    toast("Penalización aplicada","ok");
-    admPenalizaciones($("#admArea"));
-  }catch(e){ toast(e.message,"err"); }
+  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,export:admExport}[ADM])($("#admArea"));
 }
 function admResultados(area){
   const res=APP.results.main||{};

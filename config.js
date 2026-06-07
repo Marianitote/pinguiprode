@@ -4,8 +4,8 @@
    👉 PEGÁ ACÁ TUS DOS CLAVES DE SUPABASE (ver la guía, paso 3).
       Las encontrás en: Supabase → Project Settings → API
    ===================================================================== */
-const SUPABASE_URL  = "https://vbkiqqbybiitsljummpp.supabase.co";   // ← reemplazá
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZia2lxcWJ5YmlpdHNsanVtbXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5Nzk0MjQsImV4cCI6MjA5NTU1NTQyNH0.-oigRsAtrpWgEXOJHfawrv-2gXNOwTZUSWxlg9r6QDc";              // ← reemplazá
+const SUPABASE_URL  = "https://fbhbanxbylevmgbtftvj.supabase.co";   // ← reemplazá
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiaGJhbnhieWxldm1nYnRmdHZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODEzNDksImV4cCI6MjA5NTE1NzM0OX0.VG8aUZT0iF_Rs0QV26uRTyyXtB3RQWFNwu5Y2Q-n56Q";              // ← reemplazá
 
 /* ---------------------------------------------------------------------
    Reglamento 2026 (resumen mostrado dentro de la app)
