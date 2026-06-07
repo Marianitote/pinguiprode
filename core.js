@@ -88,6 +88,16 @@ function cardSent(cardKey){
 }
 
 /* ---------- ADMIN ---------- */
+async function adminApplyPenalty(uid, pts, reason){
+  const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
+  const pens = pred.data?.penalties||[];
+  pens.push({pts:+pts, reason, date:new Date().toISOString(), by:'comipro'});
+  const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
+  if(error) throw error;
+  // actualizar cache local
+  if(APP.preds) { const p=APP.preds.find(p=>p.user_id===uid); if(p) p.penalties=pens; }
+  await loadApp();
+}
 async function adminSaveResults(patch){
   const {error}=await sb.from('results').update({...patch,updated_at:new Date().toISOString()}).eq('id',1);
   if(error) throw error; await loadAll();
@@ -456,7 +466,12 @@ function wasabiTotal(uid){
   });
   return pts;
 }
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid); }
+function penaltyTotal(uid){
+  const pred=predFor(uid);
+  const pens=pred.penalties||[];
+  return pens.reduce((s,p)=>s+(+p.pts||0),0);
+}
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid); }
 function norm(s){ return String(s).trim().toLowerCase(); }
 
 /* devuelve las predicciones de un uid (admin tiene todas; jugador solo la suya) */
@@ -477,7 +492,7 @@ function standings(){
   }).map(p=>({
     id:p.id, name:p.display_name, paid:hasPaid(p.id),
     main:mainTotal(p.id), extra:extraTotal(p.id),
-    wasabi:wasabiTotal(p.id), total:grandTotal(p.id)
+    wasabi:wasabiTotal(p.id), penalty:penaltyTotal(p.id), total:grandTotal(p.id)
   }));
   rows.sort((a,b)=>b.total-a.total);
   let pos=0,last=null,seen=0;
