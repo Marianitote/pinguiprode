@@ -11,12 +11,17 @@ const APP = {
   comodines:[], wasabiQs:[...SEED_WASABI],
 };
 
-/* ---------- AUTH ---------- */
-async function signUp(email, pass){\n  const {data,error}=await sb.auth.signUp({email,password:pass});
-  if(error) throw error; return data;
+/* ---------- AUTH CORREGIDO ---------- */
+async function signUp(email, pass) {
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  if (error) throw error; 
+  return data;
 }
-async function signIn(email, pass){\n  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error) throw error; return data;
+
+async function signIn(email, pass) {
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) throw error; 
+  return data;
 }
 async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
