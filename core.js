@@ -48,21 +48,23 @@ const APP = {
   comodines:[], wasabiQs:[...SEED_WASABI],
 };
 
-/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
-async function loadAll() {
-  try {
-    await loadSession();
-    await loadGlobalData();
-    if (APP.user) {
-      await loadMyPrediction();
-    }
-    console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
-  } catch (error) {
-    console.error("Error crítico en loadAll():", error);
-    throw error;
-  }
-}
+/* ---------- DATOS GLOBALES (Versión Segura) ---------- */
+async function loadGlobalData(){
+  // Ejecutamos las consultas de forma segura e individual para que ninguna sorda rompa el inicio
+  const p = await sb.from('profiles').select('id,display_name,is_admin,created_at').catch(() => ({data:[]}));
+  const r = await sb.from('results').select('*').catch(() => ({data:[]}));
+  const c = await sb.from('comodines').select('*').catch(() => ({data:[]}));
 
+  APP.profiles = p.data || [];
+  APP.comodines = c.data || [];
+
+  APP.results = {main:{}, extra:{}, wasabi:{}};
+  (r.data || []).forEach(row => {
+    if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
+    if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
+    if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
+  });
+}
 /* ---------- AUTH ---------- */
 async function signUp(email, pass) {
   const { data, error } = await sb.auth.signUp({ email, password: pass });
