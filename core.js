@@ -11,19 +11,25 @@ const APP = {
   comodines:[], wasabiQs: (typeof SEED_WASABI !== 'undefined') ? [...SEED_WASABI] : [],
 };
 
-/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
-async function loadAll() {
-  try {
-    await loadSession();
-    await loadGlobalData();
-    if (APP.user) {
-      await loadMyPrediction();
-    }
-    console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
-  } catch (error) {
-    console.error("Error crítico en loadAll():", error);
-    throw error;
-  }
+/* ---------- DATOS GLOBALES (Anticongelante) ---------- */
+async function loadGlobalData(){
+  // Traemos los datos individualmente y chequeamos si Supabase devolvió error
+  const resP = await sb.from('profiles').select('id,display_name,is_admin,created_at');
+  const resR = await sb.from('results').select('*');
+  const resC = await sb.from('comodines').select('*');
+
+  // Si da error o no existe la tabla, le asignamos un array vacío en vez de congelar la app
+  APP.profiles = (!resP.error && resP.data) ? resP.data : [];
+  APP.comodines = (!resC.error && resC.data) ? resC.data : [];
+  
+  const rData = (!resR.error && resR.data) ? resR.data : [];
+
+  APP.results = {main:{}, extra:{}, wasabi:{}};
+  rData.forEach(row => {
+    if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
+    if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
+    if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
+  });
 }
 
 /* ---------- AUTH ---------- */
