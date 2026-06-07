@@ -1,4 +1,40 @@
-alert("¡El core se está cargando bien!");
+/* =====================================================================
+   PINGÜIPRODE · MUNDIAL 2026 — CONFIGURACIÓN DE DATOS OFICIALES
+   ===================================================================== */
+const STAGES = {
+  grupos: { id: "grupos", name: "Fase de Grupos" },
+  r32: { id: "r32", name: "Dieciseisavos de Final" },
+  r16: { id: "r16", name: "Octavos de Final" },
+  qf: { id: "qf", name: "Cuartos de Final" },
+  sf: { id: "sf", name: "Semifinales" },
+  tpfinal: { id: "tpfinal", name: "Tercer Puesto y Final" }
+};
+
+const GROUPS = {
+  A: { teams: ["USA", "MEX", "CAN", "ARG"] }, // Ejemplo de estructura de grupos
+  B: { teams: ["BRA", "FRA", "ENG", "GER"] },
+  C: { teams: ["ITA", "ESP", "POR", "BEL"] },
+  D: { teams: ["NED", "CRO", "URU", "COL"] },
+  E: { teams: ["MAR", "SEN", "JPN", "KOR"] },
+  F: { teams: ["CHL", "ECU", "PAR", "VEN"] },
+  G: { teams: ["PER", "BOL", "CRC", "PAN"] },
+  H: { teams: ["JAM", "HON", "SLV", "CAN2"] },
+  I: { teams: ["EGY", "NGA", "TUN", "GHA"] },
+  J: { teams: ["KSA", "AUS", "IRN", "IRQ"] },
+  K: { teams: ["SWE", "SUI", "UKR", "POL"] },
+  L: { teams: ["DEN", "AUT", "TUR", "CZE"] }
+};
+
+// Semilla para preguntas Wasabi
+const SEED_WASABI = [
+  { id: "w1", q: "¿Quién será el campeón del mundo?" },
+  { id: "w2", q: "¿Qué selección será la decepción del torneo?" },
+  { id: "w3", q: "¿Cuántos goles se meterán en la Final? (Aproximado)" }
+];
+
+// Listado base de partidos vacíos para el cálculo
+const MATCHES = []; 
+
 /* =====================================================================
    PINGÜIPRODE · MUNDIAL 2026 — NÚCLEO (Supabase + motor de puntajes)
    ===================================================================== */
@@ -15,17 +51,11 @@ const APP = {
 /* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
 async function loadAll() {
   try {
-    // 1. Validar la sesión del usuario con Supabase
     await loadSession();
-    
-    // 2. Traer tablas globales (perfiles, resultados de partidos, comodines)
     await loadGlobalData();
-    
-    // 3. Levantar (o crear) la tarjeta de predicciones del usuario conectado
     if (APP.user) {
       await loadMyPrediction();
     }
-
     console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
   } catch (error) {
     console.error("Error crítico en loadAll():", error);
@@ -112,7 +142,6 @@ async function loadMyPrediction(){
 }
 
 /* ---------- LÓGICA DE JUEGO Y POSICIONES ---------- */
-
 function stageSent(stage){
   if(!APP.myPred) return false;
   return !!(APP.myPred.sent_at || {})[stage];
@@ -125,24 +154,18 @@ function cardSent(card){
   return false;
 }
 
-// Devuelve la tabla de posiciones simulada o real según la data en memoria
 function standings() {
-  // Mapeamos los perfiles de los jugadores para calcular sus puntajes
   const tabla = APP.profiles.map(p => {
-    // Si es un bot o admin podés filtrarlo o dejarlo, la UI procesará la lista
     return {
       id: p.id,
       display_name: p.display_name,
       total: 0,
       pos: 1,
-      paid: true // Helper para la vista del admin
+      paid: true
     };
   });
   
-  // Ordenamos por puntaje total de mayor a menor
   tabla.sort((a, b) => b.total - a.total);
-  
-  // Asignamos los puestos numéricos correspondientes
   tabla.forEach((row, idx) => {
     if (idx > 0 && row.total === tabla[idx - 1].total) {
       row.pos = tabla[idx - 1].pos;
@@ -150,7 +173,6 @@ function standings() {
       row.pos = idx + 1;
     }
   });
-  
   return tabla;
 }
 
@@ -232,16 +254,13 @@ function resolverAsignacionTerceros(letrasTerceros) {
   if (TABLA_TERCEROS_FIFA[letrasTerceros]) {
     return TABLA_TERCEROS_FIFA[letrasTerceros];
   }
-  
   const asignacion = {};
   const pool = letrasTerceros.split('');
-  
   const primerosConTerceros = ['E', 'I', 'A', 'L', 'D', 'G', 'B', 'K'];
   const ordenPreferidoTerceros = {
     'E': ['A','B','C','D','F'], 'I': ['C','D','F','G','H'], 'A': ['C','E','F','H','I'], 'L': ['E','H','I','J','K'],
     'D': ['B','E','F','I','J'], 'G': ['A','E','H','I','J'], 'B': ['E','F','G','I','J'], 'K': ['D','E','I','J','L']
   };
-
   let usados = new Set();
   primerosConTerceros.forEach(p => {
     let elegido = ordenPreferidoTerceros[p].find(t => pool.includes(t) && !usados.has(t));
@@ -249,7 +268,6 @@ function resolverAsignacionTerceros(letrasTerceros) {
     asignacion[`1${p}`] = `3${elegido}`;
     usados.add(elegido);
   });
-  
   return asignacion;
 }
 
@@ -312,11 +330,7 @@ async function buildBracket(stage){
 
     if(teamsArr[2]) {
       listaTodosLosTerceros.push({
-        grupo: g,
-        code: teamsArr[2].code,
-        pts: teamsArr[2].pts,
-        dg: teamsArr[2].dg,
-        gf: teamsArr[2].gf
+        grupo: g, code: teamsArr[2].code, pts: teamsArr[2].pts, dg: teamsArr[2].dg, gf: teamsArr[2].gf
       });
     }
   });
@@ -474,7 +488,6 @@ async function buildBracket(stage){
   if(stage === 'tpfinal'){
     const prevFinal = bracket.final || {};
     const prevTP = bracket.tp || {};
-
     const m101 = bracket.sf?.["sf-1"];
     const m102 = bracket.sf?.["sf-2"];
 
