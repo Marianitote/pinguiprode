@@ -3,6 +3,12 @@
    ===================================================================== */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// Inicialización segura con 'var' para que ui.js encuentre las estructuras
+// sin importar el orden de carga, y evitando el SyntaxError por duplicación:
+if (typeof STAGES === 'undefined') { var STAGES = {}; }
+if (typeof GROUPS === 'undefined') { var GROUPS = {}; }
+if (typeof MATCHES === 'undefined') { var MATCHES = []; }
+
 /* estado en memoria */
 const APP = {
   user: null, 
@@ -120,6 +126,7 @@ function stageSent(stage) {
   return !!(APP.myPred.sent_at || {})[stage];
 }
 
+/* Verificar si las constantes locales existen antes de usarlas */
 function cardSent(card) {
   if (!APP.myPred) return false;
   if (card === 'wasabi') return stageSent('wasabi');
@@ -230,8 +237,8 @@ async function buildBracket(stage) {
   const userPreds = APP.myPred?.main || {};
 
   const groupStats = {};
-  const localGroups = window.GROUPS || null;
-  const localMatches = window.MATCHES || [];
+  const localGroups = (typeof GROUPS !== 'undefined') ? GROUPS : null;
+  const localMatches = (typeof MATCHES !== 'undefined') ? MATCHES : [];
 
   if (localGroups) {
     Object.keys(localGroups).forEach(g => {
@@ -405,26 +412,3 @@ async function buildBracket(stage) {
   if (stage === "tpfinal") {
     patch.sent_at.main = new Date().toISOString();
     if (sent_at.wasabi) patch.locked = true;
-  }
-  const { data, error } = await sb.from('predictions').update(patch).eq('user_id', APP.user.id).select().maybeSingle();
-  if (error) throw error;
-  APP.myPred = data;
-  return data;
-}
-
-async function setBracketScore(stage, slotId, key, value) {
-  if (stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
-  const bracket = { ...(APP.myPred?.bracket || {}) };
-  if (stage === "tpfinal") {
-    if (slotId.startsWith("tp")) { bracket.tp = { ...(bracket.tp || {}), [key]: value }; } 
-    else { bracket.final = { ...(bracket.final || {}), [key]: value }; }
-  } else {
-    if (!bracket[stage]) bracket[stage] = {};
-    if (!bracket[stage][slotId]) bracket[stage][slotId] = {};
-    bracket[stage][slotId][key] = value;
-  }
-  const { data, error } = await sb.from('predictions').update({ bracket }).eq('user_id', APP.user.id).select().maybeSingle();
-  if (error) throw error;
-  APP.myPred = data;
-  return data;
-}
