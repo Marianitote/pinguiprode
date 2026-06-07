@@ -731,7 +731,7 @@ function computeBracket(mainPreds){
     thirds.push({...groupTable[g][2], from:g});
   });
   // 3) 8 mejores terceros
-  thirds.sort((a,b)=> b.pts-a.pts || b.dg-a.dg || b.gf-a.gf || a.team.localeCompare(b.team));
+  thirds.sort((a,b)=> b.pts-a.pts || b.dg-a.dg || b.gf-a.gf || a.from.localeCompare(b.from));
   const bestThirds = thirds.slice(0,8); // los 8 que clasifican
   const droppedThirds = thirds.slice(8); // 4 que quedan eliminados
 
