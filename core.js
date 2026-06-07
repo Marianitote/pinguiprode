@@ -11,25 +11,29 @@ const APP = {
   comodines:[], wasabiQs: (typeof SEED_WASABI !== 'undefined') ? [...SEED_WASABI] : [],
 };
 
-/* ---------- DATOS GLOBALES (Anticongelante) ---------- */
-async function loadGlobalData(){
-  // Traemos los datos individualmente y chequeamos si Supabase devolvió error
-  const resP = await sb.from('profiles').select('id,display_name,is_admin,created_at');
-  const resR = await sb.from('results').select('*');
-  const resC = await sb.from('comodines').select('*');
-
-  // Si da error o no existe la tabla, le asignamos un array vacío en vez de congelar la app
-  APP.profiles = (!resP.error && resP.data) ? resP.data : [];
-  APP.comodines = (!resC.error && resC.data) ? resC.data : [];
-  
-  const rData = (!resR.error && resR.data) ? resR.data : [];
-
-  APP.results = {main:{}, extra:{}, wasabi:{}};
-  rData.forEach(row => {
-    if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
-    if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
-    if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
-  });
+/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN (CON RASTREO) ---------- */
+async function loadAll() {
+  try {
+    console.log("1. Iniciando loadAll()...");
+    await loadSession();
+    console.log("2. Sesión cargada:", APP.user);
+    
+    await loadGlobalData();
+    console.log("3. Datos globales cargados:", APP.profiles, APP.comodines);
+    
+    if (APP.user) {
+      console.log("4. Cargando predicción para el usuario...");
+      await loadMyPrediction();
+      console.log("5. Predicción cargada:", APP.myPred);
+    }
+    
+    console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
+  } catch (error) {
+    console.error("¡ERROR CRÍTICO ENCONTRADO!:", error);
+    // Forzamos un alert en pantalla para que lo veas sí o sí
+    alert("Error crítico al cargar: " + error.message);
+    throw error;
+  }
 }
 
 /* ---------- AUTH ---------- */
@@ -66,17 +70,19 @@ async function createProfile(displayName){
   APP.profile=prof||null;
 }
 
-/* ---------- DATOS GLOBALES ---------- */
+/* ---------- DATOS GLOBALES (Anticongelante) ---------- */
 async function loadGlobalData(){
-  const p = await sb.from('profiles').select('id,display_name,is_admin,created_at').catch(() => ({data:[]}));
-  const r = await sb.from('results').select('*').catch(() => ({data:[]}));
-  const c = await sb.from('comodines').select('*').catch(() => ({data:[]}));
+  const resP = await sb.from('profiles').select('id,display_name,is_admin,created_at');
+  const resR = await sb.from('results').select('*');
+  const resC = await sb.from('comodines').select('*');
 
-  APP.profiles = p.data || [];
-  APP.comodines = c.data || [];
+  APP.profiles = (!resP.error && resP.data) ? resP.data : [];
+  APP.comodines = (!resC.error && resC.data) ? resC.data : [];
+  
+  const rData = (!resR.error && resR.data) ? resR.data : [];
 
   APP.results = {main:{}, extra:{}, wasabi:{}};
-  (r.data || []).forEach(row => {
+  rData.forEach(row => {
     if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
     if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
     if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
@@ -281,7 +287,7 @@ async function buildBracket(stage){
   }
 
   const posicionesGrupos = {};
-  const listaTodosLos Terceros = [];
+  const listaTodosLosTerceros = [];
 
   Object.keys(groupStats).forEach(g => {
     const teamsArr = Object.values(groupStats[g]);
