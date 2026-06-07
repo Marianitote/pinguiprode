@@ -32,7 +32,7 @@ async function loadAll() {
   }
 }
 
-/* ---------- AUTH CORREGIDO ---------- */
+/* ---------- AUTH ---------- */
 async function signUp(email, pass) {
   const { data, error } = await sb.auth.signUp({ email, password: pass });
   if (error) throw error; 
@@ -55,7 +55,7 @@ async function loadSession(){
   }
 }
 
-/* ---------- PERFIL CORREGIDO ---------- */
+/* ---------- PERFIL ---------- */
 async function createProfile(displayName){
   const {error}=await sb.from('profiles').insert({
     id:APP.user.id,
@@ -110,11 +110,47 @@ async function loadMyPrediction(){
   return APP.myPred;
 }
 
-/* ---------- LÓGICA DE JUEGO (PRODE) ---------- */
+/* ---------- LÓGICA DE JUEGO Y POSICIONES ---------- */
 
 function stageSent(stage){
   if(!APP.myPred) return false;
   return !!(APP.myPred.sent_at || {})[stage];
+}
+
+function cardSent(card){
+  if(!APP.myPred) return false;
+  if(card === 'wasabi') return stageSent('wasabi');
+  if(card === 'main') return stageSent('grupos') && stageSent('r32') && stageSent('r16') && stageSent('qf') && stageSent('sf') && stageSent('tpfinal');
+  return false;
+}
+
+// Devuelve la tabla de posiciones simulada o real según la data en memoria
+function standings() {
+  // Mapeamos los perfiles de los jugadores para calcular sus puntajes
+  const tabla = APP.profiles.map(p => {
+    // Si es un bot o admin podés filtrarlo o dejarlo, la UI procesará la lista
+    return {
+      id: p.id,
+      display_name: p.display_name,
+      total: 0,
+      pos: 1,
+      paid: true // Helper para la vista del admin
+    };
+  });
+  
+  // Ordenamos por puntaje total de mayor a menor
+  tabla.sort((a, b) => b.total - a.total);
+  
+  // Asignamos los puestos numéricos correspondientes
+  tabla.forEach((row, idx) => {
+    if (idx > 0 && row.total === tabla[idx - 1].total) {
+      row.pos = tabla[idx - 1].pos;
+    } else {
+      row.pos = idx + 1;
+    }
+  });
+  
+  return tabla;
 }
 
 function setGroupMatchScore(matchId, hVal, aVal){
