@@ -3,15 +3,21 @@
    ===================================================================== */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+/* Escudo de Compatibilidad: Si la interfaz busca estas variables y no existen, las creamos vacías para que no se rompa */
+if (typeof STAGES === 'undefined') { var STAGES = {}; }
+if (typeof GROUPS === 'undefined') { var GROUPS = {}; }
+if (typeof MATCHES === 'undefined') { var MATCHES = []; }
+if (typeof SEED_WASABI === 'undefined') { var SEED_WASABI = []; }
+
 /* estado en memoria */
 const APP = {
   user:null, profile:null,
   myPred:null,
   profiles:[], results:{main:{},extra:{},wasabi:{}},
-  comodines:[], wasabiQs: (typeof SEED_WASABI !== 'undefined') ? [...SEED_WASABI] : [],
+  comodines:[], wasabiQs: [...SEED_WASABI],
 };
 
-/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN (CON RASTREO) ---------- */
+/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
 async function loadAll() {
   try {
     console.log("1. Iniciando loadAll()...");
@@ -30,7 +36,6 @@ async function loadAll() {
     console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
   } catch (error) {
     console.error("¡ERROR CRÍTICO ENCONTRADO!:", error);
-    // Forzamos un alert en pantalla para que lo veas sí o sí
     alert("Error crítico al cargar: " + error.message);
     throw error;
   }
@@ -117,6 +122,7 @@ function stageSent(stage){
   return !!(APP.myPred.sent_at || {})[stage];
 }
 
+/* ---------- RESTO DE FUNCIONES DE CONTROL ---------- */
 function cardSent(card){
   if(!APP.myPred) return false;
   if(card === 'wasabi') return stageSent('wasabi');
@@ -126,22 +132,12 @@ function cardSent(card){
 
 function standings() {
   const tabla = APP.profiles.map(p => {
-    return {
-      id: p.id,
-      display_name: p.display_name,
-      total: 0,
-      pos: 1,
-      paid: true
-    };
+    return { id: p.id, display_name: p.display_name, total: 0, pos: 1, paid: true };
   });
-  
   tabla.sort((a, b) => b.total - a.total);
   tabla.forEach((row, idx) => {
-    if (idx > 0 && row.total === tabla[idx - 1].total) {
-      row.pos = tabla[idx - 1].pos;
-    } else {
-      row.pos = idx + 1;
-    }
+    if (idx > 0 && row.total === tabla[idx - 1].total) { row.pos = tabla[idx - 1].pos; } 
+    else { row.pos = idx + 1; }
   });
   return tabla;
 }
@@ -150,12 +146,8 @@ function setGroupMatchScore(matchId, hVal, aVal){
   if(stageSent('grupos')) return;
   if(!APP.myPred) return;
   if(!APP.myPred.main) APP.myPred.main = {};
-  
-  if(hVal==="" || aVal==="") {
-    delete APP.myPred.main[matchId];
-  } else {
-    APP.myPred.main[matchId] = { h: parseInt(hVal,10), a: parseInt(aVal,10) };
-  }
+  if(hVal==="" || aVal==="") { delete APP.myPred.main[matchId]; } 
+  else { APP.myPred.main[matchId] = { h: parseInt(hVal,10), a: parseInt(aVal,10) }; }
 }
 
 function setExtraValue(id, val){
@@ -176,7 +168,6 @@ function setWasabiValue(id, val){
 
 async function saveStageCard(stage){
   if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada y se encuentra bloqueada.");
-  
   let patch = {};
   if(stage === 'grupos') {
     patch.main = APP.myPred.main || {};
@@ -184,13 +175,9 @@ async function saveStageCard(stage){
   } else if(stage === 'wasabi') {
     patch.wasabi = APP.myPred.wasabi || {};
   }
-
   const sent_at = { ...(APP.myPred.sent_at || {}), [stage]: new Date().toISOString() };
   patch.sent_at = sent_at;
-
-  if(stage === 'wasabi' && sent_at.tpfinal) {
-    patch.locked = true;
-  }
+  if(stage === 'wasabi' && sent_at.tpfinal) { patch.locked = true; }
 
   const {data, error} = await sb.from('predictions').update(patch).eq('user_id', APP.user.id).select().maybeSingle();
   if(error) throw error;
@@ -206,24 +193,11 @@ const TABLA_TERCEROS_FIFA = {
   "ABCDEFGI": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3G', '1F':'3I', '1G':'3A', '1H':'3B' },
   "ABCDEFGJ": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3G', '1F':'3J', '1G':'3A', '1H':'3B' },
   "ABCDEFGK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3G', '1F':'3K', '1G':'3A', '1H':'3B' },
-  "ABCDEFGL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3G', '1F':'3L', '1G':'3A', '1H':'3B' },
-  "ABCDEFHI": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3I', '1G':'3A', '1H':'3B' },
-  "ABCDEFHJ": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3J', '1G':'3A', '1H':'3B' },
-  "ABCDEFHK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3K', '1G':'3A', '1H':'3B' },
-  "ABCDEFHL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3L', '1G':'3A', '1H':'3B' },
-  "ABCDEFII": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3J', '1G':'3A', '1H':'3B' }, 
-  "ABCDEFIJ": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3J', '1G':'3A', '1H':'3B' },
-  "ABCDEFIK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3K', '1G':'3A', '1H':'3B' },
-  "ABCDEFIL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3L', '1G':'3A', '1H':'3B' },
-  "ABCDEFJK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3J', '1F':'3K', '1G':'3A', '1H':'3B' },
-  "ABCDEFJL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3J', '1F':'3L', '1G':'3A', '1H':'3B' },
-  "ABCDEFKL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3K', '1F':'3L', '1G':'3A', '1H':'3B' }
+  "ABCDEFGL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3G', '1F':'3L', '1G':'3A', '1H':'3B' }
 };
 
 function resolverAsignacionTerceros(letrasTerceros) {
-  if (TABLA_TERCEROS_FIFA[letrasTerceros]) {
-    return TABLA_TERCEROS_FIFA[letrasTerceros];
-  }
+  if (TABLA_TERCEROS_FIFA[letrasTerceros]) return TABLA_TERCEROS_FIFA[letrasTerceros];
   const asignacion = {};
   const pool = letrasTerceros.split('');
   const primerosConTerceros = ['E', 'I', 'A', 'L', 'D', 'G', 'B', 'K'];
@@ -255,32 +229,28 @@ function getTeamFromGroupPos(positions, code) {
    ===================================================================== */
 async function buildBracket(stage){
   if(stageSent(stage)) return APP.myPred?.bracket;
-
   const bracket = { ...(APP.myPred?.bracket || {}) };
   const userPreds = APP.myPred?.main || {};
 
   const groupStats = {};
-  if (typeof GROUPS !== 'undefined') {
+  if (typeof GROUPS !== 'undefined' && GROUPS) {
     Object.keys(GROUPS).forEach(g => {
-      groupStats[g] = {};
-      GROUPS[g].teams.forEach(t => { groupStats[g][t] = { code:t, pts:0, gf:0, gc:0, dg:0 }; });
+      if(GROUPS[g] && GROUPS[g].teams){
+        groupStats[g] = {};
+        GROUPS[g].teams.forEach(t => { groupStats[g][t] = { code:t, pts:0, gf:0, gc:0, dg:0 }; });
+      }
     });
   }
 
-  if (typeof MATCHES !== 'undefined') {
+  if (typeof MATCHES !== 'undefined' && MATCHES) {
     MATCHES.forEach(m => {
       const pred = userPreds[m.id];
       if(pred && pred.h != null && pred.a != null){
-        const h = parseInt(pred.h, 10);
-        const a = parseInt(pred.a, 10);
-        const sH = groupStats[m.g][m.h];
-        const sA = groupStats[m.g][m.a];
+        const h = parseInt(pred.h, 10); const a = parseInt(pred.a, 10);
+        const sH = groupStats[m.g]?.[m.h]; const sA = groupStats[m.g]?.[m.a];
         if(sH && sA){
-          sH.gf += h; sH.gc += a;
-          sA.gf += a; sA.gc += h;
-          if(h > a) { sH.pts += 3; }
-          else if(a > h) { sA.pts += 3; }
-          else { sH.pts += 1; sA.pts += 1; }
+          sH.gf += h; sH.gc += a; sA.gf += a; sA.gc += h;
+          if(h > a) { sH.pts += 3; } else if(a > h) { sA.pts += 3; } else { sH.pts += 1; sA.pts += 1; }
         }
       }
     });
@@ -292,20 +262,15 @@ async function buildBracket(stage){
   Object.keys(groupStats).forEach(g => {
     const teamsArr = Object.values(groupStats[g]);
     teamsArr.forEach(t => { t.dg = t.gf - t.gc; });
-    
     teamsArr.sort((a,b) => {
       if(b.pts !== a.pts) return b.pts - a.pts;
       if(b.dg !== a.dg) return b.dg - a.dg;
       if(b.gf !== a.gf) return b.gf - a.gf;
       return a.code.localeCompare(b.code);
     });
-
     posicionesGrupos[g] = teamsArr.map(t => t.code);
-
     if(teamsArr[2]) {
-      listaTodosLosTerceros.push({
-        grupo: g, code: teamsArr[2].code, pts: teamsArr[2].pts, dg: teamsArr[2].dg, gf: teamsArr[2].gf
-      });
+      listaTodosLosTerceros.push({ grupo: g, code: teamsArr[2].code, pts: teamsArr[2].pts, dg: teamsArr[2].dg, gf: teamsArr[2].gf });
     }
   });
 
@@ -321,6 +286,7 @@ async function buildBracket(stage){
   const mapaAsignacionFIFA = resolverAsignacionTerceros(letrasTercerosClasificados);
 
   function obtenerEquipoTerceroAsignado(codigoTerceroFIFA) {
+    if(!codigoTerceroFIFA) return "";
     const letraGrupo = codigoTerceroFIFA.charAt(1);
     const pasoTercero = mejores8Terceros.find(t => t.grupo === letraGrupo);
     return pasoTercero ? pasoTercero.code : "";
@@ -353,146 +319,96 @@ async function buildBracket(stage){
     estructuraR32.forEach(p => {
       let homeTeam = p.h === "TERCERO" ? obtenerEquipoTerceroAsignado(mapaAsignacionFIFA[p.ref]) : getTeamFromGroupPos(posicionesGrupos, p.h);
       let awayTeam = p.v === "TERCERO" ? obtenerEquipoTerceroAsignado(mapaAsignacionFIFA[p.ref]) : getTeamFromGroupPos(posicionesGrupos, p.v);
-
       const viejo = prevR32[p.id] || {};
       bracket.r32[p.id] = {
         id: p.id, name: p.name, home: homeTeam, away: awayTeam,
-        h: viejo.h !== undefined ? viejo.h : "",
-        a: viejo.a !== undefined ? viejo.a : "",
-        pen: viejo.pen || ""
+        h: viejo.h !== undefined ? viejo.h : "", a: viejo.a !== undefined ? viejo.a : "", pen: viejo.pen || ""
       };
     });
   }
 
   const getWinner = (match) => {
     if(!match || match.h === "" || match.a === "") return "";
-    const h = parseInt(match.h, 10);
-    const a = parseInt(match.a, 10);
-    if(h > a) return match.home;
-    if(a > h) return match.away;
+    const h = parseInt(match.h, 10); const a = parseInt(match.a, 10);
+    if(h > a) return match.home; if(a > h) return match.away;
     return match.pen === '1' ? match.home : (match.pen === '2' ? match.away : "");
   };
 
   const getLoser = (match) => {
     if(!match || match.h === "" || match.a === "") return "";
-    const h = parseInt(match.h, 10);
-    const a = parseInt(match.a, 10);
-    if(h > a) return match.away;
-    if(a > h) return match.home;
+    const h = parseInt(match.h, 10); const a = parseInt(match.a, 10);
+    if(h > a) return match.away; if(a > h) return match.home;
     return match.pen === '1' ? match.away : (match.pen === '2' ? match.home : "");
   };
 
   if(stage === 'r16'){
     if(!bracket.r16) bracket.r16 = {};
-    const prevR16 = { ...bracket.r16 };
-    bracket.r16 = {};
-
+    const prevR16 = { ...bracket.r16 }; bracket.r16 = {};
     const crucesR16 = [
-      { id: "r16-1", name: "Partido 89", h: "r32-2",  v: "r32-5" },
-      { id: "r16-2", name: "Partido 90", h: "r32-1",  v: "r32-3" },
-      { id: "r16-3", name: "Partido 91", h: "r32-4",  v: "r32-6" },
-      { id: "r16-4", name: "Partido 92", h: "r32-7",  v: "r32-8" },
-      { id: "r16-5", name: "Partido 93", h: "r32-11", v: "r32-12" },
-      { id: "r16-6", name: "Partido 94", h: "r32-9",  v: "r32-10" },
-      { id: "r16-7", name: "Partido 95", h: "r32-14", v: "r32-16" },
-      { id: "r16-8", name: "Partido 96", h: "r32-13", v: "r32-15" }
+      { id: "r16-1", name: "Partido 89", h: "r32-2",  v: "r32-5" }, { id: "r16-2", name: "Partido 90", h: "r32-1",  v: "r32-3" },
+      { id: "r16-3", name: "Partido 91", h: "r32-4",  v: "r32-6" }, { id: "r16-4", name: "Partido 92", h: "r32-7",  v: "r32-8" },
+      { id: "r16-5", name: "Partido 93", h: "r32-11", v: "r32-12" }, { id: "r16-6", name: "Partido 94", h: "r32-9",  v: "r32-10" },
+      { id: "r16-7", name: "Partido 95", h: "r32-14", v: "r32-16" }, { id: "r16-8", name: "Partido 96", h: "r32-13", v: "r32-15" }
     ];
-
     crucesR16.forEach(c => {
       const viejo = prevR16[c.id] || {};
       bracket.r16[c.id] = {
-        id: c.id, name: c.name,
-        home: getWinner(bracket.r32?.[c.h]),
-        away: getWinner(bracket.r32?.[c.v]),
-        h: viejo.h !== undefined ? viejo.h : "",
-        a: viejo.a !== undefined ? viejo.a : "",
-        pen: viejo.pen || ""
+        id: c.id, name: c.name, home: getWinner(bracket.r32?.[c.h]), away: getWinner(bracket.r32?.[c.v]),
+        h: viejo.h !== undefined ? viejo.h : "", a: viejo.a !== undefined ? viejo.a : "", pen: viejo.pen || ""
       };
     });
   }
 
   if(stage === 'qf'){
     if(!bracket.qf) bracket.qf = {};
-    const prevQF = { ...bracket.qf };
-    bracket.qf = {};
-
+    const prevQF = { ...bracket.qf }; bracket.qf = {};
     const crucesQF = [
-      { id: "qf-1", name: "Partido 97", h: "r16-1", v: "r16-2" },
-      { id: "qf-2", name: "Partido 98", h: "r16-5", v: "r16-6" },
-      { id: "qf-3", name: "Partido 99", h: "r16-3", v: "r16-4" },
-      { id: "qf-4", name: "Partido 100", h: "r16-7", v: "r16-8" }
+      { id: "qf-1", name: "Partido 97", h: "r16-1", v: "r16-2" }, { id: "qf-2", name: "Partido 98", h: "r16-5", v: "r16-6" },
+      { id: "qf-3", name: "Partido 99", h: "r16-3", v: "r16-4" }, { id: "qf-4", name: "Partido 100", h: "r16-7", v: "r16-8" }
     ];
-
     crucesQF.forEach(c => {
       const viejo = prevQF[c.id] || {};
       bracket.qf[c.id] = {
-        id: c.id, name: c.name,
-        home: getWinner(bracket.r16?.[c.h]),
-        away: getWinner(bracket.r16?.[c.v]),
-        h: viejo.h !== undefined ? viejo.h : "",
-        a: viejo.a !== undefined ? viejo.a : "",
-        pen: viejo.pen || ""
+        id: c.id, name: c.name, home: getWinner(bracket.r16?.[c.h]), away: getWinner(bracket.r16?.[c.v]),
+        h: viejo.h !== undefined ? viejo.h : "", a: viejo.a !== undefined ? viejo.a : "", pen: viejo.pen || ""
       };
     });
   }
 
   if(stage === 'sf'){
     if(!bracket.sf) bracket.sf = {};
-    const prevSF = { ...bracket.sf };
-    bracket.sf = {};
-
-    const crucesSF = [
-      { id: "sf-1", name: "Partido 101", h: "qf-1", v: "qf-2" },
-      { id: "sf-2", name: "Partido 102", h: "qf-3", v: "qf-4" }
-    ];
-
+    const prevSF = { ...bracket.sf }; bracket.sf = {};
+    const crucesSF = [ { id: "sf-1", name: "Partido 101", h: "qf-1", v: "qf-2" }, { id: "sf-2", name: "Partido 102", h: "qf-3", v: "qf-4" } ];
     crucesSF.forEach(c => {
       const viejo = prevSF[c.id] || {};
       bracket.sf[c.id] = {
-        id: c.id, name: c.name,
-        home: getWinner(bracket.qf?.[c.h]),
-        away: getWinner(bracket.qf?.[c.v]),
-        h: viejo.h !== undefined ? viejo.h : "",
-        a: viejo.a !== undefined ? viejo.a : "",
-        pen: viejo.pen || ""
+        id: c.id, name: c.name, home: getWinner(bracket.qf?.[c.h]), away: getWinner(bracket.qf?.[c.v]),
+        h: viejo.h !== undefined ? viejo.h : "", a: viejo.a !== undefined ? viejo.a : "", pen: viejo.pen || ""
       };
     });
   }
 
   if(stage === 'tpfinal'){
-    const prevFinal = bracket.final || {};
-    const prevTP = bracket.tp || {};
-    const m101 = bracket.sf?.["sf-1"];
-    const m102 = bracket.sf?.["sf-2"];
-
+    const prevFinal = bracket.final || {}; const prevTP = bracket.tp || {};
+    const m101 = bracket.sf?.["sf-1"]; const m102 = bracket.sf?.["sf-2"];
     bracket.final = {
-      id: "final-1", name: "Partido 104 - Gran Final",
-      home: getWinner(m101), away: getWinner(m102),
-      h: prevFinal.h !== undefined ? prevFinal.h : "",
-      a: prevFinal.a !== undefined ? prevFinal.a : "",
-      pen: prevFinal.pen || ""
+      id: "final-1", name: "Partido 104 - Gran Final", home: getWinner(m101), away: getWinner(m102),
+      h: prevFinal.h !== undefined ? prevFinal.h : "", a: prevFinal.a !== undefined ? prevFinal.a : "", pen: prevFinal.pen || ""
     };
-
     bracket.tp = {
-      id: "tp-1", name: "Partido 103 - Tercer Puesto",
-      home: getLoser(m101), away: getLoser(m102),
-      h: prevTP.h !== undefined ? prevTP.h : "",
-      a: prevTP.a !== undefined ? prevTP.a : "",
-      pen: prevTP.pen || ""
+      id: "tp-1", name: "Partido 103 - Tercer Puesto", home: getLoser(m101), away: getLoser(m102),
+      h: prevTP.h !== undefined ? prevTP.h : "", a: prevTP.a !== undefined ? prevTP.a : "", pen: prevTP.pen || ""
     };
   }
 
   const sent_at = { ...(APP.myPred.sent_at || {}), [stage]: new Date().toISOString() };
   let patch = { bracket, sent_at };
-  
   if(stage === "tpfinal"){
     patch.sent_at.main = new Date().toISOString();
     if(sent_at.wasabi) patch.locked = true;
   }
-
   const { data, error } = await sb.from('predictions').update(patch).eq('user_id', APP.user.id).select().maybeSingle();
   if(error) throw error;
-  
   APP.myPred = data;
   return data;
 }
@@ -500,19 +416,14 @@ async function buildBracket(stage){
 async function setBracketScore(stage, slotId, key, value){
   if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
   const bracket = { ...(APP.myPred?.bracket || {}) };
-  
   if(stage === "tpfinal"){
-    if(slotId.startsWith("tp")){
-      bracket.tp = { ...(bracket.tp || {}), [key]: value };
-    } else {
-      bracket.final = { ...(bracket.final || {}), [key]: value };
-    }
+    if(slotId.startsWith("tp")){ bracket.tp = { ...(bracket.tp || {}), [key]: value }; } 
+    else { bracket.final = { ...(bracket.final || {}), [key]: value }; }
   } else {
     if(!bracket[stage]) bracket[stage] = {};
     if(!bracket[stage][slotId]) bracket[stage][slotId] = {};
     bracket[stage][slotId][key] = value;
   }
-
   const { data, error } = await sb.from('predictions').update({ bracket }).eq('user_id', APP.user.id).select().maybeSingle();
   if(error) throw error;
   APP.myPred = data;
