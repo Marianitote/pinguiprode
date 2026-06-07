@@ -720,30 +720,67 @@ function computeBracket(mainPreds){
   const bestThirds = thirds.slice(0,8); // los 8 que clasifican
   const droppedThirds = thirds.slice(8); // 4 que quedan eliminados
 
-  // 4) BRACKET de R32 - asignación determinística
-  // Los 12 primeros (1A..1L) y 12 segundos (2A..2L) tienen slots fijos por orden.
-  // 8 cruces "1° vs 3°" y 16 cruces "2° vs 2°/1°/3°" se distribuyen así:
-  //   Slots de 1ros: cada 1° enfrenta a un 3° o un 2°, según secuencia.
-  // Para simplificar y ser determinístico:
-  //   Los 8 mejores 3ros van contra los 8 PRIMEROS GRUPOS (A..H) → 8 cruces (1A vs T1, 1B vs T2, ...)
-  //   Los 4 últimos 1ros (I..L) enfrentan a 4 de los 12 segundos → cruces 1I-2J, 1J-2I, 1K-2L, 1L-2K (cruzados)
-  //   Los 8 segundos restantes (A..H) enfrentan a otros segundos → cruces 2A-2B, 2C-2D, 2E-2F, 2G-2H
+  // 4) BRACKET de R32 - cruces OFICIALES FIFA 2026
+  // Fuente: fixture oficial FIFA (partidos 73-88)
+  // Cruces fijos (1° vs 2°): M73,75,76,78,83,84,86,88
+  // Cruces 1° vs 3° (Anexo C): M74,77,79,80,81,82,85,87
+  // Para los 3ros: asignamos el mejor 3ro disponible cuyo grupo origen
+  // esté en la lista permitida para ese slot (sin rematchar contra su propio grupo)
+
+  // Helper: toma el mejor 3ro disponible de una lista de grupos permitidos
+  const usedThirds = new Set();
+  function pick3rd(allowedGroups){
+    // bestThirds ya está ordenado de mejor a peor
+    for(const t of bestThirds){
+      if(!usedThirds.has(t.from) && allowedGroups.includes(t.from)){
+        usedThirds.add(t.from);
+        return t;
+      }
+    }
+    // fallback: cualquier 3ro no usado
+    for(const t of bestThirds){
+      if(!usedThirds.has(t.from)){
+        usedThirds.add(t.from);
+        return t;
+      }
+    }
+    return bestThirds[0];
+  }
+
   const r32=[];
-  // Bloque 1: 1ro de A..H vs los 8 mejores 3ros (T1=mejor 3ro)
-  ["A","B","C","D","E","F","G","H"].forEach((g,i)=>{
-    r32.push({slot:`R32-${r32.length+1}`, home:firsts[g], away:bestThirds[i]});
-  });
-  // Bloque 2: 1ros de I-L vs 2dos cruzados (I-J, K-L)
-  r32.push({slot:`R32-${r32.length+1}`, home:firsts["I"], away:seconds["J"]});
-  r32.push({slot:`R32-${r32.length+1}`, home:firsts["J"], away:seconds["I"]});
-  r32.push({slot:`R32-${r32.length+1}`, home:firsts["K"], away:seconds["L"]});
-  r32.push({slot:`R32-${r32.length+1}`, home:firsts["L"], away:seconds["K"]});
-  // Bloque 3: 2dos restantes A-H emparejados
-  ["A","C","E","G"].forEach((g,i)=>{
-    const other={A:"B",C:"D",E:"F",G:"H"}[g];
-    r32.push({slot:`R32-${r32.length+1}`, home:seconds[g], away:seconds[other]});
-  });
-  // total: 8 + 4 + 4 = 16 cruces ✓
+  // M73: 2A vs 2B
+  r32.push({slot:"M73", match:73, home:seconds["A"], away:seconds["B"]});
+  // M74: 1E vs 3° de A/B/C/D/F
+  r32.push({slot:"M74", match:74, home:firsts["E"], away:pick3rd(["A","B","C","D","F"])});
+  // M75: 1F vs 2C
+  r32.push({slot:"M75", match:75, home:firsts["F"], away:seconds["C"]});
+  // M76: 1C vs 2F
+  r32.push({slot:"M76", match:76, home:firsts["C"], away:seconds["F"]});
+  // M77: 1I vs 3° de C/D/F/G/H
+  r32.push({slot:"M77", match:77, home:firsts["I"], away:pick3rd(["C","D","F","G","H"])});
+  // M78: 2E vs 2I
+  r32.push({slot:"M78", match:78, home:seconds["E"], away:seconds["I"]});
+  // M79: 1A vs 3° de C/E/F/H/I
+  r32.push({slot:"M79", match:79, home:firsts["A"], away:pick3rd(["C","E","F","H","I"])});
+  // M80: 1L vs 3° de E/H/I/J/K
+  r32.push({slot:"M80", match:80, home:firsts["L"], away:pick3rd(["E","H","I","J","K"])});
+  // M81: 1D vs 3° de B/E/F/I/J
+  r32.push({slot:"M81", match:81, home:firsts["D"], away:pick3rd(["B","E","F","I","J"])});
+  // M82: 1G vs 3° de A/E/H/I/J
+  r32.push({slot:"M82", match:82, home:firsts["G"], away:pick3rd(["A","E","H","I","J"])});
+  // M83: 2K vs 2L
+  r32.push({slot:"M83", match:83, home:seconds["K"], away:seconds["L"]});
+  // M84: 1H vs 2J
+  r32.push({slot:"M84", match:84, home:firsts["H"], away:seconds["J"]});
+  // M85: 1B vs 3° de E/F/G/I/J
+  r32.push({slot:"M85", match:85, home:firsts["B"], away:pick3rd(["E","F","G","I","J"])});
+  // M86: 1J vs 2H
+  r32.push({slot:"M86", match:86, home:firsts["J"], away:seconds["H"]});
+  // M87: 1K vs 3° de D/E/I/J/L
+  r32.push({slot:"M87", match:87, home:firsts["K"], away:pick3rd(["D","E","I","J","L"])});
+  // M88: 2D vs 2G
+  r32.push({slot:"M88", match:88, home:seconds["D"], away:seconds["G"]});
+  // total: 16 cruces ✓
 
   return { groupTable, firsts, seconds, thirds, bestThirds, droppedThirds, r32 };
 }
