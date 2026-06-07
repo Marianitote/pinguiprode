@@ -183,29 +183,51 @@ function menuUser(){
     <button class="btn ghost full" onclick="closeModal();signOut()">Cerrar sesión de forma segura</button>`);
 }
 
-/* ---------- PESTAÑA: INICIO ---------- */
+/* ---------- PESTAÑA: INICIO (ESTILOS PROTEGIDOS CONTRA DESBORDES) ---------- */
 function renderInicio(v){
   const tb=standings();
   const meRow=tb.find(r=>r.id===APP.user.id);
   const mSent=cardSent('main'), wSent=cardSent('wasabi');
   
-  v.innerHTML=`<div class="hero" style="padding-top:22px">
-    <h1>Hola, <em>${esc(APP.profile?.display_name)}</em></h1>
-    <p class="lead">Bienvenido a la central oficial de predicciones del torneo.</p>
-  </div>
-  <div class="card">
-    <div class="sec-title">Estado de tus Tarjetas</div>
-    <div style="display:grid;gap:12px;margin-top:14px">
-      <div style="display:flex;justify-content:between;align-items:center;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--line)">
-        <div><strong>Tarjeta Principal (Cuadro Completo)</strong><br><span style="font-size:12px;color:var(--muted)">Grupos + Llaves Eliminatorias</span></div>
-        <div><span class="chip ${mSent?'on':''}">${mSent?'ENVIADA':'PENDIENTE'}</span></div>
-      </div>
-      <div style="display:flex;justify-content:between;align-items:center;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--line)">
-        <div><strong>Tarjeta Wasabi</strong><br><span style="font-size:12px;color:var(--muted)">Preguntas únicas del mundial</span></div>
-        <div><span class="chip ${wSent?'on':''}">${wSent?'ENVIADA':'PENDIENTE'}</span></div>
+  v.innerHTML=`
+    <div class="hero" style="padding-top:22px">
+      <h1>Hola, <em>${esc(APP.profile?.display_name)}</em></h1>
+      <p class="lead">Bienvenido a la central oficial de predicciones del torneo.</p>
+    </div>
+    
+    <div class="card">
+      <div class="sec-title" style="letter-spacing: 0.5px;">ESTADO DE TUS TARJETAS</div>
+      <div style="display:grid; gap:16px; margin-top:20px;">
+        
+        <!-- Tarjeta Principal -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:16px; border-radius:12px; border:1px solid var(--line);">
+          <div style="padding-right: 10px;">
+            <strong style="font-size:16px; color:var(--snow); display:block; margin-bottom:4px;">Tarjeta Principal (Cuadro Completo)</strong>
+            <span style="font-size:12px; color:var(--muted)">Grupos + Llaves Eliminatorias</span>
+          </div>
+          <div style="flex-shrink: 0;">
+            <span class="chip ${mSent?'on':''}" style="font-size:12px; font-weight:bold; padding:6px 12px; display:inline-block;">
+              ${mSent?'ENVIADA':'PENDIENTE'}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Tarjeta Wasabi -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:16px; border-radius:12px; border:1px solid var(--line);">
+          <div style="padding-right: 10px;">
+            <strong style="font-size:16px; color:var(--snow); display:block; margin-bottom:4px;">Tarjeta Wasabi</strong>
+            <span style="font-size:12px; color:var(--muted)">Preguntas únicas del mundial</span>
+          </div>
+          <div style="flex-shrink: 0;">
+            <span class="chip ${wSent?'on':''}" style="font-size:12px; font-weight:bold; padding:6px 12px; display:inline-block;">
+              ${wSent?'ENVIADA':'PENDIENTE'}
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>`;
+  `;
 }
 
 /* ---------- INPUTS DINÁMICOS ---------- */
@@ -388,7 +410,7 @@ function renderWasabi(v){
   </div>`;
 }
 
-/* ---------- PESTAÑA: TABLA DE POSICIONES (REPARADA) ---------- */
+/* ---------- PESTAÑA: TABLA DE POSICIONES ---------- */
 function renderTabla(v) {
   const jugadores = standings();
   
@@ -414,7 +436,7 @@ function renderTabla(v) {
     html += `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--muted);">No hay jugadores registrados en la base de datos aún.</td></tr>`;
   } else {
     jugadores.forEach(j => {
-      const esPropio = j.id === APP.user?.id ? "font-weight: bold; background-color: rgba(255,255,255,0.06);" : "";
+      const esPropio = j.id === APP.user?.id ? "font-weight: bold; background-color: rgba(255,255,255,0.06);"; : "";
       html += `
         <tr style="border-bottom: 1px solid var(--line); ${esPropio}">
           <td style="padding: 12px 8px;"><b>#${j.pos}</b></td>
@@ -466,7 +488,7 @@ function renderReglamento(v) {
   `;
 }
 
-/* ---------- PANEL DE ADMINISTRACIÓN (MANTENIDO) ---------- */
+/* ---------- PANEL DE ADMINISTRACIÓN ---------- */
 function renderAdmin(v){
   if(!isAdmin()) return v.innerHTML=`<div class="card">Acceso Denegado</div>`;
   v.innerHTML=`<div class="card">
