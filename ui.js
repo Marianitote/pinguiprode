@@ -183,7 +183,7 @@ function menuUser(){
     <button class="btn ghost full" onclick="closeModal();signOut()">Cerrar sesión de forma segura</button>`);
 }
 
-/* ---------- PESTAÑA: INICIO (ESTILOS PROTEGIDOS CONTRA DESBORDES) ---------- */
+/* ---------- PESTAÑA: INICIO ---------- */
 function renderInicio(v){
   const tb=standings();
   const meRow=tb.find(r=>r.id===APP.user.id);
@@ -410,7 +410,7 @@ function renderWasabi(v){
   </div>`;
 }
 
-/* ---------- PESTAÑA: TABLA DE POSICIONES ---------- */
+/* ---------- PESTAÑA: TABLA DE POSICIONES (ERROR REPARADO) ---------- */
 function renderTabla(v) {
   const jugadores = standings();
   
@@ -436,7 +436,7 @@ function renderTabla(v) {
     html += `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--muted);">No hay jugadores registrados en la base de datos aún.</td></tr>`;
   } else {
     jugadores.forEach(j => {
-      const esPropio = j.id === APP.user?.id ? "font-weight: bold; background-color: rgba(255,255,255,0.06);"; : "";
+      const esPropio = j.id === APP.user?.id ? "font-weight: bold; background-color: rgba(255,255,255,0.06);" : "";
       html += `
         <tr style="border-bottom: 1px solid var(--line); ${esPropio}">
           <td style="padding: 12px 8px;"><b>#${j.pos}</b></td>
