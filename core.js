@@ -1,41 +1,4 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 — CONFIGURACIÓN DE DATOS OFICIALES
-   ===================================================================== */
-const STAGES = {
-  grupos: { id: "grupos", name: "Fase de Grupos" },
-  r32: { id: "r32", name: "Dieciseisavos de Final" },
-  r16: { id: "r16", name: "Octavos de Final" },
-  qf: { id: "qf", name: "Cuartos de Final" },
-  sf: { id: "sf", name: "Semifinales" },
-  tpfinal: { id: "tpfinal", name: "Tercer Puesto y Final" }
-};
-
-const GROUPS = {
-  A: { teams: ["USA", "MEX", "CAN", "ARG"] }, // Ejemplo de estructura de grupos
-  B: { teams: ["BRA", "FRA", "ENG", "GER"] },
-  C: { teams: ["ITA", "ESP", "POR", "BEL"] },
-  D: { teams: ["NED", "CRO", "URU", "COL"] },
-  E: { teams: ["MAR", "SEN", "JPN", "KOR"] },
-  F: { teams: ["CHL", "ECU", "PAR", "VEN"] },
-  G: { teams: ["PER", "BOL", "CRC", "PAN"] },
-  H: { teams: ["JAM", "HON", "SLV", "CAN2"] },
-  I: { teams: ["EGY", "NGA", "TUN", "GHA"] },
-  J: { teams: ["KSA", "AUS", "IRN", "IRQ"] },
-  K: { teams: ["SWE", "SUI", "UKR", "POL"] },
-  L: { teams: ["DEN", "AUT", "TUR", "CZE"] }
-};
-
-// Semilla para preguntas Wasabi
-const SEED_WASABI = [
-  { id: "w1", q: "¿Quién será el campeón del mundo?" },
-  { id: "w2", q: "¿Qué selección será la decepción del torneo?" },
-  { id: "w3", q: "¿Cuántos goles se meterán en la Final? (Aproximado)" }
-];
-
-// Listado base de partidos vacíos para el cálculo
-const MATCHES = []; 
-
-/* =====================================================================
    PINGÜIPRODE · MUNDIAL 2026 — NÚCLEO (Supabase + motor de puntajes)
    ===================================================================== */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -45,26 +8,24 @@ const APP = {
   user:null, profile:null,
   myPred:null,
   profiles:[], results:{main:{},extra:{},wasabi:{}},
-  comodines:[], wasabiQs:[...SEED_WASABI],
+  comodines:[], wasabiQs: (typeof SEED_WASABI !== 'undefined') ? [...SEED_WASABI] : [],
 };
 
-/* ---------- DATOS GLOBALES (Versión Segura) ---------- */
-async function loadGlobalData(){
-  // Ejecutamos las consultas de forma segura e individual para que ninguna sorda rompa el inicio
-  const p = await sb.from('profiles').select('id,display_name,is_admin,created_at').catch(() => ({data:[]}));
-  const r = await sb.from('results').select('*').catch(() => ({data:[]}));
-  const c = await sb.from('comodines').select('*').catch(() => ({data:[]}));
-
-  APP.profiles = p.data || [];
-  APP.comodines = c.data || [];
-
-  APP.results = {main:{}, extra:{}, wasabi:{}};
-  (r.data || []).forEach(row => {
-    if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
-    if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
-    if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
-  });
+/* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
+async function loadAll() {
+  try {
+    await loadSession();
+    await loadGlobalData();
+    if (APP.user) {
+      await loadMyPrediction();
+    }
+    console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
+  } catch (error) {
+    console.error("Error crítico en loadAll():", error);
+    throw error;
+  }
 }
+
 /* ---------- AUTH ---------- */
 async function signUp(email, pass) {
   const { data, error } = await sb.auth.signUp({ email, password: pass });
@@ -101,14 +62,9 @@ async function createProfile(displayName){
 
 /* ---------- DATOS GLOBALES ---------- */
 async function loadGlobalData(){
-  const [p, r, c] = await Promise.all([
-    sb.from('profiles').select('id,display_name,is_admin,created_at'),
-    sb.from('results').select('*'),
-    sb.from('comodines').select('*')
-  ]);
-  if(p.error) throw p.error;
-  if(r.error) throw r.error;
-  if(c.error) throw c.error;
+  const p = await sb.from('profiles').select('id,display_name,is_admin,created_at').catch(() => ({data:[]}));
+  const r = await sb.from('results').select('*').catch(() => ({data:[]}));
+  const c = await sb.from('comodines').select('*').catch(() => ({data:[]}));
 
   APP.profiles = p.data || [];
   APP.comodines = c.data || [];
@@ -292,30 +248,34 @@ async function buildBracket(stage){
   const userPreds = APP.myPred?.main || {};
 
   const groupStats = {};
-  Object.keys(GROUPS).forEach(g => {
-    groupStats[g] = {};
-    GROUPS[g].teams.forEach(t => { groupStats[g][t] = { code:t, pts:0, gf:0, gc:0, dg:0 }; });
-  });
+  if (typeof GROUPS !== 'undefined') {
+    Object.keys(GROUPS).forEach(g => {
+      groupStats[g] = {};
+      GROUPS[g].teams.forEach(t => { groupStats[g][t] = { code:t, pts:0, gf:0, gc:0, dg:0 }; });
+    });
+  }
 
-  MATCHES.forEach(m => {
-    const pred = userPreds[m.id];
-    if(pred && pred.h != null && pred.a != null){
-      const h = parseInt(pred.h, 10);
-      const a = parseInt(pred.a, 10);
-      const sH = groupStats[m.g][m.h];
-      const sA = groupStats[m.g][m.a];
-      if(sH && sA){
-        sH.gf += h; sH.gc += a;
-        sA.gf += a; sA.gc += h;
-        if(h > a) { sH.pts += 3; }
-        else if(a > h) { sA.pts += 3; }
-        else { sH.pts += 1; sA.pts += 1; }
+  if (typeof MATCHES !== 'undefined') {
+    MATCHES.forEach(m => {
+      const pred = userPreds[m.id];
+      if(pred && pred.h != null && pred.a != null){
+        const h = parseInt(pred.h, 10);
+        const a = parseInt(pred.a, 10);
+        const sH = groupStats[m.g][m.h];
+        const sA = groupStats[m.g][m.a];
+        if(sH && sA){
+          sH.gf += h; sH.gc += a;
+          sA.gf += a; sA.gc += h;
+          if(h > a) { sH.pts += 3; }
+          else if(a > h) { sA.pts += 3; }
+          else { sH.pts += 1; sA.pts += 1; }
+        }
       }
-    }
-  });
+    });
+  }
 
   const posicionesGrupos = {};
-  const listaTodosLosTerceros = [];
+  const listaTodosLos Terceros = [];
 
   Object.keys(groupStats).forEach(g => {
     const teamsArr = Object.values(groupStats[g]);
