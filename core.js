@@ -888,14 +888,25 @@ async function sendStageElim(stage){
       winners.push(m.pen==="1"?m.home:m.away);
     }
   }
-  // armar siguiente etapa (con marcadores por default 0-0)
+  // armar siguiente etapa con cruces OFICIALES FIFA
+  // R32→R16: M74vsM77, M73vsM75, M76vsM78, M79vsM80, M83vsM84, M81vsM82, M86vsM88, M85vsM87
+  // R16→QF:  M89vsM90, M93vsM94, M91vsM92, M95vsM96
+  // QF→SF:   M97vsM98, M99vsM100
+  const FIFA_PAIRS = {
+    r32: [[1,4],[0,2],[3,5],[6,7],[10,11],[8,9],[13,15],[12,14]],
+    r16: [[0,1],[4,5],[2,3],[6,7]],
+    qf:  [[0,1],[2,3]],
+  };
   const NEXT={r32:"r16", r16:"qf", qf:"sf"};
   if(stage in NEXT){
     const nextKey=NEXT[stage];
-    bracket[nextKey] = [];
-    for(let i=0;i<winners.length;i+=2){
-      bracket[nextKey].push({id:`${nextKey}-${i/2+1}`, home:winners[i], away:winners[i+1], h:0, a:0, pen:""});
-    }
+    const pairs=FIFA_PAIRS[stage];
+    bracket[nextKey] = pairs.map((pair,i)=>({
+      id:`${nextKey}-${i+1}`,
+      home:winners[pair[0]],
+      away:winners[pair[1]],
+      h:0, a:0, pen:""
+    }));
   } else if(stage==="sf"){
     // los GANADORES de SF van a la FINAL; los perdedores al 3er puesto
     const losers=[];
