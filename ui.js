@@ -1,3 +1,13 @@
+// Clon de seguridad por si ui.js no ve el core a tiempo
+if (typeof standings !== 'function') {
+    window.standings = function() {
+        console.log("Standings emulado de emergencia para destrabar el login");
+        return [];
+    };
+}
+if (typeof cardSent !== 'function') {
+    window.cardSent = function() { return false; };
+}
 /* =====================================================================
    PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
