@@ -17,27 +17,40 @@ const APP = {
   comodines:[], wasabiQs: [...SEED_WASABI],
 };
 
+/* FUNCIÓN AUXILIAR: Si Supabase se cuelga más de 4 segundos, destraba el código a la fuerza */
+function timeoutPromesa(ms) {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error("Tiempo de espera de red agotado (Supabase no responde)")), ms));
+}
+
 /* ---------- FUNCIÓN GLOBAL DE INICIALIZACIÓN ---------- */
 async function loadAll() {
   try {
     console.log("1. Iniciando loadAll()...");
-    await loadSession();
+    
+    // Si loadSession tarda más de 4 segundos, se corta y va al catch
+    await Promise.race([loadSession(), timeoutPromesa(4000)]);
     console.log("2. Sesión cargada:", APP.user);
     
-    await loadGlobalData();
+    // Si loadGlobalData tarda más de 4 segundos, se corta y va al catch
+    await Promise.race([loadGlobalData(), timeoutPromesa(4000)]);
     console.log("3. Datos globales cargados:", APP.profiles, APP.comodines);
     
     if (APP.user) {
       console.log("4. Cargando predicción para el usuario...");
-      await loadMyPrediction();
+      await Promise.race([loadMyPrediction(), timeoutPromesa(4000)]);
       console.log("5. Predicción cargada:", APP.myPred);
     }
     
     console.log("PingüiProde: Núcleo e inicialización cargados con éxito.", APP);
   } catch (error) {
-    console.error("¡ERROR CRÍTICO ENCONTRADO!:", error);
-    alert("Error crítico al cargar: " + error.message);
-    throw error;
+    console.error("¡BLOQUEO EVITADO!:", error);
+    
+    // EN VEZ DE CONGELARSE: Si se colgó la red, forzamos a la app a arrancar en modo offline/vacío
+    alert("Atención: " + error.message + ". Cargando aplicación en modo de emergencia.");
+    
+    // Forzamos a la interfaz a ocultar el "Cargando..." si existe la función en ui.js
+    if (typeof renderApp === 'function') { renderApp(); }
+    else if (document.getElementById('loading')) { document.getElementById('loading').style.display = 'none'; }
   }
 }
 
@@ -56,42 +69,45 @@ async function signIn(email, pass) {
 async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
 async function loadSession(){
-  const {data}=await sb.auth.getUser();
-  APP.user=data?.user||null;
-  if(APP.user){
-    const {data:prof}=await sb.from('profiles').select('*').eq('id',APP.user.id).maybeSingle();
-    APP.profile=prof||null;
-  }
+  try {
+    const {data}=await sb.auth.getUser();
+    APP.user=data?.user||null;
+    if(APP.user){
+      const {data:prof}=await sb.from('profiles').select('*').eq('id',APP.user.id).maybeSingle();
+      APP.profile=prof||null;
+    }
+  } catch(e) { APP.user = null; }
 }
 
 /* ---------- PERFIL ---------- */
 async function createProfile(displayName){
-  const {error}=await sb.from('profiles').insert({
-    id:APP.user.id,
-    display_name:displayName
-  });
+  const {error}=await sb.from('profiles').insert({ id:APP.user.id, display_name:displayName });
   if(error) throw error;
   const {data:prof}=await sb.from('profiles').select('*').eq('id',APP.user.id).maybeSingle();
   APP.profile=prof||null;
 }
 
-/* ---------- DATOS GLOBALES (Anticongelante) ---------- */
+/* ---------- DATOS GLOBALES ---------- */
 async function loadGlobalData(){
-  const resP = await sb.from('profiles').select('id,display_name,is_admin,created_at');
-  const resR = await sb.from('results').select('*');
-  const resC = await sb.from('comodines').select('*');
+  try {
+    const resP = await sb.from('profiles').select('id,display_name,is_admin,created_at');
+    const resR = await sb.from('results').select('*');
+    const resC = await sb.from('comodines').select('*');
 
-  APP.profiles = (!resP.error && resP.data) ? resP.data : [];
-  APP.comodines = (!resC.error && resC.data) ? resC.data : [];
-  
-  const rData = (!resR.error && resR.data) ? resR.data : [];
+    APP.profiles = (!resP.error && resP.data) ? resP.data : [];
+    APP.comodines = (!resC.error && resC.data) ? resC.data : [];
+    
+    const rData = (!resR.error && resR.data) ? resR.data : [];
 
-  APP.results = {main:{}, extra:{}, wasabi:{}};
-  rData.forEach(row => {
-    if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
-    if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
-    if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
-  });
+    APP.results = {main:{}, extra:{}, wasabi:{}};
+    rData.forEach(row => {
+      if(row.type === 'main') APP.results.main[row.item_id] = {h:row.h, a:row.a, pen:row.pen};
+      if(row.type === 'extra') APP.results.extra[row.item_id] = row.value;
+      if(row.type === 'wasabi') APP.results.wasabi[row.item_id] = row.value;
+    });
+  } catch(e) {
+    APP.profiles = []; APP.comodines = [];
+  }
 }
 
 /* Cargar la predicción del usuario o crear una vacía */
@@ -122,7 +138,6 @@ function stageSent(stage){
   return !!(APP.myPred.sent_at || {})[stage];
 }
 
-/* ---------- RESTO DE FUNCIONES DE CONTROL ---------- */
 function cardSent(card){
   if(!APP.myPred) return false;
   if(card === 'wasabi') return stageSent('wasabi');
@@ -294,8 +309,7 @@ async function buildBracket(stage){
 
   if(stage === 'r32'){
     if(!bracket.r32) bracket.r32 = {};
-    const prevR32 = { ...bracket.r32 };
-    bracket.r32 = {};
+    const prevR32 = { ...bracket.r32 }; bracket.r32 = {};
 
     const estructuraR32 = [
       { id: "r32-1",  name: "Partido 73", h: "2A", v: "2B" },
