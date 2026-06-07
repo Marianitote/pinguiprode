@@ -34,8 +34,9 @@ async function loadSession(){
   }
 }
 
-/* crear perfil (después de validar el mail). El trigger valida que el mail esté habilitado */
-async function createProfile(displayName){\n  const {error}=await sb.from('profiles').insert({
+/* ---------- PERFIL CORREGIDO (Sin token de escape \n) ---------- */
+async function createProfile(displayName){
+  const {error}=await sb.from('profiles').insert({
     id:APP.user.id,
     display_name:displayName
   });
@@ -166,7 +167,7 @@ const TABLA_TERCEROS_FIFA = {
   "ABCDEFHJ": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3J', '1G':'3A', '1H':'3B' },
   "ABCDEFHK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3K', '1G':'3A', '1H':'3B' },
   "ABCDEFHL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3H', '1F':'3L', '1G':'3A', '1H':'3B' },
-  "ABCDEFII": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3J', '1G':'3A', '1H':'3B' }, // Salvaguarda duplicado
+  "ABCDEFII": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3J', '1G':'3A', '1H':'3B' }, 
   "ABCDEFIJ": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3J', '1G':'3A', '1H':'3B' },
   "ABCDEFIK": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3K', '1G':'3A', '1H':'3B' },
   "ABCDEFIL": { '1A':'3C', '1B':'3D', '1C':'3E', '1D':'3F', '1E':'3I', '1F':'3L', '1G':'3A', '1H':'3B' },
@@ -203,7 +204,6 @@ function resolverAsignacionTerceros(letrasTerceros) {
 
 /* Auxiliar para recuperar el código del equipo clasificado */
 function getTeamFromGroupPos(positions, code) {
-  // code ej: "1A", "2B", "3C"
   const type = code.charAt(0);
   const group = code.charAt(1);
   const arr = positions[group] || [];
@@ -254,7 +254,6 @@ async function buildBracket(stage){
     const teamsArr = Object.values(groupStats[g]);
     teamsArr.forEach(t => { t.dg = t.gf - t.gc; });
     
-    // Criterio general Prode: Puntos -> DG -> GF -> Orden alfabético del código de equipo
     teamsArr.sort((a,b) => {
       if(b.pts !== a.pts) return b.pts - a.pts;
       if(b.dg !== a.dg) return b.dg - a.dg;
@@ -264,7 +263,6 @@ async function buildBracket(stage){
 
     posicionesGrupos[g] = teamsArr.map(t => t.code);
 
-    // Almacenar el tercero de este grupo
     if(teamsArr[2]) {
       listaTodosLosTerceros.push({
         grupo: g,
@@ -288,7 +286,6 @@ async function buildBracket(stage){
   const letrasTercerosClasificados = mejores8Terceros.map(t => t.grupo).sort().join('');
   const mapaAsignacionFIFA = resolverAsignacionTerceros(letrasTercerosClasificados);
 
-  // Helper local para buscar qué equipo físico quedó asignado a un puesto condicional (ej: '3C')
   function obtenerEquipoTerceroAsignado(codigoTerceroFIFA) {
     const letraGrupo = codigoTerceroFIFA.charAt(1);
     const pasoTercero = mejores8Terceros.find(t => t.grupo === letraGrupo);
@@ -302,7 +299,6 @@ async function buildBracket(stage){
     const prevR32 = { ...bracket.r32 };
     bracket.r32 = {};
 
-    // Definición exacta del Fixture Oficial FIFA 2026 (Partidos 73 al 88)
     const estructuraR32 = [
       { id: "r32-1",  name: "Partido 73", h: "2A", v: "2B" },
       { id: "r32-2",  name: "Partido 74", h: "1E", v: "TERCERO", ref: "1E" },
@@ -326,14 +322,12 @@ async function buildBracket(stage){
       let homeTeam = "";
       let awayTeam = "";
 
-      // Resolver Local
       if(p.h === "TERCERO") {
         homeTeam = obtenerEquipoTerceroAsignado(mapaAsignacionFIFA[p.ref]);
       } else {
         homeTeam = getTeamFromGroupPos(posicionesGrupos, p.h);
       }
 
-      // Resolver Visitante
       if(p.v === "TERCERO") {
         awayTeam = obtenerEquipoTerceroAsignado(mapaAsignacionFIFA[p.ref]);
       } else {
@@ -353,7 +347,6 @@ async function buildBracket(stage){
     });
   }
 
-  // Funciones auxiliares internas para determinar ganadores/perdedores reales en cascada
   const getWinner = (match) => {
     if(!match || match.h === "" || match.a === "") return "";
     const h = parseInt(match.h, 10);
@@ -372,21 +365,21 @@ async function buildBracket(stage){
     return match.pen === '1' ? match.away : (match.pen === '2' ? match.home : "");
   };
 
-  // 4. OCTAVOS DE FINAL (R16) - ACOPLADOS PERFECTAMENTE AL FIXTURE FIFA
+  // 4. OCTAVOS DE FINAL (R16)
   if(stage === 'r16'){
     if(!bracket.r16) bracket.r16 = {};
     const prevR16 = { ...bracket.r16 };
     bracket.r16 = {};
 
     const crucesR16 = [
-      { id: "r16-1", name: "Partido 89", h: "r32-2",  v: "r32-5" },  // Ganador 74 vs Ganador 77
-      { id: "r16-2", name: "Partido 90", h: "r32-1",  v: "r32-3" },  // Ganador 73 vs Ganador 75
-      { id: "r16-3", name: "Partido 91", h: "r32-4",  v: "r32-6" },  // Ganador 76 vs Ganador 78
-      { id: "r16-4", name: "Partido 92", h: "r32-7",  v: "r32-8" },  // Ganador 79 vs Ganador 80
-      { id: "r16-5", name: "Partido 93", h: "r32-11", v: "r32-12" }, // Ganador 83 vs Ganador 84
-      { id: "r16-6", name: "Partido 94", h: "r32-9",  v: "r32-10" }, // Ganador 81 vs Ganador 82
-      { id: "r16-7", name: "Partido 95", h: "r32-14", v: "r32-16" }, // Ganador 86 vs Ganador 88
-      { id: "r16-8", name: "Partido 96", h: "r32-13", v: "r32-15" }  // Ganador 85 vs Ganador 87
+      { id: "r16-1", name: "Partido 89", h: "r32-2",  v: "r32-5" },
+      { id: "r16-2", name: "Partido 90", h: "r32-1",  v: "r32-3" },
+      { id: "r16-3", name: "Partido 91", h: "r32-4",  v: "r32-6" },
+      { id: "r16-4", name: "Partido 92", h: "r32-7",  v: "r32-8" },
+      { id: "r16-5", name: "Partido 93", h: "r32-11", v: "r32-12" },
+      { id: "r16-6", name: "Partido 94", h: "r32-9",  v: "r32-10" },
+      { id: "r16-7", name: "Partido 95", h: "r32-14", v: "r32-16" },
+      { id: "r16-8", name: "Partido 96", h: "r32-13", v: "r32-15" }
     ];
 
     crucesR16.forEach(c => {
@@ -410,10 +403,10 @@ async function buildBracket(stage){
     bracket.qf = {};
 
     const crucesQF = [
-      { id: "qf-1", name: "Partido 97", h: "r16-1", v: "r16-2" }, // Ganador 89 vs Ganador 90
-      { id: "qf-2", name: "Partido 98", h: "r16-5", v: "r16-6" }, // Ganador 93 vs Ganador 94
-      { id: "qf-3", name: "Partido 99", h: "r16-3", v: "r16-4" }, // Ganador 91 vs Ganador 92
-      { id: "qf-4", name: "Partido 100", h: "r16-7", v: "r16-8" } // Ganador 95 vs Ganador 96
+      { id: "qf-1", name: "Partido 97", h: "r16-1", v: "r16-2" },
+      { id: "qf-2", name: "Partido 98", h: "r16-5", v: "r16-6" },
+      { id: "qf-3", name: "Partido 99", h: "r16-3", v: "r16-4" },
+      { id: "qf-4", name: "Partido 100", h: "r16-7", v: "r16-8" }
     ];
 
     crucesQF.forEach(c => {
@@ -437,8 +430,8 @@ async function buildBracket(stage){
     bracket.sf = {};
 
     const crucesSF = [
-      { id: "sf-1", name: "Partido 101", h: "qf-1", v: "qf-2" }, // Ganador 97 vs Ganador 98
-      { id: "sf-2", name: "Partido 102", h: "qf-3", v: "qf-4" }  // Ganador 99 vs Ganador 100
+      { id: "sf-1", name: "Partido 101", h: "qf-1", v: "qf-2" },
+      { id: "sf-2", name: "Partido 102", h: "qf-3", v: "qf-4" }
     ];
 
     crucesSF.forEach(c => {
@@ -484,7 +477,6 @@ async function buildBracket(stage){
     };
   }
 
-  // Guardar en la base de datos el progreso del árbol
   const sent_at = { ...(APP.myPred.sent_at || {}), [stage]: new Date().toISOString() };
   let patch = { bracket, sent_at };
   
@@ -517,7 +509,6 @@ async function setBracketScore(stage, slotId, key, value){
     bracket[stage][slotId][key] = value;
   }
 
-  // Persistir el cambio inmediato sin mutar directamente sent_at todavía
   const { data, error } = await sb.from('predictions').update({ bracket }).eq('user_id', APP.user.id).select().maybeSingle();
   if(error) throw error;
   APP.myPred = data;
