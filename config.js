@@ -225,7 +225,7 @@ const SEED_WASABI = [
   {id:"w51", t:"¿Cuántos goles olímpicos (de córner directo) en todo el Mundial?", pts:8, type:"num"},
   {id:"w52", t:"¿Habrá algún partido que termine 0-0 en fase de grupos? (Sí/No)", pts:12, type:"yesno"},
   {id:"w53", t:"Primer árbitro que muestra una roja en todo el Mundial (nacionalidad)", pts:6, type:"text"},
-  {id:"w54", t:"¿Cuántas veces se ve a Messi tomando agua/Gatorade en la final si Argentina llega?", pts:8, type:"yesno", ac:"Si Argentina no juega la final no se suman puntos"},
+  {id:"w54", t:"¿Cuántas veces se ve a Messi tomando agua/Gatorade en la final si Argentina llega?", pts:8, type:"text", ac:"Si Argentina no juega la final no se suman puntos"},
   {id:"w55", t:"¿Aparece algún streaker (invasor de cancha) durante el torneo? (Sí/No)", pts:10, type:"yesno"},
   {id:"w56", t:"Primer país en quedar eliminado matemáticamente del Mundial", pts:12, type:"team", ac:"Bonus +3 si acertás el partido"},
   {id:"w57", t:"¿En qué minuto del partido inaugural (México vs Sudáfrica) se mete el primer gol?", pts:10, type:"text"},
