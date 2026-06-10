@@ -618,9 +618,8 @@ function renderWasabi(v){
     "w21": { label:"Preguntas de la Fase de Grupos",        icon:"🏟️", color:"#8b5cf6" },
     "w27": { label:"Primer Partido de Argentina",           icon:"🇦🇷", color:"#16a34a" },
     "w31": { label:"Segundo Partido de Argentina",          icon:"🇦🇷", color:"#b45309" },
-    "w35": { label:"Tercer Partido de Argentina",           icon:"🇦🇷", color:"#dc2626" },
-    "w36": { label:"Preguntas Octavos de Final",            icon:"⚔️", color:"#0891b2" },
-    "w44": { label:"Preguntas Cuartos de Final",            icon:"🏅", color:"#7c3aed" },
+    "w33": { label:"Tercer Partido de Argentina",           icon:"🇦🇷", color:"#dc2626" },
+    "w38": { label:"Preguntas Cuartos de Final",            icon:"🏅", color:"#7c3aed" },
     "w47": { label:"Preguntas Absolutas",                   icon:"🌍", color:"#3b82f6" },
   };
   let openSection = false;
