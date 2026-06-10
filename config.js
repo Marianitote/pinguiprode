@@ -4,8 +4,8 @@
    👉 PEGÁ ACÁ TUS DOS CLAVES DE SUPABASE (ver la guía, paso 3).
       Las encontrás en: Supabase → Project Settings → API
    ===================================================================== */
-const SUPABASE_URL  = "https://vbkiqqbybiitsljummpp.supabase.co";   // ← reemplazá
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZia2lxcWJ5YmlpdHNsanVtbXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5Nzk0MjQsImV4cCI6MjA5NTU1NTQyNH0.-oigRsAtrpWgEXOJHfawrv-2gXNOwTZUSWxlg9r6QDc";              // ← reemplazá
+const SUPABASE_URL  = "https://fbhbanxbylevmgbtftvj.supabase.co";   // ← reemplazá
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiaGJhbnhieWxldm1nYnRmdHZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODEzNDksImV4cCI6MjA5NTE1NzM0OX0.VG8aUZT0iF_Rs0QV26uRTyyXtB3RQWFNwu5Y2Q-n56Q";              // ← reemplazá
 
 /* ---------------------------------------------------------------------
    Reglamento 2026 (resumen mostrado dentro de la app)
@@ -207,29 +207,29 @@ const SEED_WASABI = [
   {id:"w33", t:"Primer reemplazo: Sale", pts:16, type:"player"},
   {id:"w34", t:"Primer reemplazo: Entra", pts:16, type:"player"},
   {id:"w35", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:10, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
-  {id:"w36", t:"¿Quién comete la primera infracción?", pts:10, type:"player"},
-  {id:"w37", t:"¿Quién recibe la primera infracción?", pts:18, type:"player"},
-  {id:"w38", t:"¿En qué minuto mete Argentina su gol más temprano? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
-  {id:"w39", t:"¿En qué minuto mete Argentina su gol más tardío? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
-  {id:"w40", t:"Primera amarilla argentina", pts:10, type:"player", ac:"Si no hay no se suman puntos"},
-  {id:"w41", t:"Primera roja argentina", pts:10, type:"player", ac:"Si no hay rojas no se suman puntos"},
-  {id:"w42", t:"Primer reemplazo: Sale", pts:16, type:"player"},
-  {id:"w43", t:"Primer reemplazo: Entra", pts:16, type:"player"},
-  {id:"w44", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:10, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
-  {id:"w45", t:"¿Quién comete la primera infracción?", pts:10, type:"player"},
-  {id:"w46", t:"¿Quién recibe la primera infracción?", pts:18, type:"player"},
-  {id:"w47", t:"¿Quién patea el primer penal argentino? Los penales de definición por penales cuentan en este punto", pts:10, type:"player", ac:"Si no hay penales no se suman puntos"},
-  {id:"w48", t:"Equipo que le convierte el primer gol a Argentina (en los 120')", pts:22, type:"team"},
-  {id:"w49", t:"Autor del primer gol a favor de Argentina", pts:16, type:"player", ac:"Si es gol en contra del rival no cuenta"},
-  {id:"w50", t:"Primer jugador argentino en hacer el lagarto", pts:22, type:"player", ac:"El que se acuesta en la barrera. Si nadie lo hace no se suman puntos"},
-  {id:"w51", t:"¿Cuántos goles de tiro libre directo en todo el Mundial?", pts:8, type:"num"},
-  {id:"w52", t:"¿Cuántos goles olímpicos (de córner directo) en todo el Mundial?", pts:12, type:"num"},
-  {id:"w53", t:"¿Habrá algún partido que termine 0-0 en fase de grupos? (Sí/No)", pts:6, type:"yesno"},
-  {id:"w54", t:"Primer árbitro que muestra una roja en el Mundial (nacionalidad)", pts:8, type:"text", ac:"Si no hay rojas no se suman puntos"},
-  {id:"w55", t:"¿Cuántas veces se ve a Messi tomando agua/Gatorade en la final si Argentina llega?", pts:10, type:"num", ac:"Si Argentina no juega la final no se suman puntos"},
-  {id:"w56", t:"¿Aparece algún streaker (invasor de cancha) durante el torneo? (Sí/No)", pts:12, type:"yesno", ac:"Bonus +3 si acertás el partido"},
-  {id:"w57", t:"Primer país en quedar eliminado matemáticamente del Mundial", pts:10, type:"team"},
-  {id:"w58", t:"¿En qué minuto del partido inaugural (México vs Sudáfrica) se mete el primer gol?", pts:8, type:"num", ac:"Gana el más cercano. Si no hay gol, todos suman 0"},
-  {id:"w59", t:"Cantidad de partidos que se definen por penales en eliminatorias", pts:10, type:"num"},
+  {id:"w36", t:"¿Quién recibe la primera infracción?", pts:10, type:"player"},
+  {id:"w37", t:"¿En qué minuto mete Argentina su gol más temprano? Gana el más cercano (s/ pág oficial FIFA)", pts:18, type:"player"},
+  {id:"w38", t:"¿En qué minuto mete Argentina su gol más tardío? Gana el más cercano (s/ pág oficial FIFA)", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w39", t:"Primera amarilla argentina", pts:10, type:"num", ac:"Los puntos se dan al finalizar la fase. No cuentan para el uso de comodines", noComo:true},
+  {id:"w40", t:"Primera roja argentina", pts:10, type:"player", ac:"Si no hay no se suman puntos"},
+  {id:"w41", t:"Primer reemplazo: Sale", pts:10, type:"player", ac:"Si no hay rojas no se suman puntos"},
+  {id:"w42", t:"Primer reemplazo: Entra", pts:16, type:"player"},
+  {id:"w43", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:16, type:"player"},
+  {id:"w44", t:"¿Quién comete la primera infracción?", pts:10, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
+  {id:"w45", t:"¿Quién recibe la primera infracción?", pts:10, type:"player"},
+  {id:"w46", t:"¿Quién patea el primer penal argentino? Los penales de definición por penales cuentan en este punto", pts:18, type:"player"},
+  {id:"w47", t:"En todo el mundial, ¿que equipo le convierte el primer gol a Argentina (en los 120')?", pts:10, type:"player", ac:"Si no hay penales no se suman puntos"},
+  {id:"w48", t:"En todo el mundial, ¿quién es el autor del primer gol a favor de Argentina", pts:22, type:"team"},
+  {id:"w49", t:"En todo el mundial ¿quién es el primer jugador argentino en hacer el lagarto?", pts:16, type:"player", ac:"Si es gol en contra del rival no cuenta"},
+  {id:"w50", t:"¿Cuántos goles de tiro libre directo en todo el Mundial?", pts:22, type:"player", ac:"El que se acuesta en la barrera. Si nadie lo hace no se suman puntos"},
+  {id:"w51", t:"¿Cuántos goles olímpicos (de córner directo) en todo el Mundial?", pts:8, type:"num"},
+  {id:"w52", t:"¿Habrá algún partido que termine 0-0 en fase de grupos? (Sí/No)", pts:12, type:"num"},
+  {id:"w53", t:"Primer árbitro que muestra una roja en todo el Mundial (nacionalidad)", pts:6, type:"yesno"},
+  {id:"w54", t:"¿Cuántas veces se ve a Messi tomando agua/Gatorade en la final si Argentina llega?", pts:8, type:"text", ac:"Si no hay rojas no se suman puntos"},
+  {id:"w55", t:"¿Aparece algún streaker (invasor de cancha) durante el torneo? (Sí/No)", pts:10, type:"num", ac:"Si Argentina no juega la final no se suman puntos"},
+  {id:"w56", t:"Primer país en quedar eliminado matemáticamente del Mundial", pts:12, type:"yesno", ac:"Bonus +3 si acertás el partido"},
+  {id:"w57", t:"¿En qué minuto del partido inaugural (México vs Sudáfrica) se mete el primer gol?", pts:10, type:"team"},
+  {id:"w58", t:"Cantidad de partidos que se definen por penales en eliminatorias", pts:8, type:"num", ac:"Gana el más cercano. Si no hay gol, todos suman 0"},
+  {id:"w59", t:"¿Algún jugador se saca la camiseta para festejar y se come amarilla? (Sí/No)", pts:10, type:"num"},
   {id:"w60", t:"¿Algún jugador se saca la camiseta para festejar y se come amarilla? (Sí/No)", pts:6, type:"yesno"},
 ];
