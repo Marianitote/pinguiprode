@@ -640,7 +640,10 @@ function renderWasabi(v){
       <div class="qt">${esc(q.t)}</div><div><span class="badge ${q.noComo?'r':'w'}">${q.pts}</span></div></div>
       ${isBonus
         ? `<div class="note" style="color:var(--gold);font-style:italic">🎁 Se completa de manera automática</div>`
-        : inputFor(q,v??"","wasabi",sent)}
+        : sent
+          ? (v ? `<div style="font-size:13.5px;font-weight:600;color:var(--aqua);padding:4px 0">${esc(v)}</div>`
+               : `<div style="font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0">Sin responder</div>`)
+          : inputFor(q,v??"","wasabi",sent)}
       ${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}</div>`;
   });
   if(openSection) html+=`</div>`; // cerrar última sección
