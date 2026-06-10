@@ -214,7 +214,7 @@ const SEED_WASABI = [
   {id:"w40", t:"Primera roja argentina", pts:10, type:"player", ac:"Si no hay no se suman puntos"},
   {id:"w41", t:"Primer reemplazo: Sale", pts:10, type:"player", ac:"Si no hay rojas no se suman puntos"},
   {id:"w42", t:"Primer reemplazo: Entra", pts:16, type:"player"},
-  {id:"w43", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:16, type:"player", ac:"Cada jugador debe completar este campo"},
+  {id:"w43", t:"Primer participante en alertar sobre el reemplazo (entra y sale) x grupo de wapp durante el partido", pts:16, type:"bonus", ac:"Son puntos adicionales — no hay que contestar nada (se completa de manera automática)"},
   {id:"w44", t:"¿Quién comete la primera infracción?", pts:10, type:"player"},
   {id:"w45", t:"¿Quién recibe la primera infracción?", pts:10, type:"player"},
   {id:"w46", t:"¿Quién patea el primer penal argentino? Los penales de definición por penales cuentan en este punto", pts:18, type:"player"},
