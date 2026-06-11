@@ -493,6 +493,21 @@ function wasabiTotal(uid){
       if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
       return;
     }
+    // w1: cantidad de jugadores que acertaron el resultado exacto del partido inaugural (auto)
+    if(q.id==="w1"){
+      const resMain=APP.results.main||{};
+      const r1=resMain["1"];
+      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
+      const exactCount = APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+        const m=(predFor(p.id).main)||{};
+        const pred=m["1"];
+        return pred && +pred.h===+r1.h && +pred.a===+r1.a;
+      }).length;
+      const playerAns = parseFloat(w["w1"]);
+      if(isNaN(playerAns)) return;
+      if(playerAns===exactCount) pts+=q.pts;
+      return;
+    }
     // preguntas de aproximación (minutos)
     if(q.type==="approx"){
       if(res[q.id]==null||res[q.id]==="") return;
