@@ -712,7 +712,16 @@ function standingsTableHTML(opts){
     if(!opts.inline||isAdmin()) return "";
     let btns="";
     // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
-    if(r.id!==APP.user.id){
+    const wOpen = windowOpenNow(); const hasMatches = dayHasMatches(todayDayKey());
+    if(r.id===APP.user.id){
+      if(usoNitro(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
+      } else if(!hasMatches||!wOpen){
+        btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else {
+        btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
+      }
+    } else {
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       if(reteable) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
     }
