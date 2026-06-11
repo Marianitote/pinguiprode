@@ -54,7 +54,10 @@ async function loadAll(){
   // comodines
   const {data:cm}=await sb.from('comodines').select('*').order('created_at');
   APP.comodines=cm||[];
-  // si es admin: cargar pagos (privados) y todas las predicciones de todos
+  // cargar predicciones de todos para calcular tabla de puntos
+  const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
+  (allP||[]).forEach(p=>{ _predCache[p.user_id]=p; });
+  // si es admin: cargar pagos y datos completos
   if(APP.profile?.is_admin){ await loadPayments(); await adminLoadAllPreds(); }
   // snapshots de posiciones (para las flechas ▲▼) — crea los que falten si ya cerró la fecha
   await syncSnapshots();
