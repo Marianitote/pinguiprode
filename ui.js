@@ -697,7 +697,11 @@ function standingsTableHTML(opts){
     let btns="";
     if(r.id===APP.user.id){
       // nitro para mí
-      btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
+      if(usoNitro(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
+      } else {
+        btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
+      }
     } else {
       // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
@@ -729,7 +733,7 @@ function standingsTableHTML(opts){
       r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
       `<span class="move same">=</span>`;
     const recv = recibioSang(r.id)?`<span class="recv-sang" title="Ya recibió sanguijuela (no puede recibir otra esta fecha)">🩸</span>`:"";
-    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Usó nitro">🔥</span>`:"";
+    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(r.id===APP.user?.id?`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`:"");
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
@@ -742,7 +746,7 @@ function standingsTableHTML(opts){
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
     <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
-    🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 usó nitro</div>`;
+    🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 activar nitro &nbsp;·&nbsp; 🔥✅ nitro activado</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
       <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th>${headLast}</tr>
       ${out}
