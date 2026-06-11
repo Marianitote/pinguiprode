@@ -456,10 +456,11 @@ function wasabiTotal(uid){
   const profile = APP.profiles.find(p=>p.id===uid);
   APP.wasabiQs.forEach(q=>{
     if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) pts+=q.pts; return; }
-    // preguntas auto (5-8): suman si el jugador respondió alguno de los nombres correctos
+    // preguntas auto (5-8): solo computan si el admin las habilitó
     if(["w5","w6","w7","w8"].includes(q.id)){
+      if(!APP.results.auto_wasabi_enabled) return;
       const correctNames = auto[q.id]||[];
-      if(!correctNames.length) return; // sin respuesta correcta (ej. anuladas por empate)
+      if(!correctNames.length) return;
       const ans = w[q.id];
       if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
       return;
