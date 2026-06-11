@@ -252,7 +252,7 @@ function renderInicio(v){
     ${standingsTableHTML({inline:true})}
     ${(()=>{
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
-      const reteables=tb.filter(r=>r.id!==APP.user?.id && meRow && meRow.pos!==1 && (meRow.pos-r.pos)>0 && (meRow.pos-r.pos)<=3);
+      const reteables=tb.filter(r=>r.id!==APP.user?.id && meRow && meRow.pos!==1 && r.pos!==1 && (meRow.pos-r.pos)>0 && (meRow.pos-r.pos)<=3);
       const enabled = reteables.length>0 && hasMatches2 && wOpen2;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
       const disabledReason = !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
@@ -722,7 +722,7 @@ function standingsTableHTML(opts){
         btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
       }
     } else {
-      const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
+      const reteable = me && me.pos!==1 && r.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       if(reteable) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
