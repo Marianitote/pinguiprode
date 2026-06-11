@@ -251,7 +251,7 @@ function renderInicio(v){
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
     ${(()=>{
-      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(currentDay());
+      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
       const reteables=tb.filter(r=>r.id!==APP.user?.id && meRow && meRow.pos!==1 && (meRow.pos-r.pos)>0 && (meRow.pos-r.pos)<=3);
       const enabled = reteables.length>0 && hasMatches2 && wOpen2;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
@@ -712,7 +712,7 @@ function standingsTableHTML(opts){
     if(!opts.inline||isAdmin()) return "";
     let btns="";
     const wOpen = windowOpenNow();
-    const hasMatches = dayHasMatches(currentDay());
+    const hasMatches = dayHasMatches(todayDayKey());
     if(r.id===APP.user.id){
       // nitro para mí
       if(usoNitro(r.id)){
@@ -754,7 +754,7 @@ function standingsTableHTML(opts){
       `<span class="move same">=</span>`;
     const sangBy = quienSanguijuelo(r.id);
     const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸</span>`:""; 
-    const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(currentDay());
+    const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(todayDayKey());
     const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
