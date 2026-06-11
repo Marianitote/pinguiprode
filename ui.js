@@ -758,17 +758,17 @@ function standingsTableHTML(opts){
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
       <td class="name">${esc(r.name)}${recv}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
-      <td>${r.main+r.extra}</td><td>${r.wasabi}</td>
-      ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}${r.id===APP.user?.id&&!isAdmin()?nit:""}</td>`}</tr>`;
+      <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
+      ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
-  const headLast = opts.inline?'<th>Acción</th>':'<th>Total</th>';
+  const headLast = opts.inline?'<th>Acción</th>':'';
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
     <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
     🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 activar nitro &nbsp;·&nbsp; 🔥✅ nitro activado</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
-      <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th>${headLast}</tr>
+      <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
       ${out}
     </table></div>${glos}`;
 }
