@@ -1024,12 +1024,13 @@ function admTarjetas(area){
     ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
     : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
   const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
+  const lockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px;background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar ${label}</button>`;
   let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
     <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
     <label class="field" style="margin-top:10px">Jugador</label>${sel}
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):''}</div>
-      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):''}</div>
+      <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):lockBtn('wasabi','Wasabi')}</div>
+      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
     </div>
   </div>`;
   // WASABI (colapsable)
@@ -1068,6 +1069,19 @@ function admTarjetas(area){
   });
 }
 // campo editable según tipo (reusa la lógica de inputFor pero llamando a adminEditPred)
+async function admLockStage(uid, stage){
+  try{
+    const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
+    const ss={...(pred.stages_sent||{})};
+    ss[stage]=true;
+    const sa={...(pred.sent_at||{})};
+    sa[stage]=new Date().toISOString();
+    await sb.from("predictions").update({stages_sent:ss, sent_at:sa}).eq("user_id",uid);
+    await adminLoadAllPreds();
+    toast("🔒 Tarjeta cerrada","ok");
+    admTarjetas(document.getElementById("admArea"));
+  }catch(e){ toast(e.message,"err"); }
+}
 async function admUnlockStage(uid, stage){
   try{
     const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
