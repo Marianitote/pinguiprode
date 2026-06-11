@@ -1016,10 +1016,20 @@ function admTarjetas(area){
   const sel=`<select onchange="ADM_VIEWUID=this.value;admTarjetas(document.getElementById('admArea'))">
     ${players.map(p=>`<option value="${p.id}" ${ADM_VIEWUID===p.id?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
   const pred=APP.allPreds?.[ADM_VIEWUID]||{main:{},extra:{},wasabi:{}};
+  const ss = pred.stages_sent||{};
+  const wasabiLocked = !!(ss.wasabi || pred.locked);
+  const gruposLocked = !!(ss.grupos || pred.locked);
+  const stateTag = (locked) => locked
+    ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
+    : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
+  const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
   let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
     <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
     <label class="field" style="margin-top:10px">Jugador</label>${sel}
-    ${pred.locked?'<div class="note" style="color:var(--gold);margin-top:8px">🔒 Tarjeta enviada por el jugador. Igual podés corregir como COMIPRO; queda en la bitácora.</div>':'<div class="note" style="margin-top:8px">Borrador (el jugador todavía no envió).</div>'}
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):''}</div>
+      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):''}</div>
+    </div>
   </div>`;
   // WASABI (colapsable)
   let wasabiBody='';
@@ -1057,6 +1067,17 @@ function admTarjetas(area){
   });
 }
 // campo editable según tipo (reusa la lógica de inputFor pero llamando a adminEditPred)
+async function admUnlockStage(uid, stage){
+  try{
+    const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
+    const ss={...(pred.stages_sent||{})};
+    delete ss[stage];
+    await sb.from("predictions").update({stages_sent:ss}).eq("user_id",uid);
+    await adminLoadAllPreds();
+    toast("✅ Tarjeta habilitada","ok");
+    admTarjetas(document.getElementById("admArea"));
+  }catch(e){ toast(e.message,"err"); }
+}
 function admVerGrupos(uid, btn){
   const area = document.getElementById('admGruposArea');
   if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver fase de grupos'; return; }
