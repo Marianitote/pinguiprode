@@ -1031,8 +1031,11 @@ function admTarjetas(area){
   html+=`</div>`;
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
+  const sentGroups=!!(pred.sent_at?.grupos);
   html+=`<div class="card flat"><div class="sec-title">⚽ Principal</div>
-    <p class="note">${mainCount}/${FIXTURE.length} partidos cargados. La corrección de marcadores puntuales se hace desde la pestaña de Resultados o pedímelo y lo habilito acá si lo necesitás seguido.</p></div>`;
+    <p class="note">${mainCount}/${FIXTURE.length} partidos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
+    <button class="btn sm" style="margin-top:10px" onclick="admVerGrupos('${ADM_VIEWUID}',this)">👁 Ver fase de grupos</button>
+    <div id="admGruposArea"></div></div>`;
   // BITÁCORA
   html+=`<div class="card"><div class="sec-title">📋 Bitácora de correcciones</div><div id="logArea"><p class="note">Cargando…</p></div></div>`;
   area.innerHTML=html;
@@ -1049,6 +1052,32 @@ function admTarjetas(area){
   });
 }
 // campo editable según tipo (reusa la lógica de inputFor pero llamando a adminEditPred)
+function admVerGrupos(uid, btn){
+  const area = document.getElementById('admGruposArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver fase de grupos'; return; }
+  btn.textContent='▲ Ocultar';
+  const pred = APP.allPreds?.[uid]||{};
+  const main = pred.main||{};
+  const grupos = [...new Set(FIXTURE.map(f=>f.group))].sort();
+  let html='<div style="margin-top:12px">';
+  grupos.forEach(g=>{
+    const partidos = FIXTURE.filter(f=>f.group===g);
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b><table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+    partidos.forEach(f=>{
+      const v=main[f.id]||{};
+      const score = (v.h!=null&&v.h!=='') ? `${v.h} - ${v.a}` : '<span style="color:#aaa">sin cargar</span>';
+      html+=`<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:3px 4px;text-align:right">${esc(f.home)}</td>
+        <td style="padding:3px 8px;text-align:center;font-weight:600">${score}</td>
+        <td style="padding:3px 4px">${esc(f.away)}</td>
+      </tr>`;
+    });
+    html+=`</table></div>`;
+  });
+  html+='</div>';
+  area.innerHTML=html;
+}
+
 function admEditField(uid,card,q,val){
   const oc=`onchange="doAdminEdit('${uid}','${card}','${q.id}',this.value)"`;
   if(q.type==="num") return `<input type="number" value="${esc(val)}" ${oc}>`;
