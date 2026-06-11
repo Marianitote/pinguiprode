@@ -102,6 +102,7 @@ async function adminApplyPenalty(uid, pts, reason){
   await loadApp();
 }
 async function adminSaveResults(patch){
+  clearApproxCache();
   const {error}=await sb.from('results').update({...patch,updated_at:new Date().toISOString()}).eq('id',1);
   if(error) throw error; await loadAll();
 }
@@ -449,11 +450,38 @@ function autoWasabiAnswers(){
   return ans;
 }
 
+function wasabiApproxWinners(qid){
+  // devuelve map uid->pts para una pregunta de aproximación
+  const res=APP.results.wasabi||{};
+  const resVal = parseFloat(res[qid]);
+  if(isNaN(resVal)) return {};
+  const q = APP.wasabiQs.find(q=>q.id===qid);
+  if(!q) return {};
+  // recolectar respuestas de todos los jugadores
+  const entries = APP.profiles
+    .filter(p=>!p.is_admin)
+    .map(p=>{ const w=(predFor(p.id).wasabi)||{}; const v=parseFloat(w[qid]); return {uid:p.id, val:v}; })
+    .filter(e=>!isNaN(e.val));
+  if(!entries.length) return {};
+  const minDist = Math.min(...entries.map(e=>Math.abs(e.val-resVal)));
+  const winners = entries.filter(e=>Math.abs(e.val-resVal)===minDist);
+  const pts = Math.floor(q.pts/winners.length); // división entera en empate
+  const map={};
+  winners.forEach(e=>{ map[e.uid]=pts; });
+  return map;
+}
+// cache de aproximación (se recalcula si cambia results)
+let _approxCache={};
+function approxPts(uid, qid){
+  if(!_approxCache[qid]) _approxCache[qid]=wasabiApproxWinners(qid);
+  return _approxCache[qid][uid]||0;
+}
+function clearApproxCache(){ _approxCache={}; }
+
 function wasabiTotal(uid){
   const w=(predFor(uid).wasabi)||{}, res=APP.results.wasabi||{}; let pts=0;
   // respuestas automáticas de w5-w8 (calculadas con tabla parcial)
   const auto = autoWasabiAnswers();
-  const profile = APP.profiles.find(p=>p.id===uid);
   APP.wasabiQs.forEach(q=>{
     if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) pts+=q.pts; return; }
     // preguntas auto (5-8): solo computan si el admin las habilitó
@@ -463,6 +491,12 @@ function wasabiTotal(uid){
       if(!correctNames.length) return;
       const ans = w[q.id];
       if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
+      return;
+    }
+    // preguntas de aproximación (minutos)
+    if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts+=approxPts(uid, q.id);
       return;
     }
     if(res[q.id]==null||res[q.id]==="") return;
