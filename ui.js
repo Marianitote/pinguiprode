@@ -1072,7 +1072,9 @@ async function admUnlockStage(uid, stage){
     const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
     const ss={...(pred.stages_sent||{})};
     delete ss[stage];
-    await sb.from("predictions").update({stages_sent:ss}).eq("user_id",uid);
+    const sa={...(pred.sent_at||{})};
+    delete sa[stage];
+    await sb.from("predictions").update({stages_sent:ss, sent_at:sa}).eq("user_id",uid);
     await adminLoadAllPreds();
     toast("✅ Tarjeta habilitada","ok");
     admTarjetas(document.getElementById("admArea"));
