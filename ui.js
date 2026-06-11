@@ -914,7 +914,7 @@ function admResultados(area){
   area.innerHTML=`<div class="card"><div class="seg" id="arSeg">
     ${PHASES.map(p=>`<button class="${ADM_PHASE===p.key?'on':''}" data-ph="${p.key}">${p.label.replace('Fase de ','').replace('Ronda de ','R')}</button>`).join("")}
     </div><div id="arArea" style="margin-top:12px"></div></div>
-    <div class="card flat"><div class="sec-title">Cuadro de honor (real)</div><div class="grid2" id="exReal"></div></div>`;
+    <div class="card flat"><div class="sec-title">Cuadro de honor (real)</div><p class="note" style="margin:4px 0 10px">🥾 <b>Bota de oro/plata/bronce</b>: los tres máximos goleadores del torneo. ⚽ <b>Balón de oro/plata/bronce</b>: los tres mejores jugadores del torneo según FIFA.</p><div class="grid2" id="exReal"></div></div>`;
   document.querySelectorAll("#arSeg button").forEach(b=>b.onclick=()=>{ADM_PHASE=b.dataset.ph;admResultados(area);});
   const a=$("#arArea"); let ms=FIXTURE.filter(m=>m.phase===ADM_PHASE);
   if(ADM_PHASE==="grupos"){
@@ -1021,14 +1021,19 @@ function admTarjetas(area){
     <label class="field" style="margin-top:10px">Jugador</label>${sel}
     ${pred.locked?'<div class="note" style="color:var(--gold);margin-top:8px">🔒 Tarjeta enviada por el jugador. Igual podés corregir como COMIPRO; queda en la bitácora.</div>':'<div class="note" style="margin-top:8px">Borrador (el jugador todavía no envió).</div>'}
   </div>`;
-  // WASABI
-  html+=`<div class="card flat"><div class="sec-title">🌶️ Wasabi</div>`;
+  // WASABI (colapsable)
+  let wasabiBody='';
   APP.wasabiQs.forEach((q,i)=>{
-    if(q.type==="bonus"){ html+=`<div class="wq"><div class="qt">${i+1}. ${esc(q.t)} <span class="note">(bonus, lo asigna el COMIPRO en Resultados)</span></div></div>`; return; }
+    if(q.type==="bonus"){ wasabiBody+=`<div class="wq"><div class="qt">${i+1}. ${esc(q.t)} <span class="note">(bonus, lo asigna el COMIPRO en Resultados)</span></div></div>`; return; }
     const wv=(pred.wasabi||{})[q.id]??"";
-    html+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(ADM_VIEWUID,'wasabi',q,wv)}</div>`;
+    wasabiBody+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(ADM_VIEWUID,'wasabi',q,wv)}</div>`;
   });
-  html+=`</div>`;
+  html+=`<div class="card flat">
+    <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onclick="(function(el){var b=el.nextElementSibling;var arr=el.querySelector('.adm-wasabi-arr');var hidden=b.style.display==='none';b.style.display=hidden?'':'none';arr.textContent=hidden?'▲':'▼';})(this)">
+      <span>🌶️ Wasabi</span><span class="adm-wasabi-arr" style="font-size:13px;color:var(--muted)">▼</span>
+    </div>
+    <div style="display:none">${wasabiBody}</div>
+  </div>`;
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
   const sentGroups=!!(pred.sent_at?.grupos);
