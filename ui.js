@@ -1017,8 +1017,9 @@ function admTarjetas(area){
     ${players.map(p=>`<option value="${p.id}" ${ADM_VIEWUID===p.id?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
   const pred=APP.allPreds?.[ADM_VIEWUID]||{main:{},extra:{},wasabi:{}};
   const ss = pred.stages_sent||{};
-  const wasabiLocked = !!(ss.wasabi || pred.locked);
-  const gruposLocked = !!(ss.grupos || pred.locked);
+  const sa2 = pred.sent_at||{};
+  const wasabiLocked = !!(ss.wasabi || sa2.wasabi || pred.locked);
+  const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
   const stateTag = (locked) => locked
     ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
     : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
