@@ -711,19 +711,8 @@ function standingsTableHTML(opts){
   function actions(r){
     if(!opts.inline||isAdmin()) return "";
     let btns="";
-    const wOpen = windowOpenNow();
-    const hasMatches = dayHasMatches(todayDayKey());
-    if(r.id===APP.user.id){
-      // nitro para mí
-      if(usoNitro(r.id)){
-        btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
-      } else if(!hasMatches||!wOpen){
-        btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-      } else {
-        btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
-      }
-    } else {
-      // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
+    // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
+    if(r.id!==APP.user.id){
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       if(reteable) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
     }
@@ -759,7 +748,7 @@ function standingsTableHTML(opts){
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
-      <td class="name">${esc(r.name)}${recv}${nit}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td class="name">${esc(r.name)}${recv}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}</td>`}</tr>`;
   });
