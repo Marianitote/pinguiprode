@@ -248,8 +248,23 @@ function renderInicio(v){
     ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
   </div>
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
-    <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela (en la fila de un rival reteable).</p>
+    <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
+    ${(()=>{
+      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(currentDay());
+      const reteables=tb.filter(r=>r.id!==APP.user?.id && meRow && meRow.pos!==1 && (meRow.pos-r.pos)>0 && (meRow.pos-r.pos)<=3);
+      const enabled = reteables.length>0 && hasMatches2 && wOpen2;
+      const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+      const disabledReason = !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
+        <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
+          <option value="">— elegí un rival —</option>
+          ${opts2}
+        </select>
+        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
+      </div>`;
+    })()}
   </div>
   ${(()=>{
     const myPens=(APP.myPred?.penalties||[]);
@@ -691,14 +706,19 @@ function standingsTableHTML(opts){
   // ¿a quién recibió sanguijuela? (en cualquier fecha de la fase actual) → para el ícono
   function recibioSang(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid); }
   function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid); }
+  function quienSanguijuelo(uid){ const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
   // botones inline
   function actions(r){
     if(!opts.inline||isAdmin()) return "";
     let btns="";
+    const wOpen = windowOpenNow();
+    const hasMatches = dayHasMatches(currentDay());
     if(r.id===APP.user.id){
       // nitro para mí
       if(usoNitro(r.id)){
         btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
+      } else if(!hasMatches||!wOpen){
+        btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
       } else {
         btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
       }
@@ -732,8 +752,10 @@ function standingsTableHTML(opts){
       r.move>0 ? `<span class="move up">▲${r.move}</span>` :
       r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
       `<span class="move same">=</span>`;
-    const recv = recibioSang(r.id)?`<span class="recv-sang" title="Ya recibió sanguijuela (no puede recibir otra esta fecha)">🩸</span>`:"";
-    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(r.id===APP.user?.id?`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`:"");
+    const sangBy = quienSanguijuelo(r.id);
+    const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸</span>`:""; 
+    const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(currentDay());
+    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
