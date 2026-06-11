@@ -759,7 +759,7 @@ function standingsTableHTML(opts){
       <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
       <td class="name">${esc(r.name)}${recv}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td>
-      ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}</td>`}</tr>`;
+      ${opts.inline?`<td>${actions(r)}</td>`:`<td class="pts">${r.total}${r.id===APP.user?.id&&!isAdmin()?nit:""}</td>`}</tr>`;
   });
   const headLast = opts.inline?'<th>Acción</th>':'<th>Total</th>';
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
