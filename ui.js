@@ -978,9 +978,16 @@ async function setResExtra(k,val){ const extra={...(APP.results.extra||{})}; ext
 
 function admWasabi(area){
   const res=APP.results.wasabi||{};
-  // las preguntas 5-8 se calculan automáticamente (punto 27) — NO se cargan acá
   const AUTOQS=new Set(["w5","w6","w7","w8"]);
-  let html=`<div class="card"><div class="sec-title">Respuestas reales · Wasabi</div><p class="note">Cargá la respuesta correcta de cada pregunta. Las preguntas 5-8 (¿quién sale primero/segundo/anteúltimo/último?) se completan automáticamente al final del Mundial.</p></div>`;
+  const autoEnabled = !!APP.results.auto_wasabi_enabled;
+  let html=`<div class="card"><div class="sec-title">Respuestas reales · Wasabi</div>
+    <p class="note">Cargá la respuesta correcta de cada pregunta. Las preguntas 5-8 (¿quién sale primero/segundo/anteúltimo/último?) se calculan automáticamente — podés habilitarlas cuando quieras.</p>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+      <span>🏆 Preguntas 5-8 automáticas:</span>
+      <span style="font-weight:600;color:${autoEnabled?'var(--aqua)':'var(--gold)'}">${autoEnabled?'✅ Habilitadas':'🔒 Deshabilitadas'}</span>
+      <button class="btn sm" onclick="toggleAutoWasabi()">${autoEnabled?'Deshabilitar':'Habilitar'}</button>
+    </div>
+  </div>`;
   APP.wasabiQs.forEach((q,i)=>{
     if(AUTOQS.has(q.id)){
       html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>
@@ -1012,6 +1019,10 @@ function admWasabi(area){
   area.innerHTML=html;
 }
 async function setResWas(id,val){ const wasabi={...(APP.results.wasabi||{})}; wasabi[id]=val; try{ await adminSaveResults({wasabi}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
+async function toggleAutoWasabi(){
+  const cur=!!APP.results.auto_wasabi_enabled;
+  try{ await adminSaveResults({auto_wasabi_enabled:!cur}); toast(!cur?"✅ Preguntas 5-8 habilitadas":"🔒 Preguntas 5-8 deshabilitadas","ok"); admWasabi($("#admArea")); }catch(e){ toast(e.message,"err"); }
+}
 
 async function admMails(area){
   const list=await adminListEmails();
