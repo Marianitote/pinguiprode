@@ -660,7 +660,18 @@ function renderWasabi(v){
           ? (v ? `<div style="font-size:13.5px;font-weight:600;color:var(--aqua);padding:4px 0">${esc(v)}</div>`
                : `<div style="font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0">Sin responder</div>`)
           : inputFor(q,v??"","wasabi",sent)}
-      ${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}</div>`;
+      ${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}
+      ${(()=>{
+        if(q.type==="bonus") return "";
+        const resVal=(APP.results.wasabi||{})[q.id];
+        if(resVal==null||resVal==="") return "";
+        const ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+          const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
+          return matchesResult(w[q.id], resVal);
+        }).map(p=>p.display_name);
+        return `<div class="acertaron"><span style="color:var(--aqua)">✅ Acertaron: ${ganadores.length?ganadores.join(', '):'nadie'}</span></div>`;
+      })()}
+      </div>`;
   });
   if(openSection) html+=`</div>`; // cerrar última sección
   // Botón Confirmar y enviar (punto 17)
