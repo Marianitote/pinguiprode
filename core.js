@@ -465,7 +465,7 @@ function wasabiApproxWinners(qid){
   if(!entries.length) return {};
   const minDist = Math.min(...entries.map(e=>Math.abs(e.val-resVal)));
   const winners = entries.filter(e=>Math.abs(e.val-resVal)===minDist);
-  const pts = Math.floor(q.pts/winners.length); // división entera en empate
+  const pts = q.pts; // todos los empatados suman puntos completos
   const map={};
   winners.forEach(e=>{ map[e.uid]=pts; });
   return map;
