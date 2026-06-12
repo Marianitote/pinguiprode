@@ -268,7 +268,8 @@ function renderInicio(v){
     ${standingsTableHTML({inline:true})}
     ${(()=>{
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
-      const reteables=tb.filter(r=>r.id!==APP.user?.id && meRow && meRow.pos!==1 && (meRow.pos-r.pos)>0 && (meRow.pos-r.pos)<=3);
+      const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
+      const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
       const enabled = reteables.length>0 && hasMatches2 && wOpen2;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
       const disabledReason = !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
