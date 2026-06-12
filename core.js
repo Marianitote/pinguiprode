@@ -411,7 +411,7 @@ function autoWasabiAnswers(){
       if(["w5","w6","w7","w8"].includes(q.id)) return; // se excluyen
       if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) total+=q.pts; return; }
       if(res[q.id]==null||res[q.id]==="") return;
-      if(w[q.id]!=null&&w[q.id]!==""&&norm(w[q.id])===norm(res[q.id])) total+=q.pts;
+      if(matchesResult(w[q.id],res[q.id])) total+=q.pts;
     });
     return total;
   }
@@ -515,7 +515,7 @@ function wasabiTotal(uid){
       return;
     }
     if(res[q.id]==null||res[q.id]==="") return;
-    if(w[q.id]!=null&&w[q.id]!==""&&norm(w[q.id])===norm(res[q.id])) pts+=q.pts;
+    if(matchesResult(w[q.id],res[q.id])) pts+=q.pts;
   });
   return pts;
 }
@@ -525,7 +525,15 @@ function penaltyTotal(uid){
   return pens.reduce((s,p)=>s+(+p.pts||0),0);
 }
 function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid); }
-function norm(s){ return String(s).trim().toLowerCase(); }
+function norm(s){ return String(s).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function matchesResult(playerAns, resultVal){
+  if(playerAns==null||playerAns==="") return false;
+  const pNorm = norm(playerAns);
+  if(String(resultVal).includes(",")){
+    return String(resultVal).split(",").map(v=>norm(v.trim())).some(v=>v===pNorm);
+  }
+  return pNorm===norm(resultVal);
+}
 
 /* devuelve las predicciones de un uid (admin tiene todas; jugador solo la suya) */
 const _predCache={};
