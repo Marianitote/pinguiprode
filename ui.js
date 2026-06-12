@@ -959,10 +959,29 @@ function admResultados(area){
     <div><label class="field">⚽ Balón oro</label>${isel('ball_gold')}</div><div><label class="field">⚽ Balón plata</label>${isel('ball_silver')}</div>
     <div><label class="field">⚽ Balón bronce</label>${isel('ball_bronze')}</div>`;
 }
+function acertaronMatch(m, r){
+  if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
+  const players = APP.profiles.filter(p=>!p.is_admin);
+  const exact=[], result=[];
+  players.forEach(p=>{
+    const pred=(APP.allPreds?.[p.id]?.main||{})[m.id];
+    if(!pred) return;
+    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
+    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+    const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
+    if(rWin===pWin) result.push(p.display_name);
+  });
+  let html='<div class="acertaron">';
+  if(exact.length) html+=`<span style="color:var(--aqua)">✅ Exacto: ${exact.join(', ')}</span>`;
+  if(result.length) html+=`${exact.length?'<br>':''}<span style="color:var(--gold)">👍 Ganador: ${result.join(', ')}</span>`;
+  if(!exact.length&&!result.length) html+='<span style="color:var(--muted)">Nadie acertó</span>';
+  html+='</div>';
+  return html;
+}
 function admMatch(m,r){r=r||{};
   return `<div class="match"><div class="teams"><div class="t">${team(m.home)}</div><div class="t">${team(m.away)}</div></div>
     <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
-    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>`;
+    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m,r)}`;
 }
 function admMatchKO(m,r){r=r||{};const tie=r.h!=null&&r.a!=null&&r.h!==""&&r.a!==""&&(+r.h===+r.a);
   return `<div class="match" style="flex-wrap:wrap"><div class="teams"><div class="t"><span class="flag">🔵</span><span class="nm">${m.label}</span></div><div class="t"><span class="flag">🔴</span><span class="nm">cruce</span></div></div>
@@ -1014,7 +1033,15 @@ function admWasabi(area){
       input=`<select ${onCh}><option value="">—</option>${sortByName(teams,'n').map(t=>`<option ${val===t.n?'selected':''} value="${t.n}">${t.f} ${t.n}</option>`).join("")}</select>`;
     } else
       input=`<input value="${esc(val??'')}" ${onCh}>`;
-    html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${input}${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}</div>`;
+    let acertaronW='';
+    if(val!=null&&val!==""){
+      const ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+        const w=(APP.allPreds?.[p.id]?.wasabi||{});
+        return matchesResult(w[q.id], val);
+      }).map(p=>p.display_name);
+      acertaronW=`<div class="acertaron">${ganadores.length?`<span style="color:var(--aqua)">✅ Acertaron: ${ganadores.join(', ')}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>'}</div>`;
+    }
+    html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${input}${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}${acertaronW}</div>`;
   });
   area.innerHTML=html;
 }
