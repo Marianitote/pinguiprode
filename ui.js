@@ -519,12 +519,31 @@ function extrasBlock(locked){
 }
 
 /* Helpers: cargar marcadores en grupos y en bracket */
+function acertaronPublic(m){
+  const r = (APP.results?.main||{})[m.id];
+  if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
+  const players = (APP.profiles||[]).filter(p=>!p.is_admin);
+  const exact=[], suman=[];
+  players.forEach(p=>{
+    const preds = APP.allPreds?.[p.id]?.main || (p.id===APP.user?.id ? APP.myPred?.main : null) || {};
+    const pred = preds[m.id];
+    if(!pred) return;
+    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
+    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+    const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
+    if(rWin===pWin) suman.push(p.display_name);
+  });
+  return `<div class="acertaron">
+    <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
+    <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+  </div>`;
+}
 function matchRow(m,p,locked){p=p||{};const dis=locked?"disabled":"";
   const answered = p.h!=null && p.h!=="" && p.a!=null && p.a!=="";
   return `<div class="match ${answered?'match-answered':''}"><div class="teams"><div class="t">${team(m.home)}</div><div class="t">${team(m.away)}</div></div>
     <input class="score-in" type="number" min="0" value="${p.h??""}" ${dis} onchange="setScore(${m.id},'h',this.value)">
     <span class="vs">–</span>
-    <input class="score-in" type="number" min="0" value="${p.a??""}" ${dis} onchange="setScore(${m.id},'a',this.value)"></div>`;
+    <input class="score-in" type="number" min="0" value="${p.a??""}" ${dis} onchange="setScore(${m.id},'a',this.value)"></div>${acertaronPublic(m)}`;
 }
 async function setScore(id,k,val){
   if(stageSent('grupos')) return toast("Grupos ya enviados","err");
@@ -955,7 +974,7 @@ function admResultados(area){
   if(ADM_PHASE==="grupos"){
     let html=""; GROUPS.forEach(g=>{const gm=ms.filter(m=>m.grp===g);
       const done=gm.filter(m=>res[m.id]&&res[m.id].h!==""&&res[m.id].h!=null).length;
-      html+=`<details class="fold"><summary><span class="gtag">${g}</span> Grupo ${g}<span class="badge ${done===gm.length?'g':'w'}" style="margin-left:6px">${done}/${gm.length}</span><span class="arr">›</span></summary>
+      html+=`<details class="fold" open><summary><span class="gtag">${g}</span> Grupo ${g}<span class="badge ${done===gm.length?'g':'w'}" style="margin-left:6px">${done}/${gm.length}</span><span class="arr">›</span></summary>
         <div class="body">${[1,2,3].map(j=>`<div class="meta">Jornada ${j}</div>`+gm.filter(m=>m.jor===j).map(m=>admMatch(m,res[m.id])).join("")).join("")}</div></details>`;});
     a.innerHTML=html;
   }else a.innerHTML=`<div class="meta">${ms[0]?.label.split(' · ')[0]||''}</div>${ms.map(m=>admMatchKO(m,res[m.id])).join("")}`;
