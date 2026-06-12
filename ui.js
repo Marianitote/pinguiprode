@@ -1002,9 +1002,8 @@ function acertaronMatch(m, r){
     if(rWin===pWin) result.push(p.display_name);
   });
   let html='<div class="acertaron">';
-  if(exact.length) html+=`<span style="color:var(--aqua)">✅ Exacto: ${exact.join(', ')}</span>`;
-  if(result.length) html+=`${exact.length?'<br>':''}<span style="color:var(--gold)">👍 Ganador: ${result.join(', ')}</span>`;
-  if(!exact.length&&!result.length) html+='<span style="color:var(--muted)">Nadie acertó</span>';
+  html+=`<span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>`;
+  html+=`<span style="color:var(--gold)">👍 Suman puntos: ${result.length?result.join(', '):'nadie'}</span>`;
   html+='</div>';
   return html;
 }
