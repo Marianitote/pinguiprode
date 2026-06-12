@@ -279,7 +279,7 @@ function renderInicio(v){
           <option value="">— elegí un rival —</option>
           ${opts2}
         </select>
-        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
+        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayDayKey())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
       </div>`;
     })()}
   </div>
