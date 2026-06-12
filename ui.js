@@ -881,6 +881,7 @@ function nameOf(uid){ return APP.profiles.find(p=>p.id===uid)?.display_name||"?"
 async function delComo(id){ await sb.from('comodines').delete().eq('id',id); await loadAll(); render(); toast("Comodín eliminado"); }
 
 function openSang(preTarget){
+  const winErr=windowErrorToday(); if(winErr) return toast(winErr,"err");
   const tb=standings(); const me=tb.find(r=>r.id===APP.user.id);
   if(!me) return toast("No estás en la tabla.","err");
   const targets=tb.filter(r=>r.id!==APP.user.id&&(me.pos-r.pos)>0&&(me.pos-r.pos)<=3);
