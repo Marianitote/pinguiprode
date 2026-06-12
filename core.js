@@ -558,9 +558,12 @@ function standings(){
   rows.sort((a,b)=>b.total-a.total);
   let pos=0,last=null,seen=0;
   rows.forEach(r=>{seen++; if(r.total!==last){pos=seen;last=r.total;} r.pos=pos;});
-  // zona por tercios: elite / midfield / pobreza
+  // zona por tercios: elite / midfield / pobreza (por posición, no índice — maneja empates)
   const n=rows.length, tercio=Math.ceil(n/3);
-  rows.forEach((r,i)=>{ r.zone = i<tercio?"elite" : i<tercio*2?"midfield" : "pobreza"; });
+  // pos del último jugador de cada zona
+  const eliteMaxPos = rows[tercio-1]?.pos;
+  const midfieldMaxPos = rows[Math.min(tercio*2-1, n-1)]?.pos;
+  rows.forEach(r=>{ r.zone = r.pos<=eliteMaxPos?"elite" : r.pos<=midfieldMaxPos?"midfield" : "pobreza"; });
   // flechas: comparar contra el último snapshot guardado
   const prev=APP.lastSnapshot||null;
   rows.forEach(r=>{
