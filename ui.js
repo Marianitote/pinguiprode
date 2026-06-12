@@ -1224,19 +1224,13 @@ function admTarjetas(area){
       <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
     </div>
   </div>`;
-  // WASABI (colapsable)
-  let wasabiBody='';
-  APP.wasabiQs.forEach((q,i)=>{
-    if(q.type==="bonus"){ wasabiBody+=`<div class="wq"><div class="qt">${i+1}. ${esc(q.t)} <span class="note">(bonus, lo asigna el COMIPRO en Resultados)</span></div></div>`; return; }
-    const wv=(pred.wasabi||{})[q.id]??"";
-    wasabiBody+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(ADM_VIEWUID,'wasabi',q,wv)}</div>`;
-  });
-  html+=`<div class="card flat">
-    <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onclick="(function(el){var b=el.nextElementSibling;var arr=el.querySelector('.adm-wasabi-arr');var hidden=b.style.display==='none';b.style.display=hidden?'':'none';arr.textContent=hidden?'▲':'▼';})(this)">
-      <span>🌶️ Wasabi</span><span class="adm-wasabi-arr" style="font-size:13px;color:var(--muted)">▼</span>
-    </div>
-    <div style="display:none">${wasabiBody}</div>
-  </div>`;
+  // WASABI resumen con botón Ver
+  const wasabiCount=Object.keys(pred.wasabi||{}).filter(k=>pred.wasabi[k]!=null&&pred.wasabi[k]!=="").length;
+  const sentWasabi=!!(pred.sent_at?.wasabi);
+  html+=`<div class="card flat"><div class="sec-title">🌶️ Wasabi</div>
+    <p class="note">${wasabiCount}/55 preguntas respondidas${sentWasabi?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
+    <button class="btn sm" style="margin-top:10px" onclick="admVerWasabi('${ADM_VIEWUID}',this)">👁 Ver Wasabi</button>
+    <div id="admWasabiArea"></div></div>`;
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
   const sentGroups=!!(pred.sent_at?.grupos);
@@ -1285,6 +1279,19 @@ async function admUnlockStage(uid, stage){
     toast("✅ Tarjeta habilitada","ok");
     admTarjetas(document.getElementById("admArea"));
   }catch(e){ toast(e.message,"err"); }
+}
+function admVerWasabi(uid, btn){
+  const area = document.getElementById('admWasabiArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver Wasabi'; return; }
+  btn.textContent='🔼 Ocultar Wasabi';
+  const pred = APP.allPreds?.[uid]||{};
+  let html='';
+  APP.wasabiQs.forEach((q,i)=>{
+    if(q.type==="bonus"){ html+=`<div class="wq"><div class="qt">${i+1}. ${esc(q.t)} <span class="note">(bonus)</span></div></div>`; return; }
+    const wv=(pred.wasabi||{})[q.id]??"";
+    html+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(uid,'wasabi',q,wv)}</div>`;
+  });
+  area.innerHTML=html;
 }
 function admVerGrupos(uid, btn){
   const area = document.getElementById('admGruposArea');
