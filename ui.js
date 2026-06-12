@@ -22,6 +22,13 @@ async function boot(){
     // logueado pero sin perfil → crear perfil
     if(!APP.profile){ renderCreateProfile(); return; }
     await loadAll();
+    // cargar predicciones de todos para acertaronPublic (jugadores no-admin)
+    if(!isAdmin()){
+      try{
+        const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
+        (allP||[]).forEach(p=>{ if(!APP.allPreds) APP.allPreds={}; APP.allPreds[p.user_id]=p; });
+      }catch(e){ console.warn('No se pudieron cargar predicciones de todos:',e); }
+    }
     render();
   }catch(e){ console.error(e); app.innerHTML=`<div class="auth-wrap"><div class="card"><div class="sec-title">Error</div><p class="lead">${esc(e.message||e)}</p><p class="note" style="margin-top:10px">Si recién configuraste Supabase, revisá que las claves en config.js sean correctas.</p></div></div>`; }
 }
