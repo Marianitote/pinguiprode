@@ -998,9 +998,57 @@ async function doApplyPenalty(){
     admPenalizaciones($("#admArea"));
   }catch(e){ toast(e.message,"err"); }
 }
+async function syncESPN(){
+  const btn = document.getElementById('espnSyncBtn');
+  if(btn){ btn.disabled=true; btn.textContent='🔄 Sincronizando...'; }
+  try{
+    const resp = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard');
+    if(!resp.ok) throw new Error('Error al conectar con ESPN');
+    const data = await resp.json();
+    const events = data.events||[];
+    const main = {...(APP.results.main||{})};
+    let updated = 0;
+    events.forEach(ev=>{
+      const comp = ev.competitions?.[0];
+      if(!comp) return;
+      const status = comp.status?.type;
+      // solo partidos finalizados
+      if(!status?.completed) return;
+      const home = comp.competitors?.find(c=>c.homeAway==='home');
+      const away = comp.competitors?.find(c=>c.homeAway==='away');
+      if(!home||!away) return;
+      const homeCode = home.team.abbreviation;
+      const awayCode = away.team.abbreviation;
+      const homeScore = home.score;
+      const awayScore = away.score;
+      // buscar en fixture
+      const match = FIXTURE.find(m=>m.home===homeCode&&m.away===awayCode||m.home===awayCode&&m.away===homeCode);
+      if(!match) return;
+      const isFlipped = match.home===awayCode;
+      const h = isFlipped ? awayScore : homeScore;
+      const a = isFlipped ? homeScore : awayScore;
+      // solo actualizar si cambió
+      const cur = main[match.id]||{};
+      if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
+      main[match.id]={h, a, pen:cur.pen||''};
+      updated++;
+    });
+    if(updated>0){
+      await adminSaveResults({main});
+      toast(`✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`, 'ok');
+      admResultados(document.getElementById('admArea'));
+    } else {
+      toast('No hay resultados nuevos', 'ok');
+    }
+  }catch(e){
+    toast('Error ESPN: '+e.message, 'err');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔄 Sincronizar ESPN'; }
+  }
+}
 function admResultados(area){
   const res=APP.results.main||{};
-  area.innerHTML=`<div class="card"><div class="seg" id="arSeg">
+  area.innerHTML=`<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">Resultados reales</div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div><div class="seg" id="arSeg">
     ${PHASES.map(p=>`<button class="${ADM_PHASE===p.key?'on':''}" data-ph="${p.key}">${p.label.replace('Fase de ','').replace('Ronda de ','R')}</button>`).join("")}
     </div><div id="arArea" style="margin-top:12px"></div></div>
     <div class="card flat"><div class="sec-title">Cuadro de honor (real)</div><p class="note" style="margin:4px 0 10px">🥾 <b>Bota de oro/plata/bronce</b>: los tres máximos goleadores del torneo. ⚽ <b>Balón de oro/plata/bronce</b>: los tres mejores jugadores del torneo según FIFA.</p><div class="grid2" id="exReal"></div></div>`;
