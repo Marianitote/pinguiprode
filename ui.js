@@ -819,7 +819,7 @@ function standingsTableHTML(opts){
     const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
-      <td><span class="rank ${r.pos<=3?'r'+r.pos:''}">${r.pos}</span>${arrow}</td>
+      <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
       <td class="name">${esc(r.name)}${recv}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
