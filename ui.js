@@ -691,10 +691,26 @@ function renderWasabi(v){
         if(q.type==="bonus") return "";
         const resVal=(APP.results.wasabi||{})[q.id];
         if(resVal==null||resVal==="") return "";
-        const ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-          const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
-          return matchesResult(w[q.id], resVal);
-        }).map(p=>p.display_name);
+        let ganadores=[];
+        if(q.type==="approx"){
+          // para preguntas de aproximación: el/los más cercanos al resultado
+          const resNum=parseFloat(resVal);
+          if(!isNaN(resNum)){
+            const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
+              const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
+              return {name:p.display_name, val:parseFloat(w[q.id])};
+            }).filter(e=>!isNaN(e.val));
+            if(entries.length){
+              const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resNum)));
+              ganadores=entries.filter(e=>Math.abs(e.val-resNum)===minDist).map(e=>e.name);
+            }
+          }
+        } else {
+          ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+            const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
+            return matchesResult(w[q.id], resVal);
+          }).map(p=>p.display_name);
+        }
         return `<div class="acertaron"><span style="color:var(--aqua)">✅ Acertaron: ${ganadores.length?ganadores.join(', '):'nadie'}</span></div>`;
       })()}
       </div>`;
@@ -1071,10 +1087,25 @@ function admWasabi(area){
       input=`<input value="${esc(val??'')}" ${onCh}>`;
     let acertaronW='';
     if(val!=null&&val!==""){
-      const ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-        const w=(APP.allPreds?.[p.id]?.wasabi||{});
-        return matchesResult(w[q.id], val);
-      }).map(p=>p.display_name);
+      let ganadores=[];
+      if(q.type==="approx"){
+        const resNum=parseFloat(val);
+        if(!isNaN(resNum)){
+          const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
+            const w=(APP.allPreds?.[p.id]?.wasabi||{});
+            return {name:p.display_name, val:parseFloat(w[q.id])};
+          }).filter(e=>!isNaN(e.val));
+          if(entries.length){
+            const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resNum)));
+            ganadores=entries.filter(e=>Math.abs(e.val-resNum)===minDist).map(e=>e.name);
+          }
+        }
+      } else {
+        ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+          const w=(APP.allPreds?.[p.id]?.wasabi||{});
+          return matchesResult(w[q.id], val);
+        }).map(p=>p.display_name);
+      }
       acertaronW=`<div class="acertaron">${ganadores.length?`<span style="color:var(--aqua)">✅ Acertaron: ${ganadores.join(', ')}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>'}</div>`;
     }
     html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${input}${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}${acertaronW}</div>`;
