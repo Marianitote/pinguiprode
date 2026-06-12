@@ -255,6 +255,15 @@ function renderInicio(v){
     ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
   </div>
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
+    ${(()=>{
+      const ua = APP.results?.updated_at;
+      if(!ua) return '';
+      const d = new Date(ua);
+      const pad = n => String(n).padStart(2,'0');
+      const fecha = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+      const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return `<p class="note" style="margin-bottom:8px">🕐 Actualizado el ${fecha} a las ${hora}hs</p>`;
+    })()}
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
     ${(()=>{
@@ -827,7 +836,10 @@ function standingsTableHTML(opts){
 }
 
 function renderTabla(v){
+  const ua2=APP.results?.updated_at;
+  const updStr2=ua2?(()=>{const d=new Date(ua2);const pad=n=>String(n).padStart(2,'0');return `🕐 Actualizado el ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} a las ${pad(d.getHours())}:${pad(d.getMinutes())}hs`;})():'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Tabla general</div>
+    ${updStr2?`<p class="note" style="margin-bottom:8px">${updStr2}</p>`:''}
     <p class="note">Posiciones y puntajes de todos. Las flechas muestran cuánto subió o bajó cada uno desde la fecha anterior. Las respuestas de cada jugador son privadas: solo ves las tuyas.</p>
     ${standingsTableHTML({inline:false})}</div>
     <p class="note" style="text-align:center;margin-top:12px">🔒 No se pueden ver los pronósticos de los demás (ni los tuyos los ven ellos).</p>`;
