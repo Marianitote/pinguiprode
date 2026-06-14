@@ -55,6 +55,7 @@ async function loadAll(){
   if(rsRes.data) APP.results=rsRes.data;
   APP.comodines=cmRes.data||[];
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
+  invalidateStandings();
   // si es admin: cargar pagos y datos completos
   if(APP.profile?.is_admin){ await loadPayments(); await adminLoadAllPreds(); }
   // snapshots de posiciones (para las flechas ▲▼)
@@ -67,6 +68,7 @@ async function ensureMyPredRow(){
   if(error) throw error; APP.myPred=data; return data;
 }
 async function saveMyPred(patch){
+  invalidateStandings();
   await ensureMyPredRow();
   const {data,error}=await sb.from('predictions').update(patch).eq('user_id',APP.user.id).select().maybeSingle();
   if(error) throw error; APP.myPred=data; return data;
@@ -100,7 +102,7 @@ async function adminApplyPenalty(uid, pts, reason){
   await loadApp();
 }
 async function adminSaveResults(patch){
-  clearApproxCache();
+  clearApproxCache(); invalidateStandings();
   const {error}=await sb.from('results').update({...patch,updated_at:new Date().toISOString()}).eq('id',1);
   if(error) throw error; await loadAll();
 }
@@ -541,7 +543,10 @@ function predFor(uid){
 }
 
 /* tabla de posiciones (solo JUGADORES, no admins) — con posiciones compartidas */
+let _standingsCache=null;
+function invalidateStandings(){ _standingsCache=null; }
 function standings(){
+  if(_standingsCache) return _standingsCache;
   const rows=APP.profiles.filter(p=>{
     if(p.is_admin) return false;
     const e=(p.email||"").toLowerCase(), n=(p.display_name||"").toLowerCase();
@@ -568,6 +573,7 @@ function standings(){
     if(prev && prev[r.id]!=null){ r.move = prev[r.id]-r.pos; } // +sube, -baja, 0 igual
     else r.move = null; // sin referencia previa
   });
+  _standingsCache=rows;
   return rows;
 }
 
