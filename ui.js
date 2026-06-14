@@ -1,1499 +1,1478 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 — NÚCLEO (Supabase + motor de puntajes)
+   PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const $=s=>document.querySelector(s);
+const app=$("#app");
+let TAB="inicio";
+function toast(m,k){const t=$("#toast");t.textContent=m;t.className="toast show "+(k||"");setTimeout(()=>t.className="toast",2600);}
+function esc(s){return(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
+function isAdmin(){return APP.profile?.is_admin;}
+function modal(html){let m=document.createElement("div");m.className="modal-bg";m.id="modalBg";m.innerHTML=`<div class="modal">${html}</div>`;m.onclick=e=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
+function closeModal(){const m=$("#modalBg");if(m)m.remove();}
 
-/* estado en memoria */
-const APP = {
-  user:null, profile:null,
-  myPred:null,
-  profiles:[], results:{main:{},extra:{},wasabi:{}},
-  comodines:[], wasabiQs:[...SEED_WASABI],
-};
+/* ---------- BOOT ---------- */
+async function boot(){
+  try{
+    // Si venimos del link de reseteo de contraseña, el evento puede haberse
+    // disparado antes de registrar el listener. Lo detectamos por la URL.
+    if(!RECOVERING && /type=recovery/.test(location.hash)){ RECOVERING=true; renderResetPassword(); return; }
+    await loadSession();
+    if(!APP.user){ renderAuth(); return; }
+    // logueado pero sin perfil → crear perfil
+    if(!APP.profile){ renderCreateProfile(); return; }
+    await loadAll();
+    // cargar predicciones de todos para acertaronPublic (jugadores no-admin)
+    if(!isAdmin()){
+      try{
+        const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
+        (allP||[]).forEach(p=>{ if(!APP.allPreds) APP.allPreds={}; APP.allPreds[p.user_id]=p; });
+      }catch(e){ console.warn('No se pudieron cargar predicciones de todos:',e); }
+    }
+    render();
+  }catch(e){ console.error(e); app.innerHTML=`<div class="auth-wrap"><div class="card"><div class="sec-title">Error</div><p class="lead">${esc(e.message||e)}</p><p class="note" style="margin-top:10px">Si recién configuraste Supabase, revisá que las claves en config.js sean correctas.</p></div></div>`; }
+}
+// flag para no re-renderizar la app encima de la pantalla de nueva contraseña
+let RECOVERING=false;
+// re-cargar cuando cambia la sesión (ej: al volver del mail de confirmación)
+sb.auth.onAuthStateChange((event,_s)=>{
+  // si el usuario entró desde el link de "recuperar contraseña", mostramos la
+  // pantalla para escribir la clave nueva en vez de entrar normal a la app
+  if(event==="PASSWORD_RECOVERY"){ RECOVERING=true; renderResetPassword(); return; }
+  if(RECOVERING) return; // ya está en la pantalla de nueva clave, no pisar
+  boot();
+});
 
 /* ---------- AUTH ---------- */
-async function signUp(email, pass){
-  const {data,error}=await sb.auth.signUp({email,password:pass});
-  if(error) throw error; return data;
+let AUTH_MODE="in"; // 'in' | 'up'
+function renderAuth(){
+  app.innerHTML=`<div class="auth-wrap">
+    <div class="hero" style="text-align:center">
+      <div class="logo" style="justify-content:center;font-size:24px"><span class="peng">🐧</span> Pingüi<b>Prode</b></div>
+      <h1 style="font-size:34px;margin-top:10px">Mundial <em>2026</em></h1>
+      <p class="lead">El prode de las tres tarjetas. Iniciá sesión o registrate con tu mail habilitado.</p>
+    </div>
+    <div class="card">
+      <div class="seg" style="margin-bottom:16px">
+        <button class="${AUTH_MODE==='in'?'on':''}" onclick="AUTH_MODE='in';renderAuth()">Iniciar sesión</button>
+        <button class="${AUTH_MODE==='up'?'on':''}" onclick="AUTH_MODE='up';renderAuth()">Registrarme</button>
+      </div>
+      <label class="field">Mail</label>
+      <input id="email" type="email" placeholder="tucorreo@mail.com" autocomplete="email">
+      <label class="field" style="margin-top:12px">Contraseña</label>
+      <input id="pass" type="password" placeholder="••••••••" autocomplete="${AUTH_MODE==='up'?'new-password':'current-password'}">
+      <button class="btn primary full" style="margin-top:16px" onclick="doAuth()">
+        ${AUTH_MODE==='in'?'Entrar':'Crear cuenta'}</button>
+      ${AUTH_MODE==='up'?`<p class="note" style="margin-top:12px">Tu mail tiene que estar en la lista de habilitados (la arma el COMIPRO). Te vamos a mandar un correo de confirmación.</p>`:`<p class="note" style="margin-top:12px"><a href="#" onclick="forgotPass();return false" style="color:var(--aqua)">Olvidé mi contraseña</a></p>`}
+    </div>
+  </div>`;
 }
-async function signIn(email, pass){
-  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error) throw error; return data;
-}
-async function signOut(){ await sb.auth.signOut(); location.reload(); }
-
-async function loadSession(){
-  const {data}=await sb.auth.getUser();
-  APP.user=data?.user||null;
-  if(APP.user){
-    const {data:prof}=await sb.from('profiles').select('*').eq('id',APP.user.id).maybeSingle();
-    APP.profile=prof||null;
-  }
-}
-
-/* crear perfil (después de validar el mail). El trigger valida que el mail esté habilitado */
-async function createProfile(displayName){
-  const {error}=await sb.from('profiles').insert({
-    id:APP.user.id, email:APP.user.email, display_name:displayName
-  });
-  if(error) throw error;
-  await loadSession();
-}
-
-/* ---------- DATOS ---------- */
-async function loadAll(){
-  // perfiles (todos, para la tabla)
-  const {data:profs}=await sb.from('profiles').select('*');
-  APP.profiles=profs||[];
-  // mis predicciones
-  const {data:mp}=await sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle();
-  APP.myPred=mp||null;
-  // resultados
-  const {data:rs}=await sb.from('results').select('*').eq('id',1).maybeSingle();
-  if(rs) APP.results=rs;
-  // comodines
-  const {data:cm}=await sb.from('comodines').select('*').order('created_at');
-  APP.comodines=cm||[];
-  // cargar predicciones de todos para calcular tabla de puntos
-  const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
-  (allP||[]).forEach(p=>{ _predCache[p.user_id]=p; });
-  // si es admin: cargar pagos y datos completos
-  if(APP.profile?.is_admin){ await loadPayments(); await adminLoadAllPreds(); }
-  // snapshots de posiciones (para las flechas ▲▼) — crea los que falten si ya cerró la fecha
-  await syncSnapshots();
-}
-
-async function ensureMyPredRow(){
-  if(APP.myPred) return APP.myPred;
-  const {data,error}=await sb.from('predictions').upsert({user_id:APP.user.id},{onConflict:'user_id',ignoreDuplicates:true}).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
-}
-async function saveMyPred(patch){
-  await ensureMyPredRow();
-  const {data,error}=await sb.from('predictions').update(patch).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
-}
-/* Enviar una tarjeta puntual (wasabi o main). Marca timestamp en sent_at;
-   si ambas están enviadas, además marca locked=true. */
-async function sendCard(cardKey){
-  const current = APP.myPred?.sent_at || {};
-  if(current[cardKey]) throw new Error("Esta tarjeta ya fue enviada.");
-  const sent_at = {...current, [cardKey]: new Date().toISOString()};
-  const bothSent = !!sent_at.wasabi && !!sent_at.main;
-  const patch = bothSent ? {sent_at, locked:true} : {sent_at};
-  const {data,error}=await sb.from('predictions').update(patch).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
-}
-function cardSent(cardKey){
-  if(!APP.myPred) return false;
-  const sa = APP.myPred.sent_at||{};
-  return !!sa[cardKey] || !!APP.myPred.locked;
-}
-
-/* ---------- ADMIN ---------- */
-async function adminApplyPenalty(uid, pts, reason){
-  const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
-  const pens = pred.data?.penalties||[];
-  pens.push({pts:+pts, reason, date:new Date().toISOString(), by:'comipro'});
-  const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
-  if(error) throw error;
-  // actualizar cache local
-  if(APP.preds) { const p=APP.preds.find(p=>p.user_id===uid); if(p) p.penalties=pens; }
-  await loadApp();
-}
-async function adminSaveResults(patch){
-  clearApproxCache();
-  const {error}=await sb.from('results').update({...patch,updated_at:new Date().toISOString()}).eq('id',1);
-  if(error) throw error; await loadAll();
-}
-async function adminAddEmail(email){
-  const {error}=await sb.from('allowed_emails').insert({email:email.toLowerCase().trim()});
-  if(error) throw error;
-}
-async function adminListEmails(){
-  const {data}=await sb.from('allowed_emails').select('*').order('email'); return data||[];
-}
-async function adminSetPaid(uid,paid){
-  // upsert en la tabla payments (privada, solo admin)
-  await sb.from('payments').upsert({user_id:uid,paid,updated_at:new Date().toISOString()});
-  await loadPayments();
-}
-async function loadPayments(){
-  if(!APP.profile?.is_admin){ APP.payments={}; return; }
-  const {data}=await sb.from('payments').select('*');
-  const map={}; (data||[]).forEach(p=>map[p.user_id]=p.paid);
-  APP.payments=map;
-}
-function hasPaid(uid){ return !!(APP.payments&&APP.payments[uid]); }
-
-/* ---------- ADMIN: ver y editar tarjetas de jugadores (con bitácora) ---------- */
-// carga TODAS las predicciones (solo admin tiene permiso por RLS)
-async function adminLoadAllPreds(){
-  const {data}=await sb.from('predictions').select('*');
-  const map={}; (data||[]).forEach(p=>map[p.user_id]=p);
-  APP.allPreds=map;
-  // llenar el cache para que standings calcule puntos de todos
-  Object.keys(map).forEach(uid=>{ _predCache[uid]=map[uid]; });
-  return map;
-}
-// editar un campo de la tarjeta de un jugador y dejar registro en edit_log
-async function adminEditPred(targetUid, card, field, newValue){
-  const pred=APP.allPreds?.[targetUid]; if(!pred) throw new Error("No se encontró la tarjeta del jugador.");
-  const obj={...(pred[card]||{})};
-  const oldValue = card==="main" ? JSON.stringify(obj[field]||"") : (obj[field]??"");
-  // para 'main' el value es {h,a,pen}; para el resto es string
-  obj[field]=newValue;
-  await sb.from('predictions').update({[card]:obj}).eq('user_id',targetUid);
-  await sb.from('edit_log').insert({
-    target_user:targetUid, card, field:String(field),
-    old_value:String(oldValue), new_value:typeof newValue==="object"?JSON.stringify(newValue):String(newValue),
-    edited_by:APP.user.id
-  });
-  await adminLoadAllPreds();
-}
-async function adminLoadEditLog(){
-  const {data}=await sb.from('edit_log').select('*').order('created_at',{ascending:false});
-  return data||[];
-}
-
-/* ---------- COMODINES ---------- */
-async function requestComodin(type, targetUser){
-  const day = todayDayKey();
-  const phase = phaseOfDay(day);
-  if(!phase) throw new Error("No hay partidos hoy.");
-  const {error}=await sb.from('comodines').insert({
-    type, by_user:APP.user.id, target_user:targetUser||null, phase, jor:null, day, match_kickoff:null
-  });
-  if(error) throw error; await loadAll();
-}
-
-/* =====================================================================
-   MOTOR DE PUNTAJES (reglamento 2026)
-   =====================================================================
-   Para GRUPOS: como antes (exact / result / gd) con FIXTURE+marcadores.
-   Para ELIMINATORIAS: usa el BRACKET del jugador (cuadro autocompletado).
-     Cada cruce del jugador se compara contra el cruce REAL del Mundial:
-       - Si los equipos coinciden 100%: puntos completos (exact/result/advance).
-       - Si solo coincide 1 equipo: MITAD de los puntos posibles (opción 3).
-       - Si no coincide ninguno: 0.
-   ===================================================================== */
-function sign(h,a){ if(h==null||a==null||h===""||a==="")return null; h=+h;a=+a; return h>a?"1":h<a?"2":"X"; }
-
-function matchPointsGrupos(pred,res){
-  if(!pred||!res) return 0;
-  if(res.h==null||res.h===""||res.a==null||res.a==="") return 0;
-  let pt=0; const ps=sign(pred.h,pred.a), rs=sign(res.h,res.a);
-  if(+pred.h===+res.h&&+pred.a===+res.a) pt+=PTS.grupos.exact;
-  else { if(ps&&ps===rs) pt+=PTS.grupos.result;
-         if((+pred.h-+pred.a)===(+res.h-+res.a)) pt+=PTS.grupos.gd; }
-  return pt;
-}
-
-/* Evalúa un cruce del bracket del jugador contra el cruce real.
-   pCruce: {home, away, h, a, pen} → bracket del jugador
-   rCruce: {home, away, h, a, pen} → cruce REAL del Mundial (cargado por COMIPRO)
-   Devuelve los puntos según matches de equipos:
-     - 2 equipos coinciden → puntos completos
-     - 1 equipo coincide  → mitad de los puntos (redondeado hacia arriba)
-     - 0 coinciden        → 0
-*/
-function matchPointsKO(pCruce, rCruce){
-  if(!pCruce||!rCruce) return 0;
-  if(pCruce.h==null||pCruce.h===""||rCruce.h==null||rCruce.h==="") return 0;
-  const matches = teamMatches(pCruce, rCruce);
-  if(matches===0) return 0;
-  // calcular puntos completos del marcador
-  let full=0;
-  const ps=sign(pCruce.h,pCruce.a), rs=sign(rCruce.h,rCruce.a);
-  const exact=(+pCruce.h===+rCruce.h&&+pCruce.a===+rCruce.a);
-  if(exact) full+=PTS.ko.exact;
-  else if(ps&&ps===rs) full+=PTS.ko.result;
-  // bonus por acertar quién avanza
-  let pAdv=ps==="1"?pCruce.home:ps==="2"?pCruce.away:(pCruce.pen==="1"?pCruce.home:pCruce.pen==="0"?pCruce.away:null);
-  let rAdv=rs==="1"?rCruce.home:rs==="2"?rCruce.away:(rCruce.pen==="1"?rCruce.home:rCruce.pen==="0"?rCruce.away:null);
-  if(pAdv&&rAdv&&pAdv===rAdv) full+=PTS.ko.advance;
-  // aplicar escala según equipos acertados (opción 3)
-  if(matches===2) return full;
-  return Math.ceil(full/2); // 1 equipo: mitad
-}
-function teamMatches(pCruce, rCruce){
-  // ¿cuántos equipos del cruce del jugador coinciden con los del cruce real? (orden no importa)
-  const ps = new Set([pCruce.home, pCruce.away]);
-  let m=0;
-  if(ps.has(rCruce.home)) m++;
-  if(ps.has(rCruce.away)) m++;
-  return m;
-}
-
-/* puntos de la Principal por fecha (sin extras), para un set de predicciones.
-   phase: "grupos" + jor 1/2/3 → grupos; "r32"/"r16"/etc → bracket. */
-function mainPointsByDate(pred, phase, jor){
-  if(!pred) return 0;
-  let pts=0;
-  if(phase==="grupos"){
-    const m=pred.main||{}, res=APP.results.main||{};
-    FIXTURE.forEach(mt=>{
-      if(mt.phase==="grupos"&&mt.jor===jor) pts+=matchPointsGrupos(m[mt.id],res[mt.id]);
-    });
-  } else {
-    // eliminatoria: comparar el bracket del jugador contra el real
-    const pBracket = pred.bracket||{};
-    const rBracket = APP.results.bracket||{};
-    let pArr, rArr;
-    if(phase==="tp" || phase==="final"){
-      const pM = phase==="tp" ? pBracket.tp : pBracket.final;
-      const rM = phase==="tp" ? rBracket.tp : rBracket.final;
-      if(pM && rM) pts += matchPointsKO(pM, rM);
-    } else {
-      pArr = pBracket[phase]||[]; rArr = rBracket[phase]||[];
-      // para cada cruce del jugador, buscar EL cruce real que lo mejor matchea (más equipos en común)
-      pArr.forEach(pC=>{
-        let best=0;
-        rArr.forEach(rC=>{ const p = matchPointsKO(pC, rC); if(p>best) best=p; });
-        pts+=best;
-      });
-    }
-  }
-  return pts;
-}
-
-const ALL_DATES=[{phase:"grupos",jor:1},{phase:"grupos",jor:2},{phase:"grupos",jor:3},
-  {phase:"r32"},{phase:"r16"},{phase:"qf"},{phase:"sf"},{phase:"tp"},{phase:"final"}];
-function sameDate(c,d){ return c.phase==="grupos"&&d.phase==="grupos" ? c.jor===d.jor : c.phase===d.phase; }
-
-/* puntos extra DEL CUADRO autocompletado (Punto 30):
-   - posiciones exactas de cada grupo (1°-4°): +1 cada una
-   - equipos clasificados a cada ronda (R32, R16, QF, SF, Final/3°): puntos según ronda
-*/
-function cuadroExtraPoints(uid){
-  const pred=predFor(uid);
-  const pBracket = pred.bracket||{};
-  const rBracket = APP.results.bracket||{};
-  const PB = PTS.cuadro;
-  let pts=0;
-  // 1) Posiciones exactas de grupos (de pBracket.standings vs rBracket.standings)
-  if(pBracket.standings && rBracket.standings){
-    GROUPS.forEach(g=>{
-      const pG=pBracket.standings[g]||[], rG=rBracket.standings[g]||[];
-      for(let i=0;i<4;i++){
-        if(pG[i] && rG[i] && pG[i].team===rG[i].team) pts+=PB.pos_grupo;
-      }
-    });
-  }
-  // 2) Equipos clasificados a cada ronda — un equipo "está en R32" si aparece en cualquiera de sus 16 cruces.
-  // Comparamos los equipos del bracket del jugador contra los del bracket real.
-  const stagePts = {r32:PB.clas_r32, r16:PB.clas_r16, qf:PB.clas_qf, sf:PB.clas_sf};
-  ["r32","r16","qf","sf"].forEach(stage=>{
-    const pTeams = teamsInStage(pBracket[stage]);
-    const rTeams = teamsInStage(rBracket[stage]);
-    pTeams.forEach(t=>{ if(rTeams.has(t)) pts+=stagePts[stage]; });
-  });
-  // Final (4 equipos: 2 del 3er puesto + 2 de la final)
-  const pFinalsTeams = new Set();
-  if(pBracket.tp){ pFinalsTeams.add(pBracket.tp.home); pFinalsTeams.add(pBracket.tp.away); }
-  if(pBracket.final){ pFinalsTeams.add(pBracket.final.home); pFinalsTeams.add(pBracket.final.away); }
-  const rFinalsTeams = new Set();
-  if(rBracket.tp){ rFinalsTeams.add(rBracket.tp.home); rFinalsTeams.add(rBracket.tp.away); }
-  if(rBracket.final){ rFinalsTeams.add(rBracket.final.home); rFinalsTeams.add(rBracket.final.away); }
-  pFinalsTeams.forEach(t=>{ if(rFinalsTeams.has(t)) pts+=PB.clas_finals; });
-  return pts;
-}
-function teamsInStage(matches){
-  const s=new Set();
-  (matches||[]).forEach(m=>{ if(m.home) s.add(m.home); if(m.away) s.add(m.away); });
-  return s;
-}
-
-/* puntos de la Principal de UN DÍA CALENDARIO específico, para un set de predicciones.
-   Suma los puntos de los partidos cuyo kickoff cae en ese día (hora AR).
-   Para grupos usa los marcadores; para eliminatorias usa el bracket. */
-function mainPointsByDay(pred, day){
-  if(!pred||!day) return 0;
-  let pts=0;
-  const matches = FIXTURE.filter(m=>m.kickoff && dayKey(m.kickoff)===day);
-  matches.forEach(mt=>{
-    if(mt.phase==="grupos"){
-      const m=pred.main||{}, res=APP.results.main||{};
-      pts+=matchPointsGrupos(m[mt.id],res[mt.id]);
-    } else {
-      // eliminatoria: se evalúa cuando corresponde (al cierre del día con bracket cargado)
-      // por ahora no agregamos nada acá; la evaluación elim ya está en mainPointsByDate por fase
-    }
-  });
-  // para eliminatorias, sumamos los puntos de la fase del día (proporcional al # de cruces de ese día)
-  const elimMatches = matches.filter(m=>m.phase!=="grupos");
-  if(elimMatches.length){
-    const phase = elimMatches[0].phase;
-    // por simplicidad: si hoy hay partidos elim de "phase", sumamos los puntos de TODOS los cruces de "phase"
-    // que coincidan con el día (1 cruce por día típicamente). Buscamos en el bracket del jugador
-    // los cruces cuya posición en el orden del array coincida con la posición del FIXTURE elimMatch.
-    const pBracket = pred.bracket||{};
-    const rBracket = APP.results.bracket||{};
-    elimMatches.forEach((em,idx)=>{
-      // matchear por índice dentro del FIXTURE elim de esa fase
-      const fxAll = FIXTURE.filter(m=>m.phase===phase);
-      const myIdx = fxAll.findIndex(m=>m.id===em.id);
-      if(phase==="tp" && pBracket.tp && rBracket.tp) pts += matchPointsKO(pBracket.tp, rBracket.tp);
-      else if(phase==="final" && pBracket.final && rBracket.final) pts += matchPointsKO(pBracket.final, rBracket.final);
-      else {
-        const pArr = pBracket[phase]||[], rArr = rBracket[phase]||[];
-        // como las cruces se evalúan por mejor match (ya implementado en mainPointsByDate),
-        // acá hacemos lo mismo para el cruce concreto del día:
-        if(pArr[myIdx]){
-          let best=0;
-          rArr.forEach(rC=>{ const p=matchPointsKO(pArr[myIdx],rC); if(p>best) best=p; });
-          pts+=best;
-        }
-      }
-    });
-  }
-  return pts;
-}
-
-/* total Principal con nitros + sanguijuelas + extras de cuadro para un usuario.
-   En el modelo diario: cada nitro/sang opera sobre los puntos de SU DÍA. */
-function mainTotal(uid){
-  const pred=predFor(uid); let total=0;
-  // sumar puntos por todos los días que tienen partidos
-  const allDays = new Set();
-  FIXTURE.forEach(m=>{ if(m.kickoff) allDays.add(dayKey(m.kickoff)); });
-  // (cálculo "base" por día, sin nitros aún) — pero como mainPointsByDate ya cubre todas
-  // las fases en su conjunto, mantenemos el cálculo agregado base + ajustes diarios:
-  ALL_DATES.forEach(d=>{
-    total+=mainPointsByDate(pred,d.phase,d.jor);
-  });
-  // nitros: por cada nitro del usuario, multiplicamos x2 (no x3, porque x3 = base+2x extra)
-  // → en realidad la base ya está sumada arriba, así que sumamos 2x los puntos del día del nitro
-  APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid).forEach(c=>{
-    const dayPts = mainPointsByDay(pred, c.day);
-    total += dayPts*2; // base ya está sumada, agregamos 2x para llegar a 3x total
-  });
-  total+=sangDelta(uid);
-  total+=cuadroExtraPoints(uid);
-  return total;
-}
-function sangDelta(uid){
-  let delta=0;
-  APP.comodines.filter(c=>c.type==="sang").forEach(c=>{
-    const day = c.day;
-    if(!day) return;
-    const pBy=mainPointsByDay(predFor(c.by_user), day);
-    const pTg=mainPointsByDay(predFor(c.target_user), day);
-    // EMPATE: no pasa nada (la sang se neutraliza)
-    if(c.by_user===uid){
-      if(pBy>pTg) delta+=pTg;
-      else if(pBy<pTg) delta-=Math.round(pTg*0.5);
-    }
-    if(c.target_user===uid){
-      if(pBy>pTg) delta-=pTg;
-    }
-  });
-  return delta;
-}
-function extraTotal(uid){
-  const ex=(predFor(uid).extra)||{}, res=APP.results.extra||{}; let pts=0;
-  Object.keys(PTS.extra).forEach(k=>{ if(res[k]&&ex[k]&&norm(ex[k])===norm(res[k])) pts+=PTS.extra[k]; });
-  return pts;
-}
-/* Calcula los nombres "correctos" de quién sale 1°/2°/anteúltimo/último,
-   determinados con la tabla SIN los puntos de las preguntas 5-8.
-   Devuelve un map {w5: [nombres correctos], w6: [...], w7: [...], w8: [...]}.
-   Los empates en una posición producen MÚLTIPLES respuestas correctas; si hay
-   2 empatados en 1°, NO hay 2° (la siguiente posición es 3°). */
-function autoWasabiAnswers(){
-  // standings sin contar w5-w8 (computamos un "total parcial")
-  function partialTotal(uid){
-    const pred=predFor(uid);
-    let total=mainTotal(uid)+extraTotal(uid);
-    // wasabi sin las auto-preguntas
-    const w=pred.wasabi||{}, res=APP.results.wasabi||{};
-    APP.wasabiQs.forEach(q=>{
-      if(["w5","w6","w7","w8"].includes(q.id)) return; // se excluyen
-      if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) total+=q.pts; return; }
-      if(res[q.id]==null||res[q.id]==="") return;
-      if(matchesResult(w[q.id],res[q.id])) total+=q.pts;
-    });
-    return total;
-  }
-  // tabla parcial ordenada
-  const rows = APP.profiles.filter(p=>{
-    if(p.is_admin) return false;
-    const e=(p.email||"").toLowerCase(), n=(p.display_name||"").toLowerCase();
-    if(e.includes("nahuelito")||n.includes("nahuelito")) return false;
-    if(e.includes("bot")&&e.includes("pinguiprode")) return false;
-    return true;
-  }).map(p=>({name:p.display_name, total:partialTotal(p.id)}));
-  rows.sort((a,b)=> b.total-a.total);
-  if(!rows.length) return {};
-  // Si el máximo puntaje es 0, no hay posiciones reales todavía
-  if(rows[0].total === 0) return {};
-  // agrupar por puntaje para detectar empates
-  const groups=[]; let cur=null;
-  rows.forEach(r=>{
-    if(!cur || r.total!==cur.total){ cur={total:r.total, names:[r.name]}; groups.push(cur); }
-    else cur.names.push(r.name);
-  });
-  // grupos[0] = primer puesto (puede tener 1+ nombres)
-  // grupos[1] = segundo (a menos que el primer puesto sea múltiple → no hay 2°)
-  // grupos[grupos.length-1] = último; -2 = anteúltimo
-  const ans = {w5:[], w6:[], w7:[], w8:[]};
-  // 1° puesto
-  ans.w5 = groups[0]?.names||[];
-  // 2° puesto: solo si el 1° fue único (1 solo nombre); si no, no hay 2°
-  if(groups[0]?.names.length===1 && groups[1]){ ans.w6 = groups[1].names; }
-  // Último (último grupo)
-  ans.w7 = groups[groups.length-1]?.names||[];
-  // Anteúltimo: solo si el último fue único
-  if(groups[groups.length-1]?.names.length===1 && groups.length>=2 && groups[groups.length-2]){
-    ans.w8 = groups[groups.length-2].names;
-  }
-  return ans;
-}
-
-function wasabiApproxWinners(qid){
-  // devuelve map uid->pts para una pregunta de aproximación
-  const res=APP.results.wasabi||{};
-  const resVal = parseFloat(res[qid]);
-  if(isNaN(resVal)) return {};
-  const q = APP.wasabiQs.find(q=>q.id===qid);
-  if(!q) return {};
-  // recolectar respuestas de todos los jugadores
-  const entries = APP.profiles
-    .filter(p=>!p.is_admin)
-    .map(p=>{ const w=(predFor(p.id).wasabi)||{}; const v=parseFloat(w[qid]); return {uid:p.id, val:v}; })
-    .filter(e=>!isNaN(e.val));
-  if(!entries.length) return {};
-  const minDist = Math.min(...entries.map(e=>Math.abs(e.val-resVal)));
-  const winners = entries.filter(e=>Math.abs(e.val-resVal)===minDist);
-  const pts = q.pts; // todos los empatados suman puntos completos
-  const map={};
-  winners.forEach(e=>{ map[e.uid]=pts; });
-  return map;
-}
-// cache de aproximación (se recalcula si cambia results)
-let _approxCache={};
-function approxPts(uid, qid){
-  if(!_approxCache[qid]) _approxCache[qid]=wasabiApproxWinners(qid);
-  return _approxCache[qid][uid]||0;
-}
-function clearApproxCache(){ _approxCache={}; }
-
-function wasabiTotal(uid){
-  const w=(predFor(uid).wasabi)||{}, res=APP.results.wasabi||{}; let pts=0;
-  // respuestas automáticas de w5-w8 (calculadas con tabla parcial)
-  const auto = autoWasabiAnswers();
-  APP.wasabiQs.forEach(q=>{
-    if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) pts+=q.pts; return; }
-    // preguntas auto (5-8): solo computan si el admin las habilitó
-    if(["w5","w6","w7","w8"].includes(q.id)){
-      if(!APP.results.auto_wasabi_enabled) return;
-      const correctNames = auto[q.id]||[];
-      if(!correctNames.length) return;
-      const ans = w[q.id];
-      if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
-      return;
-    }
-    // w1: cantidad de jugadores que acertaron el resultado exacto del partido inaugural (auto)
-    if(q.id==="w1"){
-      const resMain=APP.results.main||{};
-      const r1=resMain["1"];
-      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
-      const exactCount = APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-        const m=(predFor(p.id).main)||{};
-        const pred=m["1"];
-        return pred && +pred.h===+r1.h && +pred.a===+r1.a;
-      }).length;
-      const playerAns = parseFloat(w["w1"]);
-      if(isNaN(playerAns)) return;
-      if(playerAns===exactCount) pts+=q.pts;
-      return;
-    }
-    // preguntas de aproximación (minutos)
-    if(q.type==="approx"){
-      if(res[q.id]==null||res[q.id]==="") return;
-      pts+=approxPts(uid, q.id);
-      return;
-    }
-    if(res[q.id]==null||res[q.id]==="") return;
-    if(matchesResult(w[q.id],res[q.id])) pts+=q.pts;
-  });
-  return pts;
-}
-function penaltyTotal(uid){
-  const pred=predFor(uid);
-  const pens=pred.penalties||[];
-  return pens.reduce((s,p)=>s+(+p.pts||0),0);
-}
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid); }
-function norm(s){ return String(s).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
-function matchesResult(playerAns, resultVal){
-  if(playerAns==null||playerAns==="") return false;
-  const pNorm = norm(playerAns);
-  if(String(resultVal).includes(",")){
-    return String(resultVal).split(",").map(v=>norm(v.trim())).some(v=>v===pNorm);
-  }
-  return pNorm===norm(resultVal);
-}
-
-/* devuelve las predicciones de un uid (admin tiene todas; jugador solo la suya) */
-const _predCache={};
-function predFor(uid){
-  if(uid===APP.user?.id && APP.myPred) return APP.myPred;
-  return _predCache[uid]||{main:{},extra:{},wasabi:{}};
-}
-
-/* tabla de posiciones (solo JUGADORES, no admins) — con posiciones compartidas */
-function standings(){
-  const rows=APP.profiles.filter(p=>{
-    if(p.is_admin) return false;
-    const e=(p.email||"").toLowerCase(), n=(p.display_name||"").toLowerCase();
-    if(e.includes("nahuelito")||n.includes("nahuelito")) return false;
-    if(e.includes("bot")&&e.includes("pinguiprode")) return false;
-    return true;
-  }).map(p=>({
-    id:p.id, name:p.display_name, paid:hasPaid(p.id),
-    main:mainTotal(p.id), extra:extraTotal(p.id),
-    wasabi:wasabiTotal(p.id), penalty:penaltyTotal(p.id), total:grandTotal(p.id)
-  }));
-  rows.sort((a,b)=>b.total-a.total);
-  let pos=0,last=null,seen=0;
-  rows.forEach(r=>{seen++; if(r.total!==last){pos=seen;last=r.total;} r.pos=pos;});
-  // zona por tercios: elite / midfield / pobreza (por posición, no índice — maneja empates)
-  const n=rows.length, tercio=Math.ceil(n/3);
-  // pos del último jugador de cada zona
-  const eliteMaxPos = rows[tercio-1]?.pos;
-  const midfieldMaxPos = rows[Math.min(tercio*2-1, n-1)]?.pos;
-  rows.forEach(r=>{ r.zone = r.pos<=eliteMaxPos?"elite" : r.pos<=midfieldMaxPos?"midfield" : "pobreza"; });
-  // flechas: comparar contra el último snapshot guardado
-  const prev=APP.lastSnapshot||null;
-  rows.forEach(r=>{
-    if(prev && prev[r.id]!=null){ r.move = prev[r.id]-r.pos; } // +sube, -baja, 0 igual
-    else r.move = null; // sin referencia previa
-  });
-  return rows;
-}
-
-/* ---------- SNAPSHOTS de posiciones (para las flechas ▲▼) ---------- */
-// fechas en orden, con su horario de cierre (fin de la fecha)
-function allDateKeys(){
-  return [
-    {key:"grupos-1",phase:"grupos",jor:1},{key:"grupos-2",phase:"grupos",jor:2},{key:"grupos-3",phase:"grupos",jor:3},
-    {key:"r32",phase:"r32"},{key:"r16",phase:"r16"},{key:"qf",phase:"qf"},
-    {key:"sf",phase:"sf"},{key:"tp",phase:"tp"},{key:"final",phase:"final"},
-  ];
-}
-// kickoff del ÚLTIMO partido de una fecha (cuando se considera "cerrada")
-function dateEndKickoff(phase,jor){
-  const ms=FIXTURE.filter(m=> phase==="grupos" ? (m.phase==="grupos"&&m.jor===jor) : m.phase===phase);
-  const times=ms.map(m=>m.kickoff).filter(Boolean).map(t=>new Date(t).getTime());
-  if(!times.length) return null;
-  // se considera cerrada 2 horas después del inicio del último partido
-  return new Date(Math.max(...times)+2*3600*1000);
-}
-// snapshot actual de posiciones (id -> pos)
-function currentPositions(){
-  const map={}; standings().forEach(r=>map[r.id]=r.pos); return map;
-}
-/* Al cargar la app: si alguna fecha ya cerró y no tiene snapshot, lo crea.
-   Guarda como "lastSnapshot" la foto de la última fecha cerrada (para las flechas). */
-async function syncSnapshots(){
+async function doAuth(){
+  const email=$("#email").value.trim(), pass=$("#pass").value;
+  if(!email||!pass) return toast("Completá mail y contraseña","err");
   try{
-    const {data:snaps}=await sb.from('standings_snapshots').select('*');
-    const have={}; (snaps||[]).forEach(s=>have[s.date_key]=s.positions);
-    const now=Date.now();
-    let lastClosedKey=null;
-    for(const d of allDateKeys()){
-      const end=dateEndKickoff(d.phase,d.jor);
-      if(end && now>end.getTime()){
-        lastClosedKey=d.key;
-        if(!have[d.key]){
-          // crear snapshot de esta fecha cerrada
-          const pos=currentPositions();
-          await sb.from('standings_snapshots').insert({date_key:d.key,positions:pos});
-          have[d.key]=pos;
-        }
+    if(AUTH_MODE==='up'){
+      await signUp(email,pass);
+      app.innerHTML=`<div class="auth-wrap"><div class="card" style="text-align:center">
+        <div class="big" style="font-size:42px">📧</div>
+        <h3 style="margin:10px 0">Revisá tu mail</h3>
+        <p class="lead">Te enviamos un correo a <b>${esc(email)}</b> para confirmar tu cuenta. Tocá el link y volvé acá para crear tu perfil.</p>
+      </div></div>`;
+    }else{
+      await signIn(email,pass); await boot();
+    }
+  }catch(e){ toast(traduceError(e),"err"); }
+}
+async function forgotPass(){
+  const email=$("#email").value.trim(); if(!email) return toast("Escribí tu mail primero","err");
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});
+  if(error) toast(traduceError(error),"err"); else toast("Te mandamos un mail para resetear","ok");
+}
+
+/* ---------- NUEVA CONTRASEÑA (al entrar desde el link de reseteo) ---------- */
+function renderResetPassword(){
+  app.innerHTML=`<div class="auth-wrap">
+    <div class="hero" style="text-align:center">
+      <div class="logo" style="justify-content:center;font-size:24px"><span class="peng">🐧</span> Pingüi<b>Prode</b></div>
+      <div class="big" style="font-size:42px;margin-top:8px">🔑</div>
+      <h1 style="font-size:30px;margin-top:6px">Nueva contraseña</h1>
+      <p class="lead">Elegí tu contraseña nueva (mínimo 6 caracteres).</p>
+    </div>
+    <div class="card">
+      <label class="field">Contraseña nueva</label>
+      <input id="np1" type="password" placeholder="••••••••" autocomplete="new-password">
+      <label class="field" style="margin-top:12px">Repetir contraseña</label>
+      <input id="np2" type="password" placeholder="••••••••" autocomplete="new-password">
+      <button class="btn primary full" style="margin-top:16px" onclick="doResetPassword()">Guardar contraseña</button>
+    </div>
+  </div>`;
+}
+async function doResetPassword(){
+  const p1=$("#np1").value, p2=$("#np2").value;
+  if(!p1||p1.length<6) return toast("La contraseña debe tener al menos 6 caracteres","err");
+  if(p1!==p2) return toast("Las contraseñas no coinciden","err");
+  try{
+    const {error}=await sb.auth.updateUser({password:p1});
+    if(error) throw error;
+    RECOVERING=false;
+    toast("¡Contraseña actualizada! 🐧","ok");
+    await boot(); // ya queda logueado con la nueva clave
+  }catch(e){ toast(traduceError(e),"err"); }
+}
+function traduceError(e){
+  const m=(e.message||"").toLowerCase();
+  if(m.includes("not allowed")||m.includes("habilitado")) return "Ese mail no está habilitado. Pedile al COMIPRO que te agregue.";
+  if(m.includes("invalid login")) return "Mail o contraseña incorrectos.";
+  if(m.includes("already registered")) return "Ese mail ya está registrado. Probá iniciar sesión.";
+  if(m.includes("password")) return "La contraseña debe tener al menos 6 caracteres.";
+  return e.message||"Algo salió mal";
+}
+
+/* ---------- CREAR PERFIL (primera vez tras confirmar mail) ---------- */
+function renderCreateProfile(){
+  app.innerHTML=`<div class="auth-wrap">
+    <div class="hero" style="text-align:center"><div class="big" style="font-size:42px">🎉</div>
+      <h1 style="font-size:30px">¡Mail confirmado!</h1>
+      <p class="lead">Elegí tu nombre de jugador para el PingüiProde.</p></div>
+    <div class="card">
+      <label class="field">Nombre de jugador</label>
+      <input id="dname" placeholder="Ej: Bartel" maxlength="24">
+      <button class="btn primary full" style="margin-top:16px" onclick="doCreateProfile()">Crear mi perfil →</button>
+      <p class="note" style="margin-top:10px">Logueado como ${esc(APP.user.email)}. <a href="#" onclick="signOut();return false" style="color:var(--aqua)">Salir</a></p>
+    </div>
+  </div>`;
+}
+async function doCreateProfile(){
+  const n=$("#dname").value.trim(); if(!n) return toast("Escribí un nombre","err");
+  try{ await createProfile(n); await loadAll(); render(); toast("¡Perfil creado! 🐧","ok"); }
+  catch(e){ toast(traduceError(e),"err"); }
+}
+
+/* ---------- NAV SHELL ---------- */
+function render(){
+  app.innerHTML=topbar()+tabsBar()+`<div class="wrap" id="view"></div>`;
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;render();window.scrollTo(0,0);});
+  const v=$("#view");
+  ({inicio:renderInicio,principal:renderPrincipal,wasabi:renderWasabi,
+    comodines:renderComodines,tabla:renderTabla,reglamento:renderReglamento,admin:renderAdmin}[TAB]||renderInicio)(v);
+}
+function topbar(){
+  const me=APP.profile.display_name;
+  return `<div class="topbar"><div class="inner">
+    <div class="logo"><span class="peng">🐧</span> Pingüi<b>Prode</b></div>
+    <div class="whoami"><span class="chip ${isAdmin()?'admin':''}" onclick="menuUser()">${isAdmin()?'👑 ':''}${esc(me)} ▾</span></div>
+  </div></div>`;
+}
+function tabsBar(){
+  const tabs=[["inicio","Inicio"],["principal","Principal"],["wasabi","Wasabi"],
+    ["comodines","Comodines"],["tabla","Tabla"],["reglamento","Reglamento"]];
+  if(isAdmin()) tabs.push(["admin","⚙ Admin"]);
+  return `<div class="tabs">`+tabs.map(([k,l])=>`<button class="tab ${TAB===k?'active':''}" data-tab="${k}">${l}</button>`).join("")+`</div>`;
+}
+function menuUser(){
+  modal(`<h3>${esc(APP.profile.display_name)}</h3>
+    <p class="note">${esc(APP.user.email)}${isAdmin()?' · 👑 COMIPRO':''}</p>
+    <div class="divider"></div>
+    <button class="btn ghost full" onclick="closeModal();signOut()">Cerrar sesión</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeModal()">Volver</button>`);
+}
+
+/* =====================================================================
+   PESTAÑA · INICIO
+   ===================================================================== */
+function renderInicio(v){
+  const tb=standings();
+  // ---- VISTA DEL ADMIN: tabla completa + accesos rápidos al panel ----
+  if(isAdmin()){
+    v.innerHTML=`
+    <div class="hero" style="padding-top:22px">
+      <div class="pill">⚙ Panel del COMIPRO</div>
+      <h1>Hola, <em>${esc(APP.profile.display_name)}</em></h1>
+      <p class="lead">Sos el COMIPRO. Acá tenés la tabla en vivo y los accesos al panel de gestión.</p>
+    </div>
+    <div class="kpi">
+      <div class="k"><div class="n">${tb.length}</div><div class="l">Jugadores</div></div>
+      <div class="k"><div class="n">${APP.comodines.length}</div><div class="l">Comodines pedidos</div></div>
+      <div class="k"><div class="n">${tb.filter(r=>r.paid).length}</div><div class="l">Pagaron</div></div>
+    </div>
+    <div class="card"><div class="sec-title">Tabla de posiciones</div>
+      <p class="note">Vista en vivo de las posiciones (incluye flechas ▲▼ y zonas).</p>
+      ${standingsTableHTML({inline:false})}
+    </div>
+    <div class="card"><div class="sec-title">Accesos rápidos · gestión</div>
+      <div class="row" style="flex-direction:column;gap:8px;margin-top:10px">
+        <button class="btn sm primary full" onclick="TAB='admin';ADM='resultados';render()">⚽ Cargar resultados</button>
+        <button class="btn sm primary full" onclick="TAB='admin';ADM='wasabi';render()">🌶️ Result. Wasabi</button>
+        <button class="btn sm full" onclick="TAB='admin';ADM='tarjetas';render()">🔎 Ver tarjetas</button>
+        <button class="btn sm full" onclick="TAB='admin';ADM='jugadores';render()">👥 Jugadores · pagos</button>
+        <button class="btn sm full" onclick="TAB='admin';ADM='mails';render()">📧 Mails habilitados</button>
+        <button class="btn sm gold full" onclick="TAB='admin';ADM='export';render()">📤 Exportar respaldo</button>
+      </div>
+    </div>`;
+    return;
+  }
+  // ---- VISTA DEL JUGADOR ----
+  const meRow=tb.find(r=>r.id===APP.user.id);
+  const myPred=APP.myPred||{};
+  // estados de cada tarjeta (punto 17: cierre por tarjeta) — usa cardSent() de core
+  const wasabiSent = cardSent('wasabi');
+  const principalSent = cardSent('main');
+  // contador Wasabi: NO cuenta las bonus (punto 19)
+  const wasabiNonBonus = APP.wasabiQs.filter(q=>q.type!=="bonus");
+  const wa = wasabiNonBonus.filter(q=>{const v=(myPred.wasabi||{})[q.id]; return v!=null && v!=="";}).length;
+  const waTotal = wasabiNonBonus.length;
+  // progreso de Principal: por etapas
+  const stagesDone = STAGES.filter(s=>stageSent(s)).length;
+  const principalProgress = principalSent
+    ? "✓ Todas las etapas enviadas"
+    : `Etapa ${stagesDone+1}/${STAGES.length}: ${STAGE_LABEL[currentStage()]||"—"}`;
+  // status helper
+  const statusBadge = sent => sent
+    ? `<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>`
+    : `<span style="color:var(--muted)">(Sin enviar)</span>`;
+  v.innerHTML=`
+  <div class="hero" style="padding-top:22px">
+    <div class="pill">⚽ 48 selecciones · 104 partidos · 11 jun – 19 jul</div>
+    <h1>Hola, <em>${esc(APP.profile.display_name)}</em></h1>
+    <p class="lead">Completá tus 2 tarjetas antes de la fecha límite. Una vez enviadas, quedan cerradas con candado.</p>
+  </div>
+  <div class="kpi">
+    <div class="k"><div class="n">#${meRow?.pos||'—'}</div><div class="l">Tu posición</div></div>
+    <div class="k"><div class="n">${meRow?.total||0}</div><div class="l">Tus puntos</div></div>
+    <div class="k"><div class="n">${tb.length}</div><div class="l">Jugadores</div></div>
+  </div>
+  <div class="card">
+    <div class="sec-title">Tus tarjetas</div>
+    <table>
+      <tr><td class="name">⚽ Principal</td><td style="text-align:right">${principalProgress}</td><td style="text-align:right;min-width:110px">${statusBadge(principalSent)}</td></tr>
+      <tr><td class="name">🌶️ Wasabi</td><td style="text-align:right">${wa}/${waTotal}</td><td style="text-align:right">${statusBadge(wasabiSent)}</td></tr>
+    </table>
+    <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
+      ${!principalSent?'<button class="btn primary sm" onclick="TAB=\'principal\';render()">⚽ Ir a Principal</button>':''}
+      ${!wasabiSent?'<button class="btn primary sm" onclick="TAB=\'wasabi\';render()">🌶️ Ir a Wasabi</button>':''}
+      ${(wasabiSent&&principalSent)?'<span class="note">Las dos tarjetas están enviadas. Ahora seguí la tabla y usá tus comodines.</span>':''}
+    </div>
+    ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
+  </div>
+  ${(()=>{
+    // Partidos del día (6am Argentina a 6am del día siguiente)
+    const tz='America/Argentina/Buenos_Aires';
+    const now=new Date();
+    // obtener fecha argentina como string YYYY-MM-DD
+    const argDateStr=now.toLocaleDateString('en-CA',{timeZone:tz}); // "2026-06-14"
+    const argH=parseInt(now.toLocaleTimeString('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}));
+    // si antes de las 6am, tomar el día anterior
+    let [yy,mm,dd]=argDateStr.split('-').map(Number);
+    if(argH<6){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
+    const pad=n=>String(n).padStart(2,'0');
+    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T09:00:00Z`); // 6am ARG = UTC-3 = 9am UTC
+    const endUTC=new Date(startUTC.getTime()+24*60*60*1000);
+    const todayMatches=FIXTURE.filter(m=>{
+      if(!m.kickoff) return false;
+      const k=new Date(m.kickoff);
+      return k>=startUTC && k<endUTC;
+    });
+    if(!todayMatches.length) return '';
+    const res=APP.results?.main||{};
+    const myMain=APP.myPred?.main||{};
+    let rows='';
+    todayMatches.forEach(m=>{
+      const r=res[m.id]; const p=myMain[m.id]||{};
+      const kickoff=new Date(m.kickoff);
+      const hora=kickoff.toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
+      const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
+      const resultStr=r&&r.h!=null&&r.h!==''?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">${hora}hs</span>`;
+      const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
+      // acertaron si hay resultado
+      let acertaronStr='';
+      if(r&&r.h!=null&&r.h!==''){
+        const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
+        const exact=[],suman=[];
+        players.forEach(pl=>{
+          const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
+          const pred2=preds[m.id]; if(!pred2) return;
+          if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
+          const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+          const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
+          if(rWin===pWin) suman.push(pl.display_name);
+        });
+        acertaronStr=`<div class="acertaron" style="margin-top:4px">
+          <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
+          <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+        </div>`;
       }
+      rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--aqua)">· Tu pred: ${predStr}</span>
+          <span style="margin-left:auto;font-size:13px">${resultStr}</span>
+        </div>${acertaronStr}
+      </div>`;
+    });
+    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>${rows}</div>`;
+  })()}
+  <div class="card"><div class="sec-title">Tabla de posiciones</div>
+    ${(()=>{
+      const ua = APP.results?.updated_at;
+      if(!ua) return '';
+      const d = new Date(ua);
+      const pad = n => String(n).padStart(2,'0');
+      const fecha = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+      const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return `<p class="note" style="margin-bottom:8px">🕐 Actualizado el ${fecha} a las ${hora}hs</p>`;
+    })()}
+    <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
+    ${standingsTableHTML({inline:true})}
+    ${(()=>{
+      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
+      const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
+      const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
+      const yaSang = !!askedSangToday(APP.user?.id);
+      const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
+      const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+      const disabledReason = yaSang ? 'Ya aplicaste sanguijuela hoy' : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
+        <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
+          <option value="">— elegí un rival —</option>
+          ${opts2}
+        </select>
+        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayDayKey())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
+      </div>`;
+    })()}
+  </div>
+  ${(()=>{
+    const myPens=(APP.myPred?.penalties||[]);
+    if(!myPens.length) return '';
+    const total=myPens.reduce((s,p)=>s+(+p.pts||0),0);
+    const rows=myPens.map(pen=>{
+      const fecha=new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px">
+        <span style="color:#ef4444;font-weight:700;flex-shrink:0">⚡ -${pen.pts}pts</span>
+        <span style="flex:1">${esc(pen.reason)}</span>
+        <span style="color:var(--muted);font-size:11px">${fecha}</span>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="border-color:#ef4444;background:rgba(239,68,68,.06)">
+      <div class="sec-title" style="color:#ef4444">⚡ Penalizaciones aplicadas</div>
+      <p class="note" style="margin-bottom:10px">El COMIPRO aplicó descuentos en tus puntos. Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
+      ${rows}
+    </div>`;
+  })()}
+  <div class="card flat"><div class="sec-title">Comodines · resumen</div>
+    <p class="note" style="line-height:1.7"><b>🩸 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado en su día, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó; si empatan, no pasa nada.<br>
+    <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2°.<br>
+    <span style="color:var(--muted)">Se piden cualquier día de la fase entre las 6 y las 12 (hora argentina) y valen para los partidos de ese día. Ojo: no podés usar ambos en el mismo día.</span></p></div>`;
+}
+
+/* helper input según tipo */
+/* Helpers reutilizables para listas ordenadas */
+// ordena strings respetando acentos y ñ (Á va antes de B; ñ va entre n y o)
+const _COLLATOR = new Intl.Collator("es", {sensitivity:"base", ignorePunctuation:true});
+function sortByName(arr, key){
+  return arr.slice().sort((a,b)=> _COLLATOR.compare(key?a[key]:a, key?b[key]:b));
+}
+// devuelve los perfiles de JUGADORES (no admins, no bots) — para tabla, desplegables, exportación
+function playersOnly(){
+  return APP.profiles.filter(p=>{
+    if(p.is_admin) return false;
+    const email = (p.email||"").toLowerCase();
+    const name = (p.display_name||"").toLowerCase();
+    if(email.includes("nahuelito") || name.includes("nahuelito")) return false;
+    if(email.includes("bot") && email.includes("pinguiprode")) return false;
+    return true;
+  });
+}
+
+function inputFor(q,val,card,locked){
+  const dis=locked?"disabled":"";
+  const onCh=`onchange="setPred('${card}','${q.id}',this.value)"`;
+  // Aproximación / numérico: único caso que NO es desplegable
+  if(q.type==="num") return `<input type="number" inputmode="numeric" value="${esc(val)}" ${dis} ${onCh}>`;
+  // Sí / No
+  if(q.type==="yesno") return `<select ${dis} ${onCh}><option value="">— elegir —</option>${["Sí","No"].map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join("")}</select>`;
+  // Opciones custom — se ordenan alfabéticamente
+  if(q.type==="choice" && Array.isArray(q.options))
+    return `<select ${dis} ${onCh}><option value="">— elegir —</option>${sortByName(q.options).map(o=>`<option ${val===o?'selected':''}>${esc(o)}</option>`).join("")}</select>`;
+  // Jugador argentino (26) — alfabético
+  if(q.type==="player") return `<select ${dis} ${onCh}><option value="">— elegir —</option>${sortByName(PLANTEL_ARG).map(p=>`<option ${val===p?'selected':''}>${esc(p)}</option>`).join("")}</select>`;
+  // Otro participante del prode — sin admins, alfabético
+  if(q.type==="participant") return `<select ${dis} ${onCh}><option value="">— elegir —</option>${sortByName(playersOnly(),'display_name').map(p=>`<option ${val===p.display_name?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
+  // Selección del Mundial (48 equipos) — alfabético por nombre
+  if(q.type==="team"){
+    const teams=Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f}));
+    return `<select ${dis} ${onCh}><option value="">— elegir —</option>${sortByName(teams,'n').map(t=>`<option ${val===t.n?'selected':''} value="${t.n}">${t.f} ${t.n}</option>`).join("")}</select>`;
+  }
+  // Fallback (no debería usarse): texto libre
+  return `<input value="${esc(val)}" placeholder="Respuesta" ${dis} ${onCh}>`;
+}
+function lockMsg(){return `<div class="lock-banner">🔒 Tarjeta cerrada. No se puede editar.</div>`;}
+function adminHint(ic,txt){return `<div class="card"><div class="empty"><div class="big">${ic}</div>${txt}</div></div>`;}
+
+async function setPred(card,qid,value){
+  if(cardSent(card)){ toast("Esta tarjeta ya fue enviada","err"); return; }
+  const obj={...(APP.myPred?.[card]||{})}; obj[qid]=value;
+  try{ await saveMyPred({[card]:obj}); render(); }catch(e){ toast(e.message,"err"); }
+}
+
+/* =====================================================================
+   PESTAÑA · PRINCIPAL
+   ===================================================================== */
+let PR_PHASE="grupos";
+let _prepopulatedDefaults=false;
+async function ensureDefaults(){
+  if(_prepopulatedDefaults) return;
+  if(stageSent('grupos')) { _prepopulatedDefaults=true; return; }
+  const main=APP.myPred?.main||{};
+  // si el jugador ya tocó al menos un partido, no sobreescribimos nada
+  const hasAny = Object.keys(main).some(id=>{const m=main[id]; return m && m.h!=="" && m.h!=null;});
+  if(hasAny){ _prepopulatedDefaults=true; return; }
+  // poblar TODOS los partidos de grupos con 0-0
+  const filled = {...main};
+  FIXTURE.filter(m=>m.phase==="grupos").forEach(m=>{
+    if(!filled[m.id] || filled[m.id].h==="" || filled[m.id].h==null){
+      filled[m.id] = {h:0, a:0, pen:""};
     }
-    // la "foto anterior" para las flechas = último snapshot guardado (o penúltimo si hay fecha en curso)
-    const closed=allDateKeys().filter(d=>{const e=dateEndKickoff(d.phase,d.jor);return e&&now>e.getTime();});
-    const allSnapped=allDateKeys().filter(d=>have[d.key]);
-    if(allSnapped.length>=1) APP.lastSnapshot=have[allSnapped[allSnapped.length-1].key]||null;
-    else APP.lastSnapshot=null;
-  }catch(e){ console.warn("snapshots:",e.message); APP.lastSnapshot=null; }
-}
-
-/* =====================================================================
-   VALIDACIÓN DE COMODINES (reglamento 2026 — modelo diario)
-   =====================================================================
-   Modelo NUEVO:
-   - Una "fecha" del prode = un día CALENDARIO (zona horaria del estadio del partido).
-   - El comodín se asocia a un día (ej. "2026-06-15") y vale para todos los partidos
-     reales de ese día.
-   - Ventana: 6:00 a 12:00 hora argentina del día calendario AR donde se juega el partido.
-   - Cupo: 3 sanguijuelas + 2 nitros POR FASE (grupos / r32 / r16 / qf / sf / tp+final).
-     Distribuibles en los ~17 días de grupos o los días que dura cada fase elim.
-   ===================================================================== */
-
-// Día calendario (YYYY-MM-DD) en hora local del estadio para un kickoff dado.
-// Usamos la hora argentina porque la ventana es hora AR, y para el prode entre amigos
-// alcanza con asociar el partido al "día calendario AR donde aparece su kickoff".
-function dayKey(kickoff){
-  if(!kickoff) return null;
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',
-    year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(kickoff));
-}
-function todayDayKey(){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',
-    year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-}
-
-// ¿hay partidos hoy de la fase X?
-function phaseOfDay(day){
-  // miramos qué FIXTURE tiene kickoff en ese día calendario; devolvemos su fase (o null)
-  const m = FIXTURE.find(mt=>{ const k=mt.kickoff; return k && dayKey(k)===day; });
-  return m?m.phase:null;
-}
-
-// ¿La ventana 6-12 AR del día actual está abierta?
-function windowOpenNow(){
-  const tz='America/Argentina/Buenos_Aires';
-  const hh=Number(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'numeric',hour12:false}).format(new Date()));
-  return hh>=6 && hh<12;
-}
-
-// ¿día de partidos? (al menos un partido en FIXTURE con ese día calendario)
-function dayHasMatches(day){
-  return FIXTURE.some(m=>m.kickoff && dayKey(m.kickoff)===day);
-}
-
-function quotaLeft(uid,type){
-  const max = type==="sang" ? 3 : 2; // 3 sanguijuelas / 2 nitros POR FASE
-  const byPhase = {};
-  ["grupos","r32","r16","qf","sf","tp","final"].forEach(ph=> byPhase[ph]=0);
-  APP.comodines.filter(c=>c.type===type&&c.by_user===uid).forEach(c=>{
-    byPhase[c.phase] = (byPhase[c.phase]||0)+1;
   });
-  // resumen
-  return {
-    grupos:Math.max(0,max-byPhase.grupos),
-    r32:Math.max(0,max-byPhase.r32),
-    r16:Math.max(0,max-byPhase.r16),
-    qf:Math.max(0,max-byPhase.qf),
-    sf:Math.max(0,max-byPhase.sf),
-    finals:Math.max(0,max-(byPhase.tp+byPhase.final)),
-  };
+  try{
+    await saveMyPred({main:filled});
+    _prepopulatedDefaults = true;
+  }catch(e){ console.warn("No se pudieron poblar defaults:", e.message); }
 }
 
-/* Validación de comodines en el modelo diario.
-   No recibimos phase ni jor — se calculan del día actual. */
-function windowErrorToday(){
-  const day = todayDayKey();
-  if(!dayHasMatches(day)) return "Hoy no hay partidos del Mundial. Los comodines solo se piden los días que se juega.";
-  if(!windowOpenNow()) return "La ventana de comodines es de 6:00 a 12:00 (hora argentina). Está cerrada ahora.";
-  return null;
+function renderPrincipal(v){
+  if(isAdmin()){ v.innerHTML=adminHint("⚽","Los resultados reales de los partidos se cargan en <b>⚙ Admin → Resultados</b>."); return; }
+  const main=APP.myPred?.main||{};
+  const bracket=APP.myPred?.bracket||{};
+  // header con barra de etapas
+  let header=`<div class="card" style="margin-top:18px">
+    <div class="sec-title">Tarjeta Principal · Cuadro autocompletado</div>
+    <p class="note">Cargás los grupos, la app calcula qué equipos pasan según tus predicciones, y armás el cuadro etapa por etapa. Si un equipo que pusiste no clasifica, no suma puntos en las siguientes etapas — por eso es importante la Wasabi.</p>
+    <p class="note" style="font-style:italic;font-size:12px">💡 Tip: todos los partidos arrancan en <b>0-0</b>. Solo cambiá los marcadores que querés predecir distinto.</p>
+    <div class="stages-bar">${STAGES.map((s,i)=>{
+      const done=stageSent(s);
+      const active=!done&&canEnterStage(s);
+      const cls=done?"done":active?"active":"pending";
+      const num=i+1;
+      return `<button class="${cls}" data-stage="${s}" ${done||active?'':'disabled'}><span class="num">${done?'✓':num}</span><span class="lbl">${STAGE_LABEL[s].replace('Fase de ','').replace(' de Final','').replace('3er Puesto y ','3°+')}</span></button>`;
+    }).join("")}</div>
+  </div>`;
+  v.innerHTML = header + `<div id="prArea"></div>`;
+  document.querySelectorAll(".stages-bar button").forEach(b=>{
+    b.onclick = ()=>{ PR_PHASE=b.dataset.stage; renderPrincipal(v); };
+  });
+  if(!PR_PHASE || !STAGES.includes(PR_PHASE)) PR_PHASE = currentStage() || "tpfinal";
+  // pre-poblar defaults antes de renderizar (solo la primera vez)
+  ensureDefaults().then(()=>prStageArea());
 }
 
-// ¿el usuario fue retado en partido alguno de hoy?
-function wasChallengedToday(uid){
-  const day=todayDayKey();
-  return APP.comodines.find(c=>c.type==="sang"&&c.target_user===uid&&c.day===day);
-}
-function askedNitroToday(uid){
-  const day=todayDayKey();
-  return APP.comodines.find(c=>c.type==="nitro"&&c.by_user===uid&&c.day===day);
-}
-function askedSangToday(uid){
-  const day=todayDayKey();
-  return APP.comodines.find(c=>c.type==="sang"&&c.by_user===uid&&c.day===day);
+/* Render del área activa según la etapa seleccionada */
+function prStageArea(){
+  const area=$("#prArea"); if(!area) return;
+  if(PR_PHASE==="grupos"){ return prAreaGrupos(area); }
+  return prAreaElim(area, PR_PHASE);
 }
 
-function validateSang(by,target){
-  if(by===target) return "No podés retarte a vos mismo.";
-  const winErr=windowErrorToday(); if(winErr) return winErr;
-  const day=todayDayKey(); const phase=phaseOfDay(day);
-  if(!phase) return "No hay partidos hoy.";
-  const tb=standings(); const me=tb.find(r=>r.id===by), tg=tb.find(r=>r.id===target);
-  if(!me||!tg) return "Jugador no encontrado.";
-  if(me.pos===1) return "El que va primero no puede retar.";
-  const diff=me.pos-tg.pos;
-  if(diff<=0) return "Solo podés retar a alguien por encima tuyo.";
-  if(diff>3) return "Solo podés retar hasta 3 posiciones por encima.";
-  // cupo de la fase actual
-  const q=quotaLeft(by,"sang");
-  const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
-  if(q[qKey]<=0) return "Ya usaste tus 3 sanguijuelas de esta fase.";
-  // interacciones del mismo día
-  if(askedSangToday(by)) return "Ya aplicaste una sanguijuela hoy. Solo podés aplicar una por día.";
-  if(askedNitroToday(by)) return "No podés usar Sanguijuela y Nitro el mismo día.";
-  if(askedNitroToday(target)) return "No podés retar a quien pidió Nitro hoy (perderías la sanguijuela).";
-  // máximo 2 veces a la misma persona por fase
-  const tgByMeInPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&c.by_user===by&&c.phase===phase);
-  if(tgByMeInPhase.length>=2) return "No podés retar más de 2 veces a la misma persona en una fase.";
-  // máximo 3 retos recibidos por fase
-  const tgRecvPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&c.phase===phase);
-  if(tgRecvPhase.length>=3) return "Esa persona ya recibió 3 retos en esta fase (el máximo).";
-  // no retar a quien ya fue retado HOY
-  if(wasChallengedToday(target)) return "Ese jugador ya fue retado por otro hoy (vale el primer aviso).";
-  return null;
-}
-function validateNitro(by){
-  const winErr=windowErrorToday(); if(winErr) return winErr;
-  const day=todayDayKey(); const phase=phaseOfDay(day);
-  if(!phase) return "No hay partidos hoy.";
-  const q=quotaLeft(by,"nitro");
-  const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
-  if(q[qKey]<=0) return "Ya usaste tus 2 nitros de esta fase.";
-  if(askedNitroToday(by)) return "Ya tenés un nitro pedido para hoy.";
-  if(askedSangToday(by)) return "No podés usar Nitro y Sanguijuela el mismo día.";
-  if(wasChallengedToday(by)) return "Fuiste retado hoy: no podés usar Nitro.";
-  const tb=standings(); const me=tb.find(r=>r.id===by);
-  if(!me) return "Jugador no encontrado.";
-  if(me.pos===1||me.pos===2) return "El 1° y 2° no pueden usar nitro.";
-  return null;
-}
-
-
-/* =====================================================================
-   MOTOR DE CUADRO AUTOCOMPLETADO (Tarjeta Principal · Mundial 2026)
-   =====================================================================
-   El jugador carga los marcadores de grupos. Esta función calcula:
-   1. La tabla de cada uno de los 12 grupos (puntos, dif. gol, GF) con reglas FIFA.
-   2. Los 2 primeros de cada grupo (24 clasificados directos).
-   3. Los 8 mejores 3ros (de los 12 terceros) por puntos > dif. gol > GF.
-   4. El bracket de R32 con esos 32 equipos, según una asignación determinística.
-   Devuelve un objeto con groups[grp], thirds[], bracket{r32,r16,qf,sf,tp,final}.
-   ===================================================================== */
-function computeBracket(mainPreds){
-  // mainPreds: { match_id: {h:n, a:n, pen:?} }
-  // 1) calcular tablas por grupo
-  const groupTable={}; // groupTable["A"] = [{team, pj, g, e, p, gf, gc, dg, pts}, ...]
+/* ETAPA GRUPOS: 12 grupos siempre visibles (no colapsan) — se pintan de verde al completarse */
+function prAreaGrupos(area){
+  const sent=stageSent("grupos"); const main=APP.myPred?.main||{};
+  let html="";
+  let totalMatches=0, totalDone=0;
   GROUPS.forEach(g=>{
-    const teams=GROUP_TEAMS[g];
-    const t={};
-    teams.forEach(c=>{ t[c]={team:c, pj:0,g:0,e:0,p:0,gf:0,gc:0,dg:0,pts:0}; });
-    FIXTURE.filter(m=>m.phase==="grupos"&&m.grp===g).forEach(m=>{
-      const pr=mainPreds?.[m.id]; if(!pr||pr.h===""||pr.h==null||pr.a===""||pr.a==null) return;
-      const h=+pr.h, a=+pr.a;
-      t[m.home].pj++; t[m.away].pj++;
-      t[m.home].gf+=h; t[m.home].gc+=a;
-      t[m.away].gf+=a; t[m.away].gc+=h;
-      if(h>a){ t[m.home].g++; t[m.home].pts+=3; t[m.away].p++; }
-      else if(h<a){ t[m.away].g++; t[m.away].pts+=3; t[m.home].p++; }
-      else { t[m.home].e++; t[m.away].e++; t[m.home].pts++; t[m.away].pts++; }
-    });
-    // ordenar: pts > dg > gf > nombre (último desempate alfabético, simple)
-    const rows=Object.values(t);
-    rows.forEach(r=>r.dg=r.gf-r.gc);
-    rows.sort((a,b)=> b.pts-a.pts || b.dg-a.dg || b.gf-a.gf || a.team.localeCompare(b.team));
-    rows.forEach((r,i)=>r.pos=i+1);
-    groupTable[g]=rows;
+    const gm=FIXTURE.filter(m=>m.phase==="grupos"&&m.grp===g);
+    const done=gm.filter(m=>{const p=main[m.id]; return p&&p.h!==""&&p.h!=null;}).length;
+    const full = done===gm.length;
+    totalMatches+=gm.length; totalDone+=done;
+    html+=`<div class="group-block ${full?'group-full':''}">
+      <div class="group-head"><span class="gtag">${g}</span> Grupo ${g}
+        <span class="badge ${full?'g':'w'}" style="margin-left:6px">${done}/${gm.length}</span></div>
+      <div class="group-body">${[1,2,3].map(j=>`<div class="meta">Jornada ${j} · ${GROUP_DATES[j]}</div>`+
+        gm.filter(m=>m.jor===j).map(m=>matchRow(m,main[m.id],sent)).join("")).join("")}</div>
+    </div>`;
   });
-
-  // 2) clasificados directos: 1ros y 2dos
-  const firsts={}, seconds={}, thirds=[];
-  GROUPS.forEach(g=>{
-    firsts[g]=groupTable[g][0];
-    seconds[g]=groupTable[g][1];
-    thirds.push({...groupTable[g][2], from:g});
-  });
-  // 3) 8 mejores terceros
-  thirds.sort((a,b)=> b.pts-a.pts || b.dg-a.dg || b.gf-a.gf || a.from.localeCompare(b.from));
-  const bestThirds = thirds.slice(0,8); // los 8 que clasifican
-  const droppedThirds = thirds.slice(8); // 4 que quedan eliminados
-
-  // 4) BRACKET de R32 - cruces OFICIALES FIFA 2026
-  // Tabla completa FIFA: qué tercero va a cada slot según combinación de 8 clasificados
-  // Slots en orden: M74, M77, M79, M80, M81, M82, M85, M87
-  // key = 8 grupos ordenados alfabéticamente; value = [grupo para cada slot]
-  const THIRDS_TABLE = {
-  "ABCDEFGH":["A","C","F","E","B","H","G","D"],
-  "ABCDEFGI":["A","C","F","E","B","I","G","D"],
-  "ABCDEFGJ":["A","C","F","E","B","J","G","D"],
-  "ABCDEFGK":["A","C","F","K","B","E","G","D"],
-  "ABCDEFGL":["B","D","C","E","F","A","G","L"],
-  "ABCDEFHI":["A","C","E","H","B","I","F","D"],
-  "ABCDEFHJ":["A","C","E","H","B","J","F","D"],
-  "ABCDEFHK":["A","C","E","K","B","H","F","D"],
-  "ABCDEFHL":["A","D","C","E","B","H","F","L"],
-  "ABCDEFIJ":["A","C","E","I","B","J","F","D"],
-  "ABCDEFIK":["A","C","E","K","B","I","F","D"],
-  "ABCDEFIL":["A","D","C","E","B","I","F","L"],
-  "ABCDEFJK":["A","C","E","K","B","J","F","D"],
-  "ABCDEFJL":["A","D","C","E","B","J","F","L"],
-  "ABCDEFKL":["A","D","C","K","B","E","F","L"],
-  "ABCDEGHI":["A","C","E","H","B","I","G","D"],
-  "ABCDEGHJ":["A","C","E","H","B","J","G","D"],
-  "ABCDEGHK":["A","C","E","K","B","H","G","D"],
-  "ABCDEGHL":["A","D","C","E","B","H","G","L"],
-  "ABCDEGIJ":["A","C","E","I","B","J","G","D"],
-  "ABCDEGIK":["A","C","E","K","B","I","G","D"],
-  "ABCDEGIL":["A","D","C","E","B","I","G","L"],
-  "ABCDEGJK":["A","C","E","K","B","J","G","D"],
-  "ABCDEGJL":["A","D","C","E","B","J","G","L"],
-  "ABCDEGKL":["A","D","C","K","B","E","G","L"],
-  "ABCDEHIJ":["A","C","E","H","B","I","J","D"],
-  "ABCDEHIK":["A","C","E","K","B","H","I","D"],
-  "ABCDEHIL":["A","D","C","E","B","H","I","L"],
-  "ABCDEHJK":["A","C","E","K","B","H","J","D"],
-  "ABCDEHJL":["A","D","C","E","B","H","J","L"],
-  "ABCDEHKL":["A","D","C","K","B","H","E","L"],
-  "ABCDEIJK":["A","C","E","K","B","I","J","D"],
-  "ABCDEIJL":["A","D","C","E","B","I","J","L"],
-  "ABCDEIKL":["A","D","C","K","B","E","I","L"],
-  "ABCDEJKL":["A","D","C","K","B","E","J","L"],
-  "ABCDFGHI":["A","C","F","H","B","I","G","D"],
-  "ABCDFGHJ":["A","C","F","H","B","J","G","D"],
-  "ABCDFGHK":["A","C","F","K","B","H","G","D"],
-  "ABCDFGHL":["B","D","C","H","F","A","G","L"],
-  "ABCDFGIJ":["A","C","F","I","B","J","G","D"],
-  "ABCDFGIK":["A","C","F","K","B","I","G","D"],
-  "ABCDFGIL":["B","D","C","I","F","A","G","L"],
-  "ABCDFGJK":["A","C","F","K","B","J","G","D"],
-  "ABCDFGJL":["B","D","C","J","F","A","G","L"],
-  "ABCDFGKL":["B","D","C","K","F","A","G","L"],
-  "ABCDFHIJ":["A","C","F","H","B","I","J","D"],
-  "ABCDFHIK":["A","C","F","K","B","H","I","D"],
-  "ABCDFHIL":["A","D","C","H","B","I","F","L"],
-  "ABCDFHJK":["A","C","F","K","B","H","J","D"],
-  "ABCDFHJL":["A","D","C","H","B","J","F","L"],
-  "ABCDFHKL":["A","D","C","K","B","H","F","L"],
-  "ABCDFIJK":["A","C","F","K","B","I","J","D"],
-  "ABCDFIJL":["A","D","C","I","B","J","F","L"],
-  "ABCDFIKL":["A","D","C","K","B","I","F","L"],
-  "ABCDFJKL":["A","D","C","K","B","J","F","L"],
-  "ABCDGHIJ":["A","C","H","I","B","J","G","D"],
-  "ABCDGHIK":["A","C","H","K","B","I","G","D"],
-  "ABCDGHIL":["A","D","C","H","B","I","G","L"],
-  "ABCDGHJK":["A","C","H","K","B","J","G","D"],
-  "ABCDGHJL":["A","D","C","H","B","J","G","L"],
-  "ABCDGHKL":["A","D","C","K","B","H","G","L"],
-  "ABCDGIJK":["A","C","I","K","B","J","G","D"],
-  "ABCDGIJL":["A","D","C","I","B","J","G","L"],
-  "ABCDGIKL":["A","D","C","K","B","I","G","L"],
-  "ABCDGJKL":["A","D","C","K","B","J","G","L"],
-  "ABCDHIJK":["A","C","H","K","B","I","J","D"],
-  "ABCDHIJL":["A","D","C","H","B","I","J","L"],
-  "ABCDHIKL":["A","D","C","K","B","H","I","L"],
-  "ABCDHJKL":["A","D","C","K","B","H","J","L"],
-  "ABCDIJKL":["A","D","C","K","B","I","J","L"],
-  "ABCEFGHI":["A","C","F","E","B","H","G","I"],
-  "ABCEFGHJ":["A","C","F","E","B","H","G","J"],
-  "ABCEFGHK":["A","C","F","K","B","H","G","E"],
-  "ABCEFGHL":["A","C","F","E","B","H","G","L"],
-  "ABCEFGIJ":["A","C","F","E","B","I","G","J"],
-  "ABCEFGIK":["A","C","F","K","B","E","G","I"],
-  "ABCEFGIL":["A","C","F","E","B","I","G","L"],
-  "ABCEFGJK":["A","C","F","K","B","E","G","J"],
-  "ABCEFGJL":["A","C","F","E","B","J","G","L"],
-  "ABCEFGKL":["A","C","F","K","B","E","G","L"],
-  "ABCEFHIJ":["A","C","E","H","B","I","F","J"],
-  "ABCEFHIK":["A","C","E","K","B","H","F","I"],
-  "ABCEFHIL":["A","C","E","H","B","I","F","L"],
-  "ABCEFHJK":["A","C","E","K","B","H","F","J"],
-  "ABCEFHJL":["A","C","E","H","B","J","F","L"],
-  "ABCEFHKL":["A","C","E","K","B","H","F","L"],
-  "ABCEFIJK":["A","C","E","K","B","I","F","J"],
-  "ABCEFIJL":["A","C","E","I","B","J","F","L"],
-  "ABCEFIKL":["A","C","E","K","B","I","F","L"],
-  "ABCEFJKL":["A","C","E","K","B","J","F","L"],
-  "ABCEGHIJ":["A","C","E","H","B","I","G","J"],
-  "ABCEGHIK":["A","C","E","K","B","H","G","I"],
-  "ABCEGHIL":["A","C","E","H","B","I","G","L"],
-  "ABCEGHJK":["A","C","E","K","B","H","G","J"],
-  "ABCEGHJL":["A","C","E","H","B","J","G","L"],
-  "ABCEGHKL":["A","C","E","K","B","H","G","L"],
-  "ABCEGIJK":["A","C","E","K","B","I","G","J"],
-  "ABCEGIJL":["A","C","E","I","B","J","G","L"],
-  "ABCEGIKL":["A","C","E","K","B","I","G","L"],
-  "ABCEGJKL":["A","C","E","K","B","J","G","L"],
-  "ABCEHIJK":["A","C","E","K","B","H","I","J"],
-  "ABCEHIJL":["A","C","E","H","B","I","J","L"],
-  "ABCEHIKL":["A","C","E","K","B","H","I","L"],
-  "ABCEHJKL":["A","C","E","K","B","H","J","L"],
-  "ABCEIJKL":["A","C","E","K","B","I","J","L"],
-  "ABCFGHIJ":["A","C","F","H","B","I","G","J"],
-  "ABCFGHIK":["A","C","F","K","B","H","G","I"],
-  "ABCFGHIL":["A","C","F","H","B","I","G","L"],
-  "ABCFGHJK":["A","C","F","K","B","H","G","J"],
-  "ABCFGHJL":["A","C","F","H","B","J","G","L"],
-  "ABCFGHKL":["A","C","F","K","B","H","G","L"],
-  "ABCFGIJK":["A","C","F","K","B","I","G","J"],
-  "ABCFGIJL":["A","C","F","I","B","J","G","L"],
-  "ABCFGIKL":["A","C","F","K","B","I","G","L"],
-  "ABCFGJKL":["A","C","F","K","B","J","G","L"],
-  "ABCFHIJK":["A","C","F","K","B","H","I","J"],
-  "ABCFHIJL":["A","C","F","H","B","I","J","L"],
-  "ABCFHIKL":["A","C","F","K","B","H","I","L"],
-  "ABCFHJKL":["A","C","F","K","B","H","J","L"],
-  "ABCFIJKL":["A","C","F","K","B","I","J","L"],
-  "ABCGHIJK":["A","C","H","K","B","I","G","J"],
-  "ABCGHIJL":["A","C","H","I","B","J","G","L"],
-  "ABCGHIKL":["A","C","H","K","B","I","G","L"],
-  "ABCGHJKL":["A","C","H","K","B","J","G","L"],
-  "ABCGIJKL":["A","C","I","K","B","J","G","L"],
-  "ABCHIJKL":["A","C","H","K","B","I","J","L"],
-  "ABDEFGHI":["A","D","F","E","B","H","G","I"],
-  "ABDEFGHJ":["A","D","F","E","B","H","G","J"],
-  "ABDEFGHK":["A","D","F","K","B","H","G","E"],
-  "ABDEFGHL":["A","D","F","E","B","H","G","L"],
-  "ABDEFGIJ":["A","D","F","E","B","I","G","J"],
-  "ABDEFGIK":["A","D","F","K","B","E","G","I"],
-  "ABDEFGIL":["A","D","F","E","B","I","G","L"],
-  "ABDEFGJK":["A","D","F","K","B","E","G","J"],
-  "ABDEFGJL":["A","D","F","E","B","J","G","L"],
-  "ABDEFGKL":["A","D","F","K","B","E","G","L"],
-  "ABDEFHIJ":["A","D","E","H","B","I","F","J"],
-  "ABDEFHIK":["A","D","E","K","B","H","F","I"],
-  "ABDEFHIL":["A","D","E","H","B","I","F","L"],
-  "ABDEFHJK":["A","D","E","K","B","H","F","J"],
-  "ABDEFHJL":["A","D","E","H","B","J","F","L"],
-  "ABDEFHKL":["A","D","E","K","B","H","F","L"],
-  "ABDEFIJK":["A","D","E","K","B","I","F","J"],
-  "ABDEFIJL":["A","D","E","I","B","J","F","L"],
-  "ABDEFIKL":["A","D","E","K","B","I","F","L"],
-  "ABDEFJKL":["A","D","E","K","B","J","F","L"],
-  "ABDEGHIJ":["A","D","E","H","B","I","G","J"],
-  "ABDEGHIK":["A","D","E","K","B","H","G","I"],
-  "ABDEGHIL":["A","D","E","H","B","I","G","L"],
-  "ABDEGHJK":["A","D","E","K","B","H","G","J"],
-  "ABDEGHJL":["A","D","E","H","B","J","G","L"],
-  "ABDEGHKL":["A","D","E","K","B","H","G","L"],
-  "ABDEGIJK":["A","D","E","K","B","I","G","J"],
-  "ABDEGIJL":["A","D","E","I","B","J","G","L"],
-  "ABDEGIKL":["A","D","E","K","B","I","G","L"],
-  "ABDEGJKL":["A","D","E","K","B","J","G","L"],
-  "ABDEHIJK":["A","D","E","K","B","H","I","J"],
-  "ABDEHIJL":["A","D","E","H","B","I","J","L"],
-  "ABDEHIKL":["A","D","E","K","B","H","I","L"],
-  "ABDEHJKL":["A","D","E","K","B","H","J","L"],
-  "ABDEIJKL":["A","D","E","K","B","I","J","L"],
-  "ABDFGHIJ":["A","D","F","H","B","I","G","J"],
-  "ABDFGHIK":["A","D","F","K","B","H","G","I"],
-  "ABDFGHIL":["A","D","F","H","B","I","G","L"],
-  "ABDFGHJK":["A","D","F","K","B","H","G","J"],
-  "ABDFGHJL":["A","D","F","H","B","J","G","L"],
-  "ABDFGHKL":["A","D","F","K","B","H","G","L"],
-  "ABDFGIJK":["A","D","F","K","B","I","G","J"],
-  "ABDFGIJL":["A","D","F","I","B","J","G","L"],
-  "ABDFGIKL":["A","D","F","K","B","I","G","L"],
-  "ABDFGJKL":["A","D","F","K","B","J","G","L"],
-  "ABDFHIJK":["A","D","F","K","B","H","I","J"],
-  "ABDFHIJL":["A","D","F","H","B","I","J","L"],
-  "ABDFHIKL":["A","D","F","K","B","H","I","L"],
-  "ABDFHJKL":["A","D","F","K","B","H","J","L"],
-  "ABDFIJKL":["A","D","F","K","B","I","J","L"],
-  "ABDGHIJK":["A","D","H","K","B","I","G","J"],
-  "ABDGHIJL":["A","D","H","I","B","J","G","L"],
-  "ABDGHIKL":["A","D","H","K","B","I","G","L"],
-  "ABDGHJKL":["A","D","H","K","B","J","G","L"],
-  "ABDGIJKL":["A","D","I","K","B","J","G","L"],
-  "ABDHIJKL":["A","D","H","K","B","I","J","L"],
-  "ABEFGHIJ":["A","F","E","H","B","I","G","J"],
-  "ABEFGHIK":["A","F","E","K","B","H","G","I"],
-  "ABEFGHIL":["A","F","E","H","B","I","G","L"],
-  "ABEFGHJK":["A","F","E","K","B","H","G","J"],
-  "ABEFGHJL":["A","F","E","H","B","J","G","L"],
-  "ABEFGHKL":["A","F","E","K","B","H","G","L"],
-  "ABEFGIJK":["A","F","E","K","B","I","G","J"],
-  "ABEFGIJL":["A","F","E","I","B","J","G","L"],
-  "ABEFGIKL":["A","F","E","K","B","I","G","L"],
-  "ABEFGJKL":["A","F","E","K","B","J","G","L"],
-  "ABEFHIJK":["A","F","E","K","B","H","I","J"],
-  "ABEFHIJL":["A","F","E","H","B","I","J","L"],
-  "ABEFHIKL":["A","F","E","K","B","H","I","L"],
-  "ABEFHJKL":["A","F","E","K","B","H","J","L"],
-  "ABEFIJKL":["A","F","E","K","B","I","J","L"],
-  "ABEGHIJK":["A","G","E","K","B","H","I","J"],
-  "ABEGHIJL":["A","G","E","H","B","I","J","L"],
-  "ABEGHIKL":["A","G","E","K","B","H","I","L"],
-  "ABEGHJKL":["A","G","E","K","B","H","J","L"],
-  "ABEGIJKL":["A","G","E","K","B","I","J","L"],
-  "ABEHIJKL":["A","H","E","K","B","I","J","L"],
-  "ABFGHIJK":["A","F","H","K","B","I","G","J"],
-  "ABFGHIJL":["A","F","H","I","B","J","G","L"],
-  "ABFGHIKL":["A","F","H","K","B","I","G","L"],
-  "ABFGHJKL":["A","F","H","K","B","J","G","L"],
-  "ABFGIJKL":["A","F","I","K","B","J","G","L"],
-  "ABFHIJKL":["A","F","H","K","B","I","J","L"],
-  "ABGHIJKL":["A","G","H","K","B","I","J","L"],
-  "ACDEFGHI":["A","C","E","H","F","I","G","D"],
-  "ACDEFGHJ":["A","C","E","H","F","J","G","D"],
-  "ACDEFGHK":["A","C","E","K","F","H","G","D"],
-  "ACDEFGHL":["A","D","C","E","F","H","G","L"],
-  "ACDEFGIJ":["A","C","E","I","F","J","G","D"],
-  "ACDEFGIK":["A","C","E","K","F","I","G","D"],
-  "ACDEFGIL":["A","D","C","E","F","I","G","L"],
-  "ACDEFGJK":["A","C","E","K","F","J","G","D"],
-  "ACDEFGJL":["A","D","C","E","F","J","G","L"],
-  "ACDEFGKL":["A","D","C","K","F","E","G","L"],
-  "ACDEFHIJ":["A","C","E","H","F","I","J","D"],
-  "ACDEFHIK":["A","C","E","K","F","H","I","D"],
-  "ACDEFHIL":["A","D","C","E","F","H","I","L"],
-  "ACDEFHJK":["A","C","E","K","F","H","J","D"],
-  "ACDEFHJL":["A","D","C","E","F","H","J","L"],
-  "ACDEFHKL":["A","D","C","K","E","H","F","L"],
-  "ACDEFIJK":["A","C","E","K","F","I","J","D"],
-  "ACDEFIJL":["A","D","C","E","F","I","J","L"],
-  "ACDEFIKL":["A","D","C","K","E","I","F","L"],
-  "ACDEFJKL":["A","D","C","K","E","J","F","L"],
-  "ACDEGHIJ":["A","C","E","H","I","J","G","D"],
-  "ACDEGHIK":["A","C","E","K","I","H","G","D"],
-  "ACDEGHIL":["A","D","C","E","I","H","G","L"],
-  "ACDEGHJK":["A","C","E","K","J","H","G","D"],
-  "ACDEGHJL":["A","D","C","E","J","H","G","L"],
-  "ACDEGHKL":["A","D","C","K","E","H","G","L"],
-  "ACDEGIJK":["A","C","E","K","I","J","G","D"],
-  "ACDEGIJL":["A","D","C","E","I","J","G","L"],
-  "ACDEGIKL":["A","D","C","K","E","I","G","L"],
-  "ACDEGJKL":["A","D","C","K","E","J","G","L"],
-  "ACDEHIJK":["A","C","E","K","I","H","J","D"],
-  "ACDEHIJL":["A","D","C","E","I","H","J","L"],
-  "ACDEHIKL":["A","D","C","K","E","H","I","L"],
-  "ACDEHJKL":["A","D","C","K","E","H","J","L"],
-  "ACDEIJKL":["A","D","C","K","E","I","J","L"],
-  "ACDFGHIJ":["A","C","F","H","I","J","G","D"],
-  "ACDFGHIK":["A","C","F","K","I","H","G","D"],
-  "ACDFGHIL":["A","D","C","H","F","I","G","L"],
-  "ACDFGHJK":["A","C","F","K","J","H","G","D"],
-  "ACDFGHJL":["A","D","C","H","F","J","G","L"],
-  "ACDFGHKL":["A","D","C","K","F","H","G","L"],
-  "ACDFGIJK":["A","C","F","K","I","J","G","D"],
-  "ACDFGIJL":["A","D","C","I","F","J","G","L"],
-  "ACDFGIKL":["A","D","C","K","F","I","G","L"],
-  "ACDFGJKL":["A","D","C","K","F","J","G","L"],
-  "ACDFHIJK":["A","C","F","K","I","H","J","D"],
-  "ACDFHIJL":["A","D","C","H","F","I","J","L"],
-  "ACDFHIKL":["A","D","C","K","F","H","I","L"],
-  "ACDFHJKL":["A","D","C","K","F","H","J","L"],
-  "ACDFIJKL":["A","D","C","K","F","I","J","L"],
-  "ACDGHIJK":["A","C","H","K","I","J","G","D"],
-  "ACDGHIJL":["A","D","C","H","I","J","G","L"],
-  "ACDGHIKL":["A","D","C","K","I","H","G","L"],
-  "ACDGHJKL":["A","D","C","K","J","H","G","L"],
-  "ACDGIJKL":["A","D","C","K","I","J","G","L"],
-  "ACDHIJKL":["A","D","C","K","I","H","J","L"],
-  "ACEFGHIJ":["A","C","E","H","F","I","G","J"],
-  "ACEFGHIK":["A","C","E","K","F","H","G","I"],
-  "ACEFGHIL":["A","C","E","H","F","I","G","L"],
-  "ACEFGHJK":["A","C","E","K","F","H","G","J"],
-  "ACEFGHJL":["A","C","E","H","F","J","G","L"],
-  "ACEFGHKL":["A","C","E","K","F","H","G","L"],
-  "ACEFGIJK":["A","C","E","K","F","I","G","J"],
-  "ACEFGIJL":["A","C","E","I","F","J","G","L"],
-  "ACEFGIKL":["A","C","E","K","F","I","G","L"],
-  "ACEFGJKL":["A","C","E","K","F","J","G","L"],
-  "ACEFHIJK":["A","C","E","K","F","H","I","J"],
-  "ACEFHIJL":["A","C","E","H","F","I","J","L"],
-  "ACEFHIKL":["A","C","E","K","F","H","I","L"],
-  "ACEFHJKL":["A","C","E","K","F","H","J","L"],
-  "ACEFIJKL":["A","C","E","K","F","I","J","L"],
-  "ACEGHIJK":["A","C","E","K","I","H","G","J"],
-  "ACEGHIJL":["A","C","E","H","I","J","G","L"],
-  "ACEGHIKL":["A","C","E","K","I","H","G","L"],
-  "ACEGHJKL":["A","C","E","K","J","H","G","L"],
-  "ACEGIJKL":["A","C","E","K","I","J","G","L"],
-  "ACEHIJKL":["A","C","E","K","I","H","J","L"],
-  "ACFGHIJK":["A","C","F","K","I","H","G","J"],
-  "ACFGHIJL":["A","C","F","H","I","J","G","L"],
-  "ACFGHIKL":["A","C","F","K","I","H","G","L"],
-  "ACFGHJKL":["A","C","F","K","J","H","G","L"],
-  "ACFGIJKL":["A","C","F","K","I","J","G","L"],
-  "ACFHIJKL":["A","C","F","K","I","H","J","L"],
-  "ACGHIJKL":["A","C","H","K","I","J","G","L"],
-  "ADEFGHIJ":["A","D","E","H","F","I","G","J"],
-  "ADEFGHIK":["A","D","E","K","F","H","G","I"],
-  "ADEFGHIL":["A","D","E","H","F","I","G","L"],
-  "ADEFGHJK":["A","D","E","K","F","H","G","J"],
-  "ADEFGHJL":["A","D","E","H","F","J","G","L"],
-  "ADEFGHKL":["A","D","E","K","F","H","G","L"],
-  "ADEFGIJK":["A","D","E","K","F","I","G","J"],
-  "ADEFGIJL":["A","D","E","I","F","J","G","L"],
-  "ADEFGIKL":["A","D","E","K","F","I","G","L"],
-  "ADEFGJKL":["A","D","E","K","F","J","G","L"],
-  "ADEFHIJK":["A","D","E","K","F","H","I","J"],
-  "ADEFHIJL":["A","D","E","H","F","I","J","L"],
-  "ADEFHIKL":["A","D","E","K","F","H","I","L"],
-  "ADEFHJKL":["A","D","E","K","F","H","J","L"],
-  "ADEFIJKL":["A","D","E","K","F","I","J","L"],
-  "ADEGHIJK":["A","D","E","K","I","H","G","J"],
-  "ADEGHIJL":["A","D","E","H","I","J","G","L"],
-  "ADEGHIKL":["A","D","E","K","I","H","G","L"],
-  "ADEGHJKL":["A","D","E","K","J","H","G","L"],
-  "ADEGIJKL":["A","D","E","K","I","J","G","L"],
-  "ADEHIJKL":["A","D","E","K","I","H","J","L"],
-  "ADFGHIJK":["A","D","F","K","I","H","G","J"],
-  "ADFGHIJL":["A","D","F","H","I","J","G","L"],
-  "ADFGHIKL":["A","D","F","K","I","H","G","L"],
-  "ADFGHJKL":["A","D","F","K","J","H","G","L"],
-  "ADFGIJKL":["A","D","F","K","I","J","G","L"],
-  "ADFHIJKL":["A","D","F","K","I","H","J","L"],
-  "ADGHIJKL":["A","D","H","K","I","J","G","L"],
-  "AEFGHIJK":["A","F","E","K","I","H","G","J"],
-  "AEFGHIJL":["A","F","E","H","I","J","G","L"],
-  "AEFGHIKL":["A","F","E","K","I","H","G","L"],
-  "AEFGHJKL":["A","F","E","K","J","H","G","L"],
-  "AEFGIJKL":["A","F","E","K","I","J","G","L"],
-  "AEFHIJKL":["A","F","E","K","I","H","J","L"],
-  "AEGHIJKL":["A","G","E","K","I","H","J","L"],
-  "AFGHIJKL":["A","F","H","K","I","J","G","L"],
-  "BCDEFGHI":["B","C","E","H","F","I","G","D"],
-  "BCDEFGHJ":["B","C","E","H","F","J","G","D"],
-  "BCDEFGHK":["B","C","E","K","F","H","G","D"],
-  "BCDEFGHL":["B","D","C","E","F","H","G","L"],
-  "BCDEFGIJ":["B","C","E","I","F","J","G","D"],
-  "BCDEFGIK":["B","C","E","K","F","I","G","D"],
-  "BCDEFGIL":["B","D","C","E","F","I","G","L"],
-  "BCDEFGJK":["B","C","E","K","F","J","G","D"],
-  "BCDEFGJL":["B","D","C","E","F","J","G","L"],
-  "BCDEFGKL":["B","D","C","K","F","E","G","L"],
-  "BCDEFHIJ":["B","C","E","H","F","I","J","D"],
-  "BCDEFHIK":["B","C","E","K","F","H","I","D"],
-  "BCDEFHIL":["B","D","C","E","F","H","I","L"],
-  "BCDEFHJK":["B","C","E","K","F","H","J","D"],
-  "BCDEFHJL":["B","D","C","E","F","H","J","L"],
-  "BCDEFHKL":["B","D","C","K","E","H","F","L"],
-  "BCDEFIJK":["B","C","E","K","F","I","J","D"],
-  "BCDEFIJL":["B","D","C","E","F","I","J","L"],
-  "BCDEFIKL":["B","D","C","K","E","I","F","L"],
-  "BCDEFJKL":["B","D","C","K","E","J","F","L"],
-  "BCDEGHIJ":["B","C","E","H","I","J","G","D"],
-  "BCDEGHIK":["B","C","E","K","I","H","G","D"],
-  "BCDEGHIL":["B","D","C","E","I","H","G","L"],
-  "BCDEGHJK":["B","C","E","K","J","H","G","D"],
-  "BCDEGHJL":["B","D","C","E","J","H","G","L"],
-  "BCDEGHKL":["B","D","C","K","E","H","G","L"],
-  "BCDEGIJK":["B","C","E","K","I","J","G","D"],
-  "BCDEGIJL":["B","D","C","E","I","J","G","L"],
-  "BCDEGIKL":["B","D","C","K","E","I","G","L"],
-  "BCDEGJKL":["B","D","C","K","E","J","G","L"],
-  "BCDEHIJK":["B","C","E","K","I","H","J","D"],
-  "BCDEHIJL":["B","D","C","E","I","H","J","L"],
-  "BCDEHIKL":["B","D","C","K","E","H","I","L"],
-  "BCDEHJKL":["B","D","C","K","E","H","J","L"],
-  "BCDEIJKL":["B","D","C","K","E","I","J","L"],
-  "BCDFGHIJ":["B","C","F","H","I","J","G","D"],
-  "BCDFGHIK":["B","C","F","K","I","H","G","D"],
-  "BCDFGHIL":["B","D","C","H","F","I","G","L"],
-  "BCDFGHJK":["B","C","F","K","J","H","G","D"],
-  "BCDFGHJL":["B","D","C","H","F","J","G","L"],
-  "BCDFGHKL":["B","D","C","K","F","H","G","L"],
-  "BCDFGIJK":["B","C","F","K","I","J","G","D"],
-  "BCDFGIJL":["B","D","C","I","F","J","G","L"],
-  "BCDFGIKL":["B","D","C","K","F","I","G","L"],
-  "BCDFGJKL":["B","D","C","K","F","J","G","L"],
-  "BCDFHIJK":["B","C","F","K","I","H","J","D"],
-  "BCDFHIJL":["B","D","C","H","F","I","J","L"],
-  "BCDFHIKL":["B","D","C","K","F","H","I","L"],
-  "BCDFHJKL":["B","D","C","K","F","H","J","L"],
-  "BCDFIJKL":["B","D","C","K","F","I","J","L"],
-  "BCDGHIJK":["B","C","H","K","I","J","G","D"],
-  "BCDGHIJL":["B","D","C","H","I","J","G","L"],
-  "BCDGHIKL":["B","D","C","K","I","H","G","L"],
-  "BCDGHJKL":["B","D","C","K","J","H","G","L"],
-  "BCDGIJKL":["B","D","C","K","I","J","G","L"],
-  "BCDHIJKL":["B","D","C","K","I","H","J","L"],
-  "BCEFGHIJ":["B","C","E","H","F","I","G","J"],
-  "BCEFGHIK":["B","C","E","K","F","H","G","I"],
-  "BCEFGHIL":["B","C","E","H","F","I","G","L"],
-  "BCEFGHJK":["B","C","E","K","F","H","G","J"],
-  "BCEFGHJL":["B","C","E","H","F","J","G","L"],
-  "BCEFGHKL":["B","C","E","K","F","H","G","L"],
-  "BCEFGIJK":["B","C","E","K","F","I","G","J"],
-  "BCEFGIJL":["B","C","E","I","F","J","G","L"],
-  "BCEFGIKL":["B","C","E","K","F","I","G","L"],
-  "BCEFGJKL":["B","C","E","K","F","J","G","L"],
-  "BCEFHIJK":["B","C","E","K","F","H","I","J"],
-  "BCEFHIJL":["B","C","E","H","F","I","J","L"],
-  "BCEFHIKL":["B","C","E","K","F","H","I","L"],
-  "BCEFHJKL":["B","C","E","K","F","H","J","L"],
-  "BCEFIJKL":["B","C","E","K","F","I","J","L"],
-  "BCEGHIJK":["B","C","E","K","I","H","G","J"],
-  "BCEGHIJL":["B","C","E","H","I","J","G","L"],
-  "BCEGHIKL":["B","C","E","K","I","H","G","L"],
-  "BCEGHJKL":["B","C","E","K","J","H","G","L"],
-  "BCEGIJKL":["B","C","E","K","I","J","G","L"],
-  "BCEHIJKL":["B","C","E","K","I","H","J","L"],
-  "BCFGHIJK":["B","C","F","K","I","H","G","J"],
-  "BCFGHIJL":["B","C","F","H","I","J","G","L"],
-  "BCFGHIKL":["B","C","F","K","I","H","G","L"],
-  "BCFGHJKL":["B","C","F","K","J","H","G","L"],
-  "BCFGIJKL":["B","C","F","K","I","J","G","L"],
-  "BCFHIJKL":["B","C","F","K","I","H","J","L"],
-  "BCGHIJKL":["B","C","H","K","I","J","G","L"],
-  "BDEFGHIJ":["B","D","E","H","F","I","G","J"],
-  "BDEFGHIK":["B","D","E","K","F","H","G","I"],
-  "BDEFGHIL":["B","D","E","H","F","I","G","L"],
-  "BDEFGHJK":["B","D","E","K","F","H","G","J"],
-  "BDEFGHJL":["B","D","E","H","F","J","G","L"],
-  "BDEFGHKL":["B","D","E","K","F","H","G","L"],
-  "BDEFGIJK":["B","D","E","K","F","I","G","J"],
-  "BDEFGIJL":["B","D","E","I","F","J","G","L"],
-  "BDEFGIKL":["B","D","E","K","F","I","G","L"],
-  "BDEFGJKL":["B","D","E","K","F","J","G","L"],
-  "BDEFHIJK":["B","D","E","K","F","H","I","J"],
-  "BDEFHIJL":["B","D","E","H","F","I","J","L"],
-  "BDEFHIKL":["B","D","E","K","F","H","I","L"],
-  "BDEFHJKL":["B","D","E","K","F","H","J","L"],
-  "BDEFIJKL":["B","D","E","K","F","I","J","L"],
-  "BDEGHIJK":["B","D","E","K","I","H","G","J"],
-  "BDEGHIJL":["B","D","E","H","I","J","G","L"],
-  "BDEGHIKL":["B","D","E","K","I","H","G","L"],
-  "BDEGHJKL":["B","D","E","K","J","H","G","L"],
-  "BDEGIJKL":["B","D","E","K","I","J","G","L"],
-  "BDEHIJKL":["B","D","E","K","I","H","J","L"],
-  "BDFGHIJK":["B","D","F","K","I","H","G","J"],
-  "BDFGHIJL":["B","D","F","H","I","J","G","L"],
-  "BDFGHIKL":["B","D","F","K","I","H","G","L"],
-  "BDFGHJKL":["B","D","F","K","J","H","G","L"],
-  "BDFGIJKL":["B","D","F","K","I","J","G","L"],
-  "BDFHIJKL":["B","D","F","K","I","H","J","L"],
-  "BDGHIJKL":["B","D","H","K","I","J","G","L"],
-  "BEFGHIJK":["B","F","E","K","I","H","G","J"],
-  "BEFGHIJL":["B","F","E","H","I","J","G","L"],
-  "BEFGHIKL":["B","F","E","K","I","H","G","L"],
-  "BEFGHJKL":["B","F","E","K","J","H","G","L"],
-  "BEFGIJKL":["B","F","E","K","I","J","G","L"],
-  "BEFHIJKL":["B","F","E","K","I","H","J","L"],
-  "BEGHIJKL":["B","G","E","K","I","H","J","L"],
-  "BFGHIJKL":["B","F","H","K","I","J","G","L"],
-  "CDEFGHIJ":["C","D","E","H","F","I","G","J"],
-  "CDEFGHIK":["C","D","E","K","F","H","G","I"],
-  "CDEFGHIL":["C","D","E","H","F","I","G","L"],
-  "CDEFGHJK":["C","D","E","K","F","H","G","J"],
-  "CDEFGHJL":["C","D","E","H","F","J","G","L"],
-  "CDEFGHKL":["C","D","E","K","F","H","G","L"],
-  "CDEFGIJK":["C","D","E","K","F","I","G","J"],
-  "CDEFGIJL":["C","D","E","I","F","J","G","L"],
-  "CDEFGIKL":["C","D","E","K","F","I","G","L"],
-  "CDEFGJKL":["C","D","E","K","F","J","G","L"],
-  "CDEFHIJK":["C","D","E","K","F","H","I","J"],
-  "CDEFHIJL":["C","D","E","H","F","I","J","L"],
-  "CDEFHIKL":["C","D","E","K","F","H","I","L"],
-  "CDEFHJKL":["C","D","E","K","F","H","J","L"],
-  "CDEFIJKL":["C","D","E","K","F","I","J","L"],
-  "CDEGHIJK":["C","D","E","K","I","H","G","J"],
-  "CDEGHIJL":["C","D","E","H","I","J","G","L"],
-  "CDEGHIKL":["C","D","E","K","I","H","G","L"],
-  "CDEGHJKL":["C","D","E","K","J","H","G","L"],
-  "CDEGIJKL":["C","D","E","K","I","J","G","L"],
-  "CDEHIJKL":["C","D","E","K","I","H","J","L"],
-  "CDFGHIJK":["C","D","F","K","I","H","G","J"],
-  "CDFGHIJL":["C","D","F","H","I","J","G","L"],
-  "CDFGHIKL":["C","D","F","K","I","H","G","L"],
-  "CDFGHJKL":["C","D","F","K","J","H","G","L"],
-  "CDFGIJKL":["C","D","F","K","I","J","G","L"],
-  "CDFHIJKL":["C","D","F","K","I","H","J","L"],
-  "CDGHIJKL":["C","D","H","K","I","J","G","L"],
-  "CEFGHIJK":["C","F","E","K","I","H","G","J"],
-  "CEFGHIJL":["C","F","E","H","I","J","G","L"],
-  "CEFGHIKL":["C","F","E","K","I","H","G","L"],
-  "CEFGHJKL":["C","F","E","K","J","H","G","L"],
-  "CEFGIJKL":["C","F","E","K","I","J","G","L"],
-  "CEFHIJKL":["C","F","E","K","I","H","J","L"],
-  "CEGHIJKL":["C","G","E","K","I","H","J","L"],
-  "CFGHIJKL":["C","F","H","K","I","J","G","L"],
-  "DEFGHIJK":["D","F","E","K","I","H","G","J"],
-  "DEFGHIJL":["D","F","E","H","I","J","G","L"],
-  "DEFGHIKL":["D","F","E","K","I","H","G","L"],
-  "DEFGHJKL":["D","F","E","K","J","H","G","L"],
-  "DEFGIJKL":["D","F","E","K","I","J","G","L"],
-  "DEFHIJKL":["D","F","E","K","I","H","J","L"],
-  "DEGHIJKL":["D","G","E","K","I","H","J","L"],
-  "DFGHIJKL":["D","F","H","K","I","J","G","L"],
-  "EFGHIJKL":["F","G","E","K","I","H","J","L"]
-};
-
-  // Resolver asignación de terceros usando tabla FIFA
-  const thirdKey = bestThirds.map(t=>t.from).sort().join("");
-  const thirdAssign = THIRDS_TABLE[thirdKey] || [];
-  // thirdAssign[i] = grupo del 3ro que va al slot i (orden: M74,M77,M79,M80,M81,M82,M85,M87)
-  function pick3rdBySlot(slotIndex){
-    const grp = thirdAssign[slotIndex];
-    return bestThirds.find(t=>t.from===grp) || bestThirds[0];
-  }
-
-  const r32=[];
-  // M73: 2A vs 2B
-  r32.push({slot:"M73", match:73, home:seconds["A"], away:seconds["B"]});
-  // M74: 1E vs 3° de A/B/C/D/F
-  r32.push({slot:"M74", match:74, home:firsts["E"], away:pick3rdBySlot(0)});
-  // M75: 1F vs 2C
-  r32.push({slot:"M75", match:75, home:firsts["F"], away:seconds["C"]});
-  // M76: 1C vs 2F
-  r32.push({slot:"M76", match:76, home:firsts["C"], away:seconds["F"]});
-  // M77: 1I vs 3° de C/D/F/G/H
-  r32.push({slot:"M77", match:77, home:firsts["I"], away:pick3rdBySlot(1)});
-  // M78: 2E vs 2I
-  r32.push({slot:"M78", match:78, home:seconds["E"], away:seconds["I"]});
-  // M79: 1A vs 3° de C/E/F/H/I
-  r32.push({slot:"M79", match:79, home:firsts["A"], away:pick3rdBySlot(2)});
-  // M80: 1L vs 3° de E/H/I/J/K
-  r32.push({slot:"M80", match:80, home:firsts["L"], away:pick3rdBySlot(3)});
-  // M81: 1D vs 3° de B/E/F/I/J
-  r32.push({slot:"M81", match:81, home:firsts["D"], away:pick3rdBySlot(4)});
-  // M82: 1G vs 3° de A/E/H/I/J
-  r32.push({slot:"M82", match:82, home:firsts["G"], away:pick3rdBySlot(5)});
-  // M83: 2K vs 2L
-  r32.push({slot:"M83", match:83, home:seconds["K"], away:seconds["L"]});
-  // M84: 1H vs 2J
-  r32.push({slot:"M84", match:84, home:firsts["H"], away:seconds["J"]});
-  // M85: 1B vs 3° de E/F/G/I/J
-  r32.push({slot:"M85", match:85, home:firsts["B"], away:pick3rdBySlot(6)});
-  // M86: 1J vs 2H
-  r32.push({slot:"M86", match:86, home:firsts["J"], away:seconds["H"]});
-  // M87: 1K vs 3° de D/E/I/J/L
-  r32.push({slot:"M87", match:87, home:firsts["K"], away:pick3rdBySlot(7)});
-  // M88: 2D vs 2G
-  r32.push({slot:"M88", match:88, home:seconds["D"], away:seconds["G"]});
-  // total: 16 cruces ✓
-
-  return { groupTable, firsts, seconds, thirds, bestThirds, droppedThirds, r32 };
-}
-
-/* Avanzar bracket: dada una etapa actual y las predicciones del jugador,
-   devuelve los cruces de la siguiente etapa. */
-function advanceBracket(currentMatches, mainPreds){
-  // currentMatches: [{slot, home, away}, ...] con un nro par
-  // mainPreds: marcadores cargados (los IDs los manejamos en otra parte)
-  // Devuelve la siguiente ronda con [{slot, home:ganador1, away:ganador2}]
-  // Esta función auxiliar la usaremos cuando la UI confirme cada etapa.
-  const next=[];
-  for(let i=0;i<currentMatches.length;i+=2){
-    next.push({
-      slot:`NEXT-${i/2+1}`,
-      home:null, // se llenará con el ganador del cruce i
-      away:null, // se llenará con el ganador del cruce i+1
-    });
-  }
-  return next;
-}
-
-/* =====================================================================
-   FLUJO DE ETAPAS de la Tarjeta Principal
-   =====================================================================
-   Stages: "grupos" → "r32" → "r16" → "qf" → "sf" → "tpfinal" (3er puesto + final juntos)
-   Cada etapa tiene su propio cierre. Una etapa solo se puede cargar si la
-   anterior fue confirmada (sent_at.<etapa> != null).
-   ===================================================================== */
-const STAGES = ["grupos","r32","r16","qf","sf","tpfinal"];
-const STAGE_LABEL = {
-  grupos:"Fase de Grupos", r32:"Ronda de 32", r16:"Octavos de Final",
-  qf:"Cuartos de Final", sf:"Semifinales", tpfinal:"3er Puesto y Final"
-};
-function stageSent(stage){
-  return !!(APP.myPred?.sent_at||{})[stage];
-}
-// la etapa actualmente "activa" (la que se puede cargar)
-function currentStage(){
-  for(const s of STAGES){ if(!stageSent(s)) return s; }
-  return null; // todas enviadas
-}
-// ¿la etapa anterior está enviada? (para habilitar la actual)
-function canEnterStage(stage){
-  const i = STAGES.indexOf(stage);
-  if(i<=0) return true;
-  return stageSent(STAGES[i-1]);
-}
-
-/* Al confirmar GRUPOS: calcular bracket inicial (R32) y guardarlo. */
-async function sendStageGrupos(){
-  if(stageSent("grupos")) throw new Error("Grupos ya enviado.");
-  const main = APP.myPred?.main || {};
-  // verificar que todos los partidos de grupos tengan marcador
-  const grupos = FIXTURE.filter(m=>m.phase==="grupos");
-  for(const m of grupos){
-    const p=main[m.id];
-    if(!p || p.h===""||p.h==null||p.a===""||p.a==null)
-      throw new Error("Faltan partidos de grupos por cargar.");
-  }
-  // calcular bracket inicial
-  const b = computeBracket(main);
-  const bracket = {
-    r32: b.r32.map((c,i)=>({id:`r32-${i+1}`, home:c.home.team, away:c.away.team, h:0, a:0, pen:""})),
-    r16:[], qf:[], sf:[], tp:null, final:null,
-    standings: b.groupTable, // útil para puntos extra de cuadro
-    bestThirds: b.bestThirds.map(t=>t.team),
-  };
-  const sent_at = {...(APP.myPred.sent_at||{}), grupos: new Date().toISOString()};
-  const {data,error}=await sb.from('predictions').update({bracket, sent_at}).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
-}
-
-/* Confirmar etapa eliminatoria: tomar ganadores y armar la siguiente. */
-async function sendStageElim(stage){
-  if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
-  if(!canEnterStage(stage)) throw new Error("No podés enviar esta etapa todavía.");
-  const bracket = {...(APP.myPred?.bracket||{})};
-  const matches = bracket[stage]||[];
-  // verificar que cada cruce tenga ganador definido
-  const winners=[];
-  for(const m of matches){
-    if(m.h==null||m.h===""||m.a==null||m.a==="")
-      throw new Error("Faltan marcadores por cargar.");
-    const h=+m.h, a=+m.a;
-    if(h>a) winners.push(m.home);
-    else if(h<a) winners.push(m.away);
-    else {
-      if(m.pen!=="1"&&m.pen!=="0") throw new Error("Hay empates sin definir ganador por penales.");
-      winners.push(m.pen==="1"?m.home:m.away);
-    }
-  }
-  // armar siguiente etapa con cruces OFICIALES FIFA
-  // R32→R16: M74vsM77, M73vsM75, M76vsM78, M79vsM80, M83vsM84, M81vsM82, M86vsM88, M85vsM87
-  // R16→QF:  M89vsM90, M93vsM94, M91vsM92, M95vsM96
-  // QF→SF:   M97vsM98, M99vsM100
-  const FIFA_PAIRS = {
-    r32: [[1,4],[0,2],[3,5],[6,7],[10,11],[8,9],[13,15],[12,14]],
-    r16: [[0,1],[4,5],[2,3],[6,7]],
-    qf:  [[0,1],[2,3]],
-  };
-  const NEXT={r32:"r16", r16:"qf", qf:"sf"};
-  if(stage in NEXT){
-    const nextKey=NEXT[stage];
-    const pairs=FIFA_PAIRS[stage];
-    bracket[nextKey] = pairs.map((pair,i)=>({
-      id:`${nextKey}-${i+1}`,
-      home:winners[pair[0]],
-      away:winners[pair[1]],
-      h:0, a:0, pen:""
-    }));
-  } else if(stage==="sf"){
-    // los GANADORES de SF van a la FINAL; los perdedores al 3er puesto
-    const losers=[];
-    matches.forEach(m=>{
-      const h=+m.h, a=+m.a;
-      if(h>a) losers.push(m.away);
-      else if(h<a) losers.push(m.home);
-      else losers.push(m.pen==="1"?m.away:m.home);
-    });
-    bracket.final = {id:"final-1", home:winners[0], away:winners[1], h:0, a:0, pen:""};
-    bracket.tp = {id:"tp-1", home:losers[0], away:losers[1], h:0, a:0, pen:""};
-  }
-  // bracket queda actualizado; el "tpfinal" combina 3er puesto + final (se cargan juntos)
-  const sent_at = {...(APP.myPred.sent_at||{}), [stage]: new Date().toISOString()};
-  // si es la última etapa (tpfinal), marcamos main_sent y locked si wasabi también
-  let patch = {bracket, sent_at};
-  if(stage==="tpfinal"){
-    patch.sent_at.main = new Date().toISOString();
-    if(sent_at.wasabi) patch.locked = true;
-  }
-  const {data,error}=await sb.from('predictions').update(patch).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
-}
-
-/* Cargar un marcador en un cruce de eliminatoria */
-async function setBracketScore(stage, slotId, key, value){
-  if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
-  const bracket = {...(APP.myPred?.bracket||{})};
-  // tpfinal usa 'tp' o 'final' como key
-  let arr;
-  if(stage==="tpfinal"){
-    if(slotId.startsWith("tp")){ bracket.tp = {...bracket.tp, [key]:value}; }
-    else { bracket.final = {...bracket.final, [key]:value}; }
+  let footer="";
+  if(sent){
+    footer=`<div class="lock-banner" style="margin-top:18px">🔒 Grupos enviados. Ahora pasá a la Ronda de 32 (tab arriba).</div>`;
   } else {
-    arr = (bracket[stage]||[]).map(m=> m.id===slotId ? {...m, [key]:value} : m);
-    bracket[stage] = arr;
+    const all = totalDone>=totalMatches;
+    footer=`<div class="card" style="margin-top:18px;text-align:center">
+      <p class="note" style="margin-bottom:12px">${all?'✓ Cargaste todos los partidos de grupos. Podés confirmar la fase y pasar a R32.':`Te faltan <b>${totalMatches-totalDone}</b> partidos por cargar.`}</p>
+      <button class="btn gold sm" ${all?'':'disabled'} onclick="confirmSendStage('grupos')">✉️ Confirmar grupos y armar R32</button>
+      <p class="note" style="margin-top:10px;font-size:11.5px">Una vez confirmados, la app calcula los clasificados (2 primeros + 8 mejores 3ros) y arma tu Ronda de 32. No vas a poder editar grupos.</p>
+    </div>`;
   }
-  const {data,error}=await sb.from('predictions').update({bracket}).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error) throw error; APP.myPred=data; return data;
+  area.innerHTML=`<div class="card">${html}</div>${footer}`;
 }
+
+/* ETAPA ELIMINATORIA (r32, r16, qf, sf, tpfinal) */
+function prAreaElim(area, stage){
+  if(!canEnterStage(stage)){
+    area.innerHTML=`<div class="card"><p class="note">Primero confirmá las etapas anteriores. Volvé a "${STAGE_LABEL[STAGES[STAGES.indexOf(stage)-1]]}".</p></div>`;
+    return;
+  }
+  const sent=stageSent(stage);
+  const bracket=APP.myPred?.bracket||{};
+  let html="", footer="", matchesToShow=[];
+  if(stage==="tpfinal"){
+    // 3er puesto + final + cuadro de honor
+    const tp=bracket.tp, fn=bracket.final;
+    if(!tp||!fn){ area.innerHTML=`<div class="card"><p class="note">Primero confirmá Semifinales.</p></div>`; return; }
+    html=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]}</div>
+      <p class="note">Tus dos finalistas según tu cuadro. Marcá los marcadores (con definición por penales si hay empate).</p>
+      <div class="meta" style="margin-top:12px">🥉 3er puesto</div>
+      ${bracketMatchRow(tp,"tpfinal",sent)}
+      <div class="meta" style="margin-top:12px">🏆 Final</div>
+      ${bracketMatchRow(fn,"tpfinal",sent)}
+    </div>
+    ${extrasBlock(sent)}`;
+    matchesToShow=[tp,fn];
+  } else {
+    matchesToShow = bracket[stage]||[];
+    if(!matchesToShow.length){
+      area.innerHTML=`<div class="card"><p class="note">Esta etapa se arma cuando confirmes la anterior.</p></div>`;
+      return;
+    }
+    const r32note = stage==="r32" ? `<p class="note" style="margin-top:6px;font-size:12px;color:var(--muted)">💡 El combo <b>"Avanza"</b> aparece solo cuando ponés empate en el marcador.</p>` : "";
+    html=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]}</div>
+      <p class="note">Estos son los cruces que se arman con TU cuadro (los equipos que vos hiciste clasificar). Marcá los marcadores; si va empate, definí quién pasa por penales.</p>
+      ${r32note}
+      ${matchesToShow.map(m=>bracketMatchRow(m,stage,sent)).join("")}
+    </div>`;
+  }
+  const allDone = matchesToShow.every(m=>m.h!=null&&m.h!==""&&m.a!=null&&m.a!==""&&(+m.h!==+m.a||m.pen==="0"||m.pen==="1"));
+  if(sent){
+    footer=`<div class="lock-banner" style="margin-top:18px">🔒 ${STAGE_LABEL[stage]} enviada. ${stage==="tpfinal"?'Terminaste la Principal 🎉':'Pasá a la siguiente etapa (tab arriba).'}</div>`;
+  } else {
+    footer=`<div class="card" style="margin-top:18px;text-align:center">
+      <p class="note" style="margin-bottom:12px">${allDone?'✓ Listo. Podés confirmar y pasar a la siguiente etapa.':'Cargá todos los marcadores (y definí ganador por penales si hay empate).'}</p>
+      <button class="btn gold sm" ${allDone?'':'disabled'} onclick="confirmSendStage('${stage}')">✉️ Confirmar ${STAGE_LABEL[stage]}</button>
+    </div>`;
+  }
+  area.innerHTML=html+footer;
+}
+
+/* Render de un cruce de eliminatoria con equipos REALES (los del jugador) */
+function bracketMatchRow(m,stage,sent){
+  const dis=sent?"disabled":"";
+  const tie = m.h!=null&&m.a!=null&&m.h!==""&&m.a!==""&&(+m.h===+m.a);
+  const answered = m.h!=null&&m.h!==""&&m.a!=null&&m.a!==""&&(!tie||m.pen==="0"||m.pen==="1");
+  return `<div class="match ${answered?'match-answered':''}" style="flex-wrap:wrap">
+    <div class="teams">
+      <div class="t">${teamByCode(m.home)}</div>
+      <div class="t">${teamByCode(m.away)}</div>
+    </div>
+    <input class="score-in" type="number" min="0" value="${m.h??""}" ${dis} onchange="setBScore('${stage}','${m.id}','h',this.value)">
+    <span class="vs">–</span>
+    <input class="score-in" type="number" min="0" value="${m.a??""}" ${dis} onchange="setBScore('${stage}','${m.id}','a',this.value)">
+    ${tie?`<div class="pen" style="width:100%">⚽ Avanza: <select ${dis} style="width:auto;display:inline-block" onchange="setBScore('${stage}','${m.id}','pen',this.value)">
+      <option value="">—</option><option ${m.pen==='1'?'selected':''} value="1">${TEAMS[m.home]?.n||m.home}</option><option ${m.pen==='0'?'selected':''} value="0">${TEAMS[m.away]?.n||m.away}</option></select></div>`:""}
+  </div>`;
+}
+function teamByCode(c){
+  const t=TEAMS[c]; if(!t) return `<span class="flag">⬜</span><span class="nm">${esc(c)}</span>`;
+  return `<span class="flag">${t.f}</span><span class="nm">${esc(t.n)}</span>`;
+}
+
+/* Cuadro de honor (solo se muestra en tpfinal) — puntos ajustados a tu planilla */
+function extrasBlock(locked){
+  const ex=APP.myPred?.extra||{}; const dis=locked?"disabled":"";
+  const tsel=(id)=>`<select ${dis} onchange="setExtra('${id}',this.value)"><option value="">—</option>${sortByName(Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f})),'n').map(t=>`<option ${ex[id]===t.c?'selected':''} value="${t.c}">${t.f} ${t.n}</option>`).join("")}</select>`;
+  const isel=(id,ph)=>`<input ${dis} value="${esc(ex[id]||'')}" placeholder="${ph}" onchange="setExtra('${id}',this.value)">`;
+  return `<div class="card"><div class="sec-title">Cuadro de honor</div>
+    <p class="note">Bonus por aciertos finales. Las botas y balones son texto libre — escribí el nombre del jugador.</p>
+    <div class="grid2" style="margin-top:10px">
+      <div><label class="field">🏆 Campeón (+4)</label>${tsel('champion')}</div>
+      <div><label class="field">🥈 Subcampeón (+3)</label>${tsel('runnerup')}</div>
+      <div><label class="field">🥉 3er puesto (+2)</label>${tsel('third')}</div>
+      <div><label class="field">👟 Bota de oro (+3)</label>${isel('boot_gold','Goleador')}</div>
+      <div><label class="field">👟 Bota de plata (+2)</label>${isel('boot_silver','2º goleador')}</div>
+      <div><label class="field">👟 Bota de bronce (+1)</label>${isel('boot_bronze','3º goleador')}</div>
+      <div><label class="field">⚽ Balón de oro (+3)</label>${isel('ball_gold','Mejor jugador')}</div>
+      <div><label class="field">⚽ Balón de plata (+2)</label>${isel('ball_silver','2º mejor')}</div>
+      <div><label class="field">⚽ Balón de bronce (+1)</label>${isel('ball_bronze','3º mejor')}</div>
+    </div></div>`;
+}
+
+/* Helpers: cargar marcadores en grupos y en bracket */
+function acertaronPublic(m){
+  const r = (APP.results?.main||{})[m.id];
+  if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
+  const players = (APP.profiles||[]).filter(p=>!p.is_admin);
+  const exact=[], suman=[];
+  players.forEach(p=>{
+    const preds = APP.allPreds?.[p.id]?.main || (p.id===APP.user?.id ? APP.myPred?.main : null) || {};
+    const pred = preds[m.id];
+    if(!pred) return;
+    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
+    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+    const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
+    if(rWin===pWin) suman.push(p.display_name);
+  });
+  return `<div class="acertaron">
+    <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
+    <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+  </div>`;
+}
+function matchRow(m,p,locked){p=p||{};const dis=locked?"disabled":"";
+  const answered = p.h!=null && p.h!=="" && p.a!=null && p.a!=="";
+  return `<div class="match ${answered?'match-answered':''}"><div class="teams"><div class="t">${team(m.home)}</div><div class="t">${team(m.away)}</div></div>
+    <input class="score-in" type="number" min="0" value="${p.h??""}" ${dis} onchange="setScore(${m.id},'h',this.value)">
+    <span class="vs">–</span>
+    <input class="score-in" type="number" min="0" value="${p.a??""}" ${dis} onchange="setScore(${m.id},'a',this.value)"></div>${acertaronPublic(m)}`;
+}
+async function setScore(id,k,val){
+  if(stageSent('grupos')) return toast("Grupos ya enviados","err");
+  const main={...(APP.myPred?.main||{})}; if(!main[id])main[id]={h:0,a:0,pen:""};
+  main[id]={...main[id],[k]:val};
+  try{
+    await saveMyPred({main});
+    // refrescar SOLO el área de grupos (no toda la Principal) para mantener scroll
+    if(PR_PHASE==="grupos") prAreaGrupos($("#prArea"));
+  }
+  catch(e){ toast(e.message,"err"); }
+}
+async function setBScore(stage,slotId,key,val){
+  try{
+    await setBracketScore(stage,slotId,key,val);
+    // refrescar SOLO el área eliminatoria activa
+    prAreaElim($("#prArea"), stage);
+  }
+  catch(e){ toast(e.message,"err"); }
+}
+
+/* Confirmación de envío de etapa */
+function confirmSendStage(stage){
+  const lbl = STAGE_LABEL[stage];
+  if(stage==="grupos"){
+    // Mostrar preview de clasificados antes de confirmar
+    const mainPreds = APP.myPred?.main||{};
+    const b = computeBracket(mainPreds);
+    // Armar tabla por grupo: 1ro, 2do, 3ro (no clasif), 4to (no clasif)
+    let gruposHtml = "";
+    const posLabels = ["🥇 1°","🥈 2°","3°","4°"];
+    const posColors = ["#16a34a","#2563eb","#64748b","#64748b"];
+    const bestThirdIds = new Set(b.bestThirds.map(t=>t.team));
+    GROUPS.forEach(g=>{
+      const rows = b.groupTable[g]||[];
+      gruposHtml+=`<div style="margin-bottom:10px">
+        <div style="font-weight:800;font-size:12px;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">GRUPO ${g}</div>
+        ${rows.map((r,i)=>{
+          let badge="", bcolor=posColors[i]||"#64748b";
+          if(i<2){ badge=" ✅ Clasifica"; }
+          else if(i===2&&bestThirdIds.has(r.team)){ badge=" ✅ Clasifica (mejor 3ro)"; bcolor="#0891b2"; }
+          else { badge=" ❌ Eliminado"; }
+          const tn=TEAMS[r.team]?.n||r.team, tf=TEAMS[r.team]?.f||"";
+          return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--line)">
+            <span style="font-size:12px;font-weight:700;color:${bcolor};width:28px">${posLabels[i]}</span>
+            <span style="font-size:15px">${tf}</span>
+            <span style="flex:1;font-weight:600;font-size:13px">${tn}</span>
+            <span style="font-size:11px;font-weight:600;color:${bcolor}">${badge}</span>
+            <span style="font-size:11px;color:var(--muted);width:50px;text-align:right">${r.pts}pts · ${r.dg>=0?"+":""}${r.dg}</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+    });
+    modal(`<h3>📊 Clasificados según tu cuadro</h3>
+      <p class="lead" style="margin-bottom:12px">Así quedan las posiciones con los marcadores que cargaste. Revisá y confirmá si está bien.</p>
+      <div style="max-height:60vh;overflow-y:auto;padding-right:4px">${gruposHtml}</div>
+      <p class="note" style="margin-top:10px;font-size:11.5px">Una vez confirmado, <b>no vas a poder editar los partidos de grupos</b>.</p>
+      <div class="row" style="margin-top:14px">
+        <button class="btn gold full" onclick="doSendStage('grupos')">✅ Confirmar y armar R32</button>
+        <button class="btn ghost full" onclick="closeModal()">Volver a editar</button>
+      </div>`);
+    return;
+  }
+  const extra = stage==="tpfinal"
+    ? "Esto termina la Tarjeta Principal."
+    : `Después de confirmar, la app arma la siguiente etapa con los equipos que ganaron tus cruces.`;
+  modal(`<h3>✉️ Confirmar ${lbl}</h3>
+    <p class="lead">${extra} Una vez confirmada esta etapa, <b>no vas a poder cambiar los marcadores</b>. ¿Seguro?</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn gold full" onclick="doSendStage('${stage}')">Sí, confirmar y avanzar</button>
+      <button class="btn ghost full" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+async function doSendStage(stage){
+  try{
+    if(stage==="grupos") await sendStageGrupos();
+    else await sendStageElim(stage);
+    closeModal();
+    // pasar a la siguiente etapa automáticamente
+    const next = currentStage(); if(next) PR_PHASE = next;
+    render(); toast(`${STAGE_LABEL[stage]} enviada 🔒`,"ok");
+  }catch(e){ toast(e.message,"err"); }
+}
+
+/* =====================================================================
+   PESTAÑA · WASABI
+   ===================================================================== */
+function renderWasabi(v){
+  if(isAdmin()){ v.innerHTML=adminHint("🌶️","Las preguntas Wasabi y sus respuestas se gestionan en <b>⚙ Admin → Preguntas / Resultados</b>."); return; }
+  const sent = cardSent('wasabi');
+  const w=APP.myPred?.wasabi||{};
+  const total=APP.wasabiQs.reduce((a,q)=>a+q.pts,0);
+  // contador: solo no-bonus (punto 19)
+  const nonBonus = APP.wasabiQs.filter(q=>q.type!=="bonus");
+  const answered = nonBonus.filter(q=>{const v=w[q.id]; return v!=null && v!=="";}).length;
+  const totalNonBonus = nonBonus.length;
+  let html=`<div class="card" style="margin-top:18px"><div class="sec-title">Tarjeta Wasabi · ${total} pts</div>
+    <p class="note">Las preguntas que hacen único a este prode. Quién comete la primera infracción, no señor.</p>
+    <div class="row" style="margin-top:10px;align-items:center;gap:10px">
+      <div class="pill" style="flex:1">📋 Respondidas: <b>${answered}/${totalNonBonus}</b></div>
+      ${sent?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">(Sin enviar)</span>'}
+    </div></div>`;
+  // Mapa de IDs → encabezado de sección que se inserta ANTES de esa pregunta
+  const SECTION_HEADERS = {
+    "w1":  { label:"Preguntas Generales",                  icon:"🌍", color:"#3b82f6" },
+    "w21": { label:"Preguntas de la Fase de Grupos",        icon:"🏟️", color:"#8b5cf6" },
+    "w27": { label:"Primer Partido de Argentina",           icon:"🇦🇷", color:"#16a34a" },
+    "w31": { label:"Segundo Partido de Argentina",          icon:"🇦🇷", color:"#b45309" },
+    "w33": { label:"Tercer Partido de Argentina",           icon:"🇦🇷", color:"#dc2626" },
+    "w38": { label:"Preguntas Cuartos de Final",            icon:"🏅", color:"#7c3aed" },
+    "w47": { label:"Preguntas Absolutas",                   icon:"🌍", color:"#3b82f6" },
+  };
+  let openSection = false;
+  APP.wasabiQs.forEach((q,i)=>{
+    const v=w[q.id];
+    // Insertar encabezado de sección si corresponde
+    if(SECTION_HEADERS[q.id]){
+      if(openSection) html+=`</div>`; // cerrar sección anterior
+      const s=SECTION_HEADERS[q.id];
+      html+=`<div class="wasabi-section" style="--sc:${s.color}">
+        <div class="wasabi-section-title">${s.icon} ${s.label}</div>`;
+      openSection=true;
+    }
+    const isAnswered = v!=null && v!=="";
+    const isBonus = q.type==="bonus";
+    // colores de fondo: verde si respondida, oro si bonus, neutro si pendiente
+    const bgClass = isBonus ? "wq-bonus" : (isAnswered ? "wq-answered" : "");
+    html+=`<div class="wq ${bgClass}"><div class="qh"><div class="qn">${i+1}</div>
+      <div class="qt">${esc(q.t)}</div><div><span class="badge ${q.noComo?'r':'w'}">${q.pts}</span></div></div>
+      ${isBonus
+        ? `<div class="note" style="color:var(--gold);font-style:italic">🎁 Se completa de manera automática</div>`
+        : sent
+          ? (v ? `<div style="font-size:13.5px;font-weight:600;color:var(--aqua);padding:4px 0">${esc(v)}</div>`
+               : `<div style="font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0">Sin responder</div>`)
+          : inputFor(q,v??"","wasabi",sent)}
+      ${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}
+      ${(()=>{
+        if(q.type==="bonus") return "";
+        const resVal=(APP.results.wasabi||{})[q.id];
+        if(resVal==null||resVal==="") return "";
+        let ganadores=[];
+        if(q.type==="approx"){
+          // para preguntas de aproximación: el/los más cercanos al resultado
+          const resNum=parseFloat(resVal);
+          if(!isNaN(resNum)){
+            const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
+              const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
+              return {name:p.display_name, val:parseFloat(w[q.id])};
+            }).filter(e=>!isNaN(e.val));
+            if(entries.length){
+              const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resNum)));
+              ganadores=entries.filter(e=>Math.abs(e.val-resNum)===minDist).map(e=>e.name);
+            }
+          }
+        } else {
+          ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+            const w=(APP.allPreds?.[p.id]?.wasabi||(p.id===APP.user?.id?APP.myPred?.wasabi:null)||{});
+            return matchesResult(w[q.id], resVal);
+          }).map(p=>p.display_name);
+        }
+        return `<div class="acertaron"><span style="color:var(--aqua)">✅ Acertaron: ${ganadores.length?ganadores.join(', '):'nadie'}</span></div>`;
+      })()}
+      </div>`;
+  });
+  if(openSection) html+=`</div>`; // cerrar última sección
+  // Botón Confirmar y enviar (punto 17)
+  if(sent){
+    html+=`<div class="lock-banner" style="margin-top:18px">🔒 Tarjeta Wasabi enviada y cerrada. No se puede editar.</div>`;
+  } else {
+    const allAnswered = answered>=totalNonBonus;
+    html+=`<div class="card" style="margin-top:18px;text-align:center">
+      <p class="note" style="margin-bottom:12px">${allAnswered ? '✓ Respondiste todas. Podés enviar la tarjeta.' : `Te faltan <b>${totalNonBonus-answered}</b> preguntas por responder.`}</p>
+      <button class="btn gold sm" ${allAnswered?'':'disabled'} onclick="confirmSendCard('wasabi')">✉️ Confirmar y enviar Wasabi</button>
+      <p class="note" style="margin-top:10px;font-size:11.5px">Una vez enviada, no se puede editar. Las bonus las asigna el COMIPRO en cada partido.</p>
+    </div>`;
+  }
+  v.innerHTML=html;
+}
+/* Cartel de confirmación + envío de una tarjeta */
+function confirmSendCard(card){
+  const labels={wasabi:"Wasabi", main:"Principal"};
+  modal(`<h3>✉️ Confirmar y enviar tarjeta ${labels[card]}</h3>
+    <p class="lead">Una vez que envíes esta tarjeta al COMIPRO, <b>no vas a poder cambiar las respuestas</b>. ¿Confirmás?</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn gold full" onclick="doSendCard('${card}')">Sí, enviar al COMIPRO</button>
+      <button class="btn ghost full" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+async function doSendCard(card){
+  try{ await sendCard(card); closeModal(); render(); toast("Tarjeta enviada y cerrada 🔒","ok"); }
+  catch(e){ toast(e.message,"err"); }
+}
+
+/* =====================================================================
+   PESTAÑA · TABLA  (privacidad: NO muestra respuestas ajenas)
+   ===================================================================== */
+/* =====================================================================
+   TABLA DE POSICIONES reutilizable (portada + pestaña Tabla)
+   opts.inline = true → muestra botones de nitro/sanguijuela por fila
+   ===================================================================== */
+function standingsTableHTML(opts){
+  opts=opts||{};
+  const tb=standings();
+  const me=tb.find(r=>r.id===APP.user.id);
+  const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
+  // ¿a quién recibió sanguijuela? (en cualquier fecha de la fase actual) → para el ícono
+  function recibioSang(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid); }
+  function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid); }
+  function quienSanguijuelo(uid){ const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
+  // botones inline
+  function actions(r){
+    if(!opts.inline||isAdmin()) return "";
+    let btns="";
+    // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
+    const wOpen = windowOpenNow(); const hasMatches = dayHasMatches(todayDayKey());
+    if(r.id===APP.user.id){
+      if(usoNitro(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
+      } else if(!hasMatches||!wOpen){
+        btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else if(askedSangToday(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else if(askedNitroToday(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Ya pediste nitro hoy" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else {
+        btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
+      }
+    } else {
+      const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
+      const yaSangHoy = !!askedSangToday(me?.id);
+      if(reteable && !yaSangHoy) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
+      else if(reteable && yaSangHoy) btns+=`<span class="btn-mini sang" title="Ya aplicaste sanguijuela hoy" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+    }
+    return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
+  }
+  const allZero = tb.every(r=>r.total===0);
+  // Si todos tienen 0, forzamos zona pobreza para todos visualmente
+  const displayZone = r => allZero ? "pobreza" : r.zone;
+  let lastZone=null, out="";
+  // Si todos en 0, mostrar las tres zonas vacías primero excepto pobreza que tiene todos
+  if(allZero){
+    const emptyRow = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0;font-style:italic">Sin jugadores aún</td></tr>';
+    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band elite"></span>${ZONE_LABELS["elite"]}</td></tr>`;
+    out+=emptyRow;
+    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band midfield"></span>${ZONE_LABELS["midfield"]}</td></tr>`;
+    out+=emptyRow;
+    out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band pobreza"></span>${ZONE_LABELS["pobreza"]}</td></tr>`;
+  }
+  tb.forEach(r=>{
+    const dz = displayZone(r);
+    if(!allZero && dz!==lastZone){
+      out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band ${dz}"></span>${ZONE_LABELS[dz]}</td></tr>`;
+      lastZone=dz;
+    }
+    const arrow = r.move==null ? "" :
+      r.move>0 ? `<span class="move up">▲${r.move}</span>` :
+      r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
+      `<span class="move same">=</span>`;
+    const sangBy = quienSanguijuelo(r.id);
+    const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸 <span style="font-size:11px;color:var(--muted)">por ${sangBy}</span></span>`:""; 
+    const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(todayDayKey());
+    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:askedSangToday(APP.user.id)?`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
+    const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
+    out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
+      <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
+      <td class="name">${esc(r.name)}${recv}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
+      ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
+  });
+  const headLast = opts.inline?'<th>Acción</th>':'';
+  const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
+  const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
+    <b>Referencias:</b> ${zonaRef}
+    <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
+    🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 activar nitro &nbsp;·&nbsp; 🔥✅ nitro activado</div>`;
+  return `<div style="overflow-x:auto;margin-top:10px"><table>
+      <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
+      ${out}
+    </table></div>${glos}`;
+}
+
+function renderTabla(v){
+  const ua2=APP.results?.updated_at;
+  const updStr2=ua2?(()=>{const d=new Date(ua2);const pad=n=>String(n).padStart(2,'0');return `🕐 Actualizado el ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} a las ${pad(d.getHours())}:${pad(d.getMinutes())}hs`;})():'';
+  v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Tabla general</div>
+    ${updStr2?`<p class="note" style="margin-bottom:8px">${updStr2}</p>`:''}
+    <p class="note">Posiciones y puntajes de todos. Las flechas muestran cuánto subió o bajó cada uno desde la fecha anterior. Las respuestas de cada jugador son privadas: solo ves las tuyas.</p>
+    ${standingsTableHTML({inline:false})}</div>
+    <p class="note" style="text-align:center;margin-top:12px">🔒 No se pueden ver los pronósticos de los demás (ni los tuyos los ven ellos).</p>`;
+}
+
+/* =====================================================================
+   PESTAÑA · COMODINES
+   ===================================================================== */
+function renderComodines(v){
+  const uid=APP.user.id;
+  const day=todayDayKey();
+  const phase=phaseOfDay(day);
+  const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
+  const hasMatchesToday = dayHasMatches(day);
+  const wOpen = windowOpenNow();
+  let html=`<div class="card" style="margin-top:18px"><div class="sec-title">Comodines</div>
+    <p class="note">Pedí tus sanguijuelas (3 por fase) y nitros (2 por fase). Se solicitan en la ventana de <b>6:00 a 12:00 (hora argentina)</b> de cualquier día con partidos, y valen para los partidos de ese día.</p>
+    <div class="pill" style="margin-top:10px">📅 Hoy: ${dayLbl} ${hasMatchesToday?(wOpen?'· <b style="color:var(--ok)">Ventana abierta</b>':'· <span style="color:var(--bad)">Ventana cerrada (6-12)</span>'):'· Sin partidos'}</div></div>`;
+  if(!isAdmin()){
+    const qs=quotaLeft(uid,"sang"), qn=quotaLeft(uid,"nitro");
+    const phaseLbl = phase ? ({grupos:"grupos",r32:"R32",r16:"octavos",qf:"cuartos",sf:"semis",tp:"finales",final:"finales"}[phase]||phase) : "—";
+    const qKey = phase==="tp"||phase==="final" ? "finals" : (phase||"grupos");
+    html+=`<div class="como sang"><div class="ic">🩸</div><div class="info"><b>Sanguijuela</b> — robá puntos<br><span class="note">Te quedan ${qs[qKey]||0} sanguijuelas en ${phaseLbl}</span></div><button class="btn sm primary" onclick="openSang()" ${(!hasMatchesToday||!wOpen)?'disabled':''}>Usar hoy</button></div>
+    <div class="como nitro"><div class="ic">🔥</div><div class="info"><b>Nitro</b> — x3 tus puntos<br><span class="note">Te quedan ${qn[qKey]||0} nitros en ${phaseLbl}</span></div><button class="btn sm gold" onclick="openNitro()" ${(!hasMatchesToday||!wOpen)?'disabled':''}>Usar hoy</button></div>`;
+  }
+  html+=`<div class="card"><div class="sec-title">Comodines registrados</div>`;
+  if(!APP.comodines.length) html+=`<div class="empty"><div class="big">🩸</div>Todavía nadie usó comodines.</div>`;
+  else html+=APP.comodines.slice().reverse().map(c=>{
+    const byN=nameOf(c.by_user);
+    const dLbl = c.day ? new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(c.day+"T12:00:00")) : "—";
+    if(c.type==="sang") return `<div class="como sang"><div class="ic">🩸</div><div class="info"><b>${esc(byN)}</b> retó a <b>${esc(nameOf(c.target_user))}</b><br><span class="note">${dLbl} · ${c.phase}</span></div>${isAdmin()?`<button class="btn sm danger" onclick="delComo('${c.id}')">✕</button>`:''}</div>`;
+    return `<div class="como nitro"><div class="ic">🔥</div><div class="info"><b>${esc(byN)}</b> activó nitro x3<br><span class="note">${dLbl} · ${c.phase}</span></div>${isAdmin()?`<button class="btn sm danger" onclick="delComo('${c.id}')">✕</button>`:''}</div>`;
+  }).join("");
+  html+=`</div>`;
+  v.innerHTML=html;
+}
+function nameOf(uid){ return APP.profiles.find(p=>p.id===uid)?.display_name||"?"; }
+async function delComo(id){ await sb.from('comodines').delete().eq('id',id); await loadAll(); render(); toast("Comodín eliminado"); }
+
+function openSang(preTarget){
+  const winErr=windowErrorToday(); if(winErr) return toast(winErr,"err");
+  const tb=standings(); const me=tb.find(r=>r.id===APP.user.id);
+  if(!me) return toast("No estás en la tabla.","err");
+  const targets=tb.filter(r=>r.id!==APP.user.id&&(me.pos-r.pos)>0&&(me.pos-r.pos)<=3);
+  // info del día actual
+  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const phaseLbl = phase ? ({grupos:"Fase de Grupos",r32:"Ronda de 32",r16:"Octavos",qf:"Cuartos",sf:"Semifinales",tp:"3er puesto",final:"Final"}[phase]||phase) : "—";
+  const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
+  modal(`<h3>🩸 Usar sanguijuela</h3>
+    <p class="note">Vale para los partidos de <b>HOY (${dayLbl})</b>. Si hacés más puntos de Principal que el retado en esos partidos, te llevás todos sus puntos.</p>
+    <div class="pill" style="margin-top:10px">📅 Día: ${dayLbl} · ${phaseLbl}</div>
+    <label class="field" style="margin-top:14px">¿A quién retás?</label>
+    <select id="sangT">${targets.length?targets.map(r=>`<option value="${r.id}" ${preTarget===r.id?'selected':''}>#${r.pos} ${esc(r.name)} (${r.total})</option>`).join(""):'<option value="">— no hay rivales válidos —</option>'}</select>
+    <div class="row" style="margin-top:18px"><button class="btn primary full" onclick="confirmSang()">Confirmar reto</button><button class="btn ghost full" onclick="closeModal()">Cancelar</button></div>`);
+}
+function openSangTo(targetId){ openSang(targetId); }
+async function confirmSang(){
+  const target=$("#sangT").value; if(!target) return toast("No hay rival válido","err");
+  const err=validateSang(APP.user.id,target); if(err) return toast(err,"err");
+  try{ await requestComodin("sang",target); closeModal(); render(); toast("Sanguijuela activada 🩸","ok"); }
+  catch(e){ toast(e.message,"err"); }
+}
+function openNitro(){
+  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const phaseLbl = phase ? ({grupos:"Fase de Grupos",r32:"Ronda de 32",r16:"Octavos",qf:"Cuartos",sf:"Semifinales",tp:"3er puesto",final:"Final"}[phase]||phase) : "—";
+  const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
+  modal(`<h3>🔥 Usar nitro</h3>
+    <p class="note">Multiplica x3 tus puntos de Principal de <b>HOY (${dayLbl})</b>. No lo usan 1° ni 2°.</p>
+    <div class="pill" style="margin-top:10px">📅 Día: ${dayLbl} · ${phaseLbl}</div>
+    <div class="row" style="margin-top:18px"><button class="btn gold full" onclick="confirmNitro()">Activar nitro x3</button><button class="btn ghost full" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function confirmNitro(){
+  const err=validateNitro(APP.user.id); if(err) return toast(err,"err");
+  try{ await requestComodin("nitro",null); closeModal(); render(); toast("Nitro activado 🔥","ok"); }
+  catch(e){ toast(e.message,"err"); }
+}
+
+/* =====================================================================
+   PESTAÑA · REGLAMENTO
+   ===================================================================== */
+function renderReglamento(v){
+  const R=REGLAMENTO_2026;
+  const list=(arr)=>arr.map(x=>`<div class="reg-item">${esc(x)}</div>`).join("");
+  v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Reglamento · PingüiProde 2026</div>
+    <p class="lead">Bono de inscripción: $${R.bono.toLocaleString('es-AR')} · Premio: ${esc(R.premio)}</p></div>
+    <div class="card flat"><div class="sec-title">Las tres tarjetas</div>
+      ${R.tarjetas.map(t=>`<div style="margin-bottom:12px"><b>${t.n}${t.pts?` · ${t.pts} pts`:''}</b><div class="note">${esc(t.desc)}</div></div>`).join("")}</div>
+    <details class="fold" open><summary>🃏 Sanguijuelas<span class="arr">›</span></summary><div class="body">${list(R.sanguijuela)}</div></details>
+    <details class="fold" open><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
+    <details class="fold" open><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>`;
+}
+
+/* =====================================================================
+   PESTAÑA · ADMIN (COMIPRO)
+   ===================================================================== */
+let ADM="resultados", ADM_PHASE="grupos";
+function renderAdmin(v){
+  if(!isAdmin()){ v.innerHTML=adminHint("🔒","Solo el COMIPRO."); return; }
+  v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
+    <div class="seg" style="margin-top:10px" id="admSeg">
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["export","📤 Exportar"]]
+        .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
+    </div></div><div id="admArea"></div>`;
+  document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
+  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,export:admExport}[ADM])($("#admArea"));
+}
+function admPenalizaciones(area){
+  const players = APP.profiles.filter(p=>!p.is_admin);
+  let html = `<div class="card"><div class="sec-title">⚡ Penalizaciones</div>
+    <p class="note" style="margin-bottom:14px">Descuentos manuales de puntos. Se restan del total general del jugador y son visibles para él.</p>
+    <div class="grid2" style="gap:10px;margin-bottom:18px">
+      <div><label class="field">Jugador</label>
+        <select id="penPlayer">${players.map(p=>`<option value="${p.id}">${p.display_name||p.email}</option>`).join('')}</select>
+      </div>
+      <div><label class="field">Puntos a descontar</label>
+        <input id="penPts" type="number" min="1" placeholder="ej: 5" style="width:100%">
+      </div>
+    </div>
+    <div style="margin-bottom:14px"><label class="field">Motivo (obligatorio)</label>
+      <input id="penReason" placeholder="ej: Penalización por error en carga" style="width:100%">
+    </div>
+    <button class="btn gold" onclick="doApplyPenalty()">⚡ Aplicar descuento</button>
+    <div style="margin-top:22px;border-top:1px solid var(--line);padding-top:14px">
+      <div class="sec-title" style="font-size:13px;margin-bottom:10px">Historial de penalizaciones</div>`;
+
+  // listar todas las penalizaciones existentes
+  let hayPenas = false;
+  players.forEach(p=>{
+    const pred = APP.preds?.find(pr=>pr.user_id===p.id);
+    const pens = pred?.penalties||[];
+    if(!pens.length) return;
+    hayPenas = true;
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${p.display_name||p.email}</b>`;
+    pens.forEach((pen,i)=>{
+      const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+        <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
+        <span style="flex:1;color:var(--muted)">${esc(pen.reason)}</span>
+        <span style="color:var(--muted);font-size:11px">${fecha}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  if(!hayPenas) html+=`<p class="note">No hay penalizaciones aplicadas todavía.</p>`;
+  html+=`</div></div>`;
+  area.innerHTML=html;
+}
+async function doApplyPenalty(){
+  const uid=$("#penPlayer").value;
+  const pts=+($("#penPts").value||0);
+  const reason=$("#penReason").value.trim();
+  if(!pts||pts<=0){ toast("Ingresá los puntos a descontar","err"); return; }
+  if(!reason){ toast("El motivo es obligatorio","err"); return; }
+  try{
+    await adminApplyPenalty(uid,pts,reason);
+    toast("Penalización aplicada","ok");
+    admPenalizaciones($("#admArea"));
+  }catch(e){ toast(e.message,"err"); }
+}
+async function syncESPN(){
+  const btn = document.getElementById('espnSyncBtn');
+  if(btn){ btn.disabled=true; btn.textContent='🔄 Sincronizando...'; }
+  try{
+    const resp = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard');
+    if(!resp.ok) throw new Error('Error al conectar con ESPN');
+    const data = await resp.json();
+    const events = data.events||[];
+    const main = {...(APP.results.main||{})};
+    let updated = 0;
+    events.forEach(ev=>{
+      const comp = ev.competitions?.[0];
+      if(!comp) return;
+      const status = comp.status?.type;
+      // solo partidos finalizados
+      if(!status?.completed) return;
+      const home = comp.competitors?.find(c=>c.homeAway==='home');
+      const away = comp.competitors?.find(c=>c.homeAway==='away');
+      if(!home||!away) return;
+      const homeCode = home.team.abbreviation;
+      const awayCode = away.team.abbreviation;
+      const homeScore = home.score;
+      const awayScore = away.score;
+      // buscar en fixture
+      const match = FIXTURE.find(m=>m.home===homeCode&&m.away===awayCode||m.home===awayCode&&m.away===homeCode);
+      if(!match) return;
+      const isFlipped = match.home===awayCode;
+      const h = isFlipped ? awayScore : homeScore;
+      const a = isFlipped ? homeScore : awayScore;
+      // solo actualizar si cambió
+      const cur = main[match.id]||{};
+      if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
+      main[match.id]={h, a, pen:cur.pen||''};
+      updated++;
+    });
+    if(updated>0){
+      await adminSaveResults({main});
+      toast(`✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`, 'ok');
+      admResultados(document.getElementById('admArea'));
+    } else {
+      toast('No hay resultados nuevos', 'ok');
+    }
+  }catch(e){
+    toast('Error ESPN: '+e.message, 'err');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔄 Sincronizar ESPN'; }
+  }
+}
+function admResultados(area){
+  const res=APP.results.main||{};
+  area.innerHTML=`<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">Resultados reales</div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div><div class="seg" id="arSeg">
+    ${PHASES.map(p=>`<button class="${ADM_PHASE===p.key?'on':''}" data-ph="${p.key}">${p.label.replace('Fase de ','').replace('Ronda de ','R')}</button>`).join("")}
+    </div><div id="arArea" style="margin-top:12px"></div></div>
+    <div class="card flat"><div class="sec-title">Cuadro de honor (real)</div><p class="note" style="margin:4px 0 10px">🥾 <b>Bota de oro/plata/bronce</b>: los tres máximos goleadores del torneo. ⚽ <b>Balón de oro/plata/bronce</b>: los tres mejores jugadores del torneo según FIFA.</p><div class="grid2" id="exReal"></div></div>`;
+  document.querySelectorAll("#arSeg button").forEach(b=>b.onclick=()=>{ADM_PHASE=b.dataset.ph;admResultados(area);});
+  const a=$("#arArea"); let ms=FIXTURE.filter(m=>m.phase===ADM_PHASE);
+  if(ADM_PHASE==="grupos"){
+    let html=""; GROUPS.forEach(g=>{const gm=ms.filter(m=>m.grp===g);
+      const done=gm.filter(m=>res[m.id]&&res[m.id].h!==""&&res[m.id].h!=null).length;
+      html+=`<details class="fold" open><summary><span class="gtag">${g}</span> Grupo ${g}<span class="badge ${done===gm.length?'g':'w'}" style="margin-left:6px">${done}/${gm.length}</span><span class="arr">›</span></summary>
+        <div class="body">${[1,2,3].map(j=>`<div class="meta">Jornada ${j}</div>`+gm.filter(m=>m.jor===j).map(m=>admMatch(m,res[m.id])).join("")).join("")}</div></details>`;});
+    a.innerHTML=html;
+  }else a.innerHTML=`<div class="meta">${ms[0]?.label.split(' · ')[0]||''}</div>${ms.map(m=>admMatchKO(m,res[m.id])).join("")}`;
+  // cuadro honor
+  const ex=APP.results.extra||{};
+  const tsel=(id)=>`<select onchange="setResExtra('${id}',this.value)"><option value="">—</option>${Object.keys(TEAMS).map(c=>`<option ${ex[id]===c?'selected':''} value="${c}">${TEAMS[c].f} ${TEAMS[c].n}</option>`).join("")}</select>`;
+  const isel=(id)=>`<input value="${esc(ex[id]||'')}" onchange="setResExtra('${id}',this.value)">`;
+  $("#exReal").innerHTML=`
+    <div><label class="field">🏆 Campeón</label>${tsel('champion')}</div><div><label class="field">🥈 Subcampeón</label>${tsel('runnerup')}</div>
+    <div><label class="field">🥉 3ro</label>${tsel('third')}</div><div><label class="field">👟 Bota oro</label>${isel('boot_gold')}</div>
+    <div><label class="field">👟 Bota plata</label>${isel('boot_silver')}</div><div><label class="field">👟 Bota bronce</label>${isel('boot_bronze')}</div>
+    <div><label class="field">⚽ Balón oro</label>${isel('ball_gold')}</div><div><label class="field">⚽ Balón plata</label>${isel('ball_silver')}</div>
+    <div><label class="field">⚽ Balón bronce</label>${isel('ball_bronze')}</div>`;
+}
+function acertaronMatch(m, r){
+  if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
+  const players = APP.profiles.filter(p=>!p.is_admin);
+  const exact=[], result=[];
+  players.forEach(p=>{
+    const pred=(APP.allPreds?.[p.id]?.main||{})[m.id];
+    if(!pred) return;
+    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
+    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+    const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
+    if(rWin===pWin) result.push(p.display_name);
+  });
+  let html='<div class="acertaron">';
+  html+=`<span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>`;
+  html+=`<span style="color:var(--gold)">👍 Suman puntos: ${result.length?result.join(', '):'nadie'}</span>`;
+  html+='</div>';
+  return html;
+}
+function admMatch(m,r){r=r||{};
+  return `<div class="match"><div class="teams"><div class="t">${team(m.home)}</div><div class="t">${team(m.away)}</div></div>
+    <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
+    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m,r)}`;
+}
+function admMatchKO(m,r){r=r||{};const tie=r.h!=null&&r.a!=null&&r.h!==""&&r.a!==""&&(+r.h===+r.a);
+  return `<div class="match" style="flex-wrap:wrap"><div class="teams"><div class="t"><span class="flag">🔵</span><span class="nm">${m.label}</span></div><div class="t"><span class="flag">🔴</span><span class="nm">cruce</span></div></div>
+    <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
+    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)">
+    ${tie?`<div class="pen" style="width:100%">⚽ Avanza: <select style="width:auto;display:inline-block" onchange="setRes(${m.id},'pen',this.value)"><option value="">—</option><option ${r.pen==='1'?'selected':''} value="1">Local</option><option ${r.pen==='0'?'selected':''} value="0">Visitante</option></select></div>`:''}</div>`;
+}
+async function setRes(id,k,val){
+  const main={...(APP.results.main||{})}; if(!main[id])main[id]={h:"",a:"",pen:""}; main[id]={...main[id],[k]:val};
+  try{ await adminSaveResults({main}); toast("Resultado guardado","ok"); if(k!=="pen"&&ADM_PHASE!=="grupos") admResultados($("#admArea")); }catch(e){ toast(e.message,"err"); }
+}
+async function setResExtra(k,val){ const extra={...(APP.results.extra||{})}; extra[k]=val; try{ await adminSaveResults({extra}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
+
+function admWasabi(area){
+  const res=APP.results.wasabi||{};
+  const AUTOQS=new Set(["w5","w6","w7","w8"]);
+  const autoEnabled = !!APP.results.auto_wasabi_enabled;
+  let html=`<div class="card"><div class="sec-title">Respuestas reales · Wasabi</div>
+    <p class="note">Cargá la respuesta correcta de cada pregunta. Las preguntas 5-8 (¿quién sale primero/segundo/anteúltimo/último?) se calculan automáticamente — podés habilitarlas cuando quieras.</p>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+      <span>🏆 Preguntas 5-8 automáticas:</span>
+      <span style="font-weight:600;color:${autoEnabled?'var(--aqua)':'var(--gold)'}">${autoEnabled?'✅ Habilitadas':'🔒 Deshabilitadas'}</span>
+      <button class="btn sm" onclick="toggleAutoWasabi()">${autoEnabled?'Deshabilitar':'Habilitar'}</button>
+    </div>
+  </div>`;
+  APP.wasabiQs.forEach((q,i)=>{
+    if(AUTOQS.has(q.id)){
+      html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>
+        <p class="note" style="font-style:italic">Se completa de manera automática al cierre del Mundial.</p></div>`;
+      return;
+    }
+    const val=q.type==="bonus"?res["bonus_"+q.id]:res[q.id];
+    const onCh=q.type==="bonus"?`onchange="setResWas('bonus_${q.id}',this.value)"`:`onchange="setResWas('${q.id}',this.value)"`;
+    let input;
+    if(q.type==="bonus")
+      input=`<select ${onCh}><option value="">— sin asignar —</option>${sortByName(playersOnly(),'display_name').map(p=>`<option ${val===p.id?'selected':''} value="${p.id}">🎁 ${esc(p.display_name)}</option>`).join("")}</select>`;
+    else if(q.type==="num")
+      input=`<input type="number" value="${esc(val??'')}" ${onCh}>`;
+    else if(q.type==="yesno")
+      input=`<select ${onCh}><option value="">—</option>${["Sí","No"].map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join("")}</select>`;
+    else if(q.type==="choice" && Array.isArray(q.options))
+      input=`<select ${onCh}><option value="">—</option>${sortByName(q.options).map(o=>`<option ${val===o?'selected':''}>${esc(o)}</option>`).join("")}</select>`;
+    else if(q.type==="player")
+      input=`<select ${onCh}><option value="">—</option>${sortByName(PLANTEL_ARG).map(p=>`<option ${val===p?'selected':''}>${esc(p)}</option>`).join("")}</select>`;
+    else if(q.type==="participant")
+      input=`<select ${onCh}><option value="">—</option>${sortByName(playersOnly(),'display_name').map(p=>`<option ${val===p.display_name?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
+    else if(q.type==="team"){
+      const teams=Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f}));
+      input=`<select ${onCh}><option value="">—</option>${sortByName(teams,'n').map(t=>`<option ${val===t.n?'selected':''} value="${t.n}">${t.f} ${t.n}</option>`).join("")}</select>`;
+    } else
+      input=`<input value="${esc(val??'')}" ${onCh}>`;
+    let acertaronW='';
+    if(val!=null&&val!==""){
+      let ganadores=[];
+      if(q.type==="approx"){
+        const resNum=parseFloat(val);
+        if(!isNaN(resNum)){
+          const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
+            const w=(APP.allPreds?.[p.id]?.wasabi||{});
+            return {name:p.display_name, val:parseFloat(w[q.id])};
+          }).filter(e=>!isNaN(e.val));
+          if(entries.length){
+            const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resNum)));
+            ganadores=entries.filter(e=>Math.abs(e.val-resNum)===minDist).map(e=>e.name);
+          }
+        }
+      } else {
+        ganadores=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+          const w=(APP.allPreds?.[p.id]?.wasabi||{});
+          return matchesResult(w[q.id], val);
+        }).map(p=>p.display_name);
+      }
+      acertaronW=`<div class="acertaron">${ganadores.length?`<span style="color:var(--aqua)">✅ Acertaron: ${ganadores.join(', ')}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>'}</div>`;
+    }
+    html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${input}${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}${acertaronW}</div>`;
+  });
+  area.innerHTML=html;
+}
+async function setResWas(id,val){ const wasabi={...(APP.results.wasabi||{})}; wasabi[id]=val; try{ await adminSaveResults({wasabi}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
+async function toggleAutoWasabi(){
+  const cur=!!APP.results.auto_wasabi_enabled;
+  try{ await adminSaveResults({auto_wasabi_enabled:!cur}); toast(!cur?"✅ Preguntas 5-8 habilitadas":"🔒 Preguntas 5-8 deshabilitadas","ok"); admWasabi($("#admArea")); }catch(e){ toast(e.message,"err"); }
+}
+
+async function admMails(area){
+  const list=await adminListEmails();
+  area.innerHTML=`<div class="card"><div class="sec-title">Mails habilitados</div>
+    <p class="note">Solo estos mails pueden registrarse. Agregalos antes de que cada jugador cree su cuenta.</p>
+    <div class="row" style="margin-top:12px"><input id="newMail" placeholder="mail@ejemplo.com" style="flex:1"><button class="btn primary sm" onclick="addMail()">+ Agregar</button></div>
+    <div class="divider"></div>
+    ${list.length?list.map(e=>`<div class="reg-item">${esc(e.email)}</div>`).join(""):'<div class="note">Todavía no agregaste mails.</div>'}
+  </div>`;
+}
+async function addMail(){ const m=$("#newMail").value.trim(); if(!m)return; try{ await adminAddEmail(m); toast("Mail habilitado","ok"); admMails($("#admArea")); }catch(e){ toast(e.message,"err"); } }
+
+function admJugadores(area){
+  area.innerHTML=`<div class="card"><div class="sec-title">Jugadores · estado de pago</div>
+    <p class="note">Marcá quién pagó el bono de $${REGLAMENTO_2026.bono.toLocaleString('es-AR')}. Solo vos (COMIPRO) ves y editás esto.</p>
+    <div style="margin-top:12px">${APP.profiles.map(p=>`<div class="match"><div class="teams"><div class="t">${esc(p.display_name)} <span class="note">${esc(p.email||'')}</span></div></div>
+      <button class="btn sm ${hasPaid(p.id)?'primary':'ghost'}" onclick="togglePaid('${p.id}',${!hasPaid(p.id)})">${hasPaid(p.id)?'✅ Pagó':'Marcar pago'}</button></div>`).join("")}</div></div>`;
+}
+async function togglePaid(uid,val){ try{ await adminSetPaid(uid,val); renderAdmin($("#view")); }catch(e){ toast(e.message,"err"); } }
+
+/* ---------- ADMIN: ver/editar tarjetas de jugadores (con bitácora) ---------- */
+let ADM_VIEWUID="";
+function admTarjetas(area){
+  const players=APP.profiles.slice().sort((a,b)=>a.display_name.localeCompare(b.display_name));
+  if(!ADM_VIEWUID && players[0]) ADM_VIEWUID=players[0].id;
+  const sel=`<select onchange="ADM_VIEWUID=this.value;admTarjetas(document.getElementById('admArea'))">
+    ${players.map(p=>`<option value="${p.id}" ${ADM_VIEWUID===p.id?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
+  const pred=APP.allPreds?.[ADM_VIEWUID]||{main:{},extra:{},wasabi:{}};
+  const ss = pred.stages_sent||{};
+  const sa2 = pred.sent_at||{};
+  const wasabiLocked = !!(ss.wasabi || sa2.wasabi || pred.locked);
+  const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
+  const stateTag = (locked) => locked
+    ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
+    : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
+  const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
+  const lockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px;background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar ${label}</button>`;
+  let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
+    <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
+    <label class="field" style="margin-top:10px">Jugador</label>${sel}
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):lockBtn('wasabi','Wasabi')}</div>
+      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
+    </div>
+  </div>`;
+  // WASABI resumen con botón Ver
+  const wasabiCount=Object.keys(pred.wasabi||{}).filter(k=>pred.wasabi[k]!=null&&pred.wasabi[k]!=="").length;
+  const sentWasabi=!!(pred.sent_at?.wasabi);
+  html+=`<div class="card flat"><div class="sec-title">🌶️ Wasabi</div>
+    <p class="note">${wasabiCount}/55 preguntas respondidas${sentWasabi?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
+    <button class="btn sm" style="margin-top:10px" onclick="admVerWasabi('${ADM_VIEWUID}',this)">👁 Ver Wasabi</button>
+    <div id="admWasabiArea"></div></div>`;
+  // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
+  const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
+  const sentGroups=!!(pred.sent_at?.grupos);
+  html+=`<div class="card flat"><div class="sec-title">⚽ Principal</div>
+    <p class="note">${mainCount}/${FIXTURE.length} partidos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
+    <button class="btn sm" style="margin-top:10px" onclick="admVerGrupos('${ADM_VIEWUID}',this)">👁 Ver fase de grupos</button>
+    <div id="admGruposArea"></div></div>`;
+  // BITÁCORA
+  html+=`<div class="card"><div class="sec-title">📋 Bitácora de correcciones</div><div id="logArea"><p class="note">Cargando…</p></div></div>`;
+  area.innerHTML=html;
+  adminLoadEditLog().then(log=>{
+    const la=$("#logArea"); if(!la) return;
+    if(!log.length){ la.innerHTML=`<p class="note">Todavía no hay correcciones registradas.</p>`; return; }
+    la.innerHTML=log.map(e=>{
+      const who=APP.profiles.find(p=>p.id===e.target_user)?.display_name||"?";
+      const when=new Date(e.created_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});
+      return `<div class="reg-item" style="flex-direction:column;gap:2px">
+        <span><b>${esc(who)}</b> · ${esc(e.card)}/${esc(e.field)} · ${when}</span>
+        <span class="note">"${esc(e.old_value||'—')}" → "${esc(e.new_value||'—')}"</span></div>`;
+    }).join("");
+  });
+}
+// campo editable según tipo (reusa la lógica de inputFor pero llamando a adminEditPred)
+async function admLockStage(uid, stage){
+  try{
+    const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
+    const ss={...(pred.stages_sent||{})};
+    ss[stage]=true;
+    const sa={...(pred.sent_at||{})};
+    sa[stage]=new Date().toISOString();
+    await sb.from("predictions").update({stages_sent:ss, sent_at:sa}).eq("user_id",uid);
+    await adminLoadAllPreds();
+    toast("🔒 Tarjeta cerrada","ok");
+    admTarjetas(document.getElementById("admArea"));
+  }catch(e){ toast(e.message,"err"); }
+}
+async function admUnlockStage(uid, stage){
+  try{
+    const pred=APP.allPreds?.[uid]; if(!pred) throw new Error("No se encontró al jugador.");
+    const ss={...(pred.stages_sent||{})};
+    delete ss[stage];
+    const sa={...(pred.sent_at||{})};
+    delete sa[stage];
+    await sb.from("predictions").update({stages_sent:ss, sent_at:sa}).eq("user_id",uid);
+    await adminLoadAllPreds();
+    toast("✅ Tarjeta habilitada","ok");
+    admTarjetas(document.getElementById("admArea"));
+  }catch(e){ toast(e.message,"err"); }
+}
+function admVerWasabi(uid, btn){
+  const area = document.getElementById('admWasabiArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver Wasabi'; return; }
+  btn.textContent='🔼 Ocultar Wasabi';
+  const pred = APP.allPreds?.[uid]||{};
+  let html='';
+  APP.wasabiQs.forEach((q,i)=>{
+    if(q.type==="bonus"){ html+=`<div class="wq"><div class="qt">${i+1}. ${esc(q.t)} <span class="note">(bonus)</span></div></div>`; return; }
+    const wv=(pred.wasabi||{})[q.id]??"";
+    html+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(uid,'wasabi',q,wv)}</div>`;
+  });
+  area.innerHTML=html;
+}
+function admVerGrupos(uid, btn){
+  const area = document.getElementById('admGruposArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver fase de grupos'; return; }
+  btn.textContent='▲ Ocultar';
+  const pred = APP.allPreds?.[uid]||{};
+  const main = pred.main||{};
+  const grupos = [...new Set(FIXTURE.map(f=>f.group))].sort();
+  let html='<div style="margin-top:12px">';
+  grupos.forEach(g=>{
+    const partidos = FIXTURE.filter(f=>f.group===g);
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b><table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+    partidos.forEach(f=>{
+      const v=main[f.id]||{};
+      const score = (v.h!=null&&v.h!=='') ? `${v.h} - ${v.a}` : '<span style="color:#aaa">sin cargar</span>';
+      html+=`<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:3px 4px;text-align:right">${esc(f.home)}</td>
+        <td style="padding:3px 8px;text-align:center;font-weight:600">${score}</td>
+        <td style="padding:3px 4px">${esc(f.away)}</td>
+      </tr>`;
+    });
+    html+=`</table></div>`;
+  });
+  html+='</div>';
+  area.innerHTML=html;
+}
+
+function admEditField(uid,card,q,val){
+  const oc=`onchange="doAdminEdit('${uid}','${card}','${q.id}',this.value)"`;
+  if(q.type==="num") return `<input type="number" value="${esc(val)}" ${oc}>`;
+  if(q.type==="yesno") return `<select ${oc}><option value="">—</option>${["Sí","No"].map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join("")}</select>`;
+  if(q.type==="choice"&&Array.isArray(q.options)) return `<select ${oc}><option value="">—</option>${sortByName(q.options).map(o=>`<option ${val===o?'selected':''}>${esc(o)}</option>`).join("")}</select>`;
+  if(q.type==="player") return `<select ${oc}><option value="">—</option>${sortByName(PLANTEL_ARG).map(p=>`<option ${val===p?'selected':''}>${esc(p)}</option>`).join("")}</select>`;
+  if(q.type==="participant") return `<select ${oc}><option value="">—</option>${sortByName(playersOnly(),'display_name').map(p=>`<option ${val===p.display_name?'selected':''}>${esc(p.display_name)}</option>`).join("")}</select>`;
+  if(q.type==="team"){
+    const teams=Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f}));
+    return `<select ${oc}><option value="">—</option>${sortByName(teams,'n').map(t=>`<option ${val===t.n?'selected':''} value="${t.n}">${t.f} ${t.n}</option>`).join("")}</select>`;
+  }
+  return `<input value="${esc(val)}" ${oc}>`;
+}
+async function doAdminEdit(uid,card,field,value){
+  try{ await adminEditPred(uid,card,field,value); toast("Corregido y registrado en bitácora","ok"); admTarjetas($("#admArea")); }
+  catch(e){ toast(e.message,"err"); }
+}
+
+/* ---------- ADMIN: exportar todo a Excel ---------- */
+function admExport(area){
+  area.innerHTML=`<div class="card"><div class="sec-title">📤 Exportar respaldo</div>
+    <p class="note">Descargá una planilla Excel con todo lo que cargó cada jugador (Wasabi y Principal), el estado de pago y la bitácora de correcciones. Sirve como respaldo ante reclamos: es una foto de la base en este momento.</p>
+    <button class="btn primary" style="margin-top:14px" onclick="doExport()">📥 Descargar Excel</button>
+    <p class="note" style="margin-top:10px">Conviene exportar después de la fecha límite (11/6) para tener la foto definitiva.</p></div>`;
+}
+async function doExport(){
+  try{
+    toast("Generando Excel…");
+    await adminLoadAllPreds();
+    const log=await adminLoadEditLog();
+    buildExcel(log);
+  }catch(e){ toast(e.message,"err"); }
+}
+
+/* genera y descarga el respaldo en Excel.
+   Usa formato SpreadsheetML (XML de Excel) nativo, sin librerías externas:
+   funciona offline y lo abren Excel y Google Sheets. Varias hojas en un archivo. */
+function buildExcel(log){
+  const players=APP.profiles.slice().sort((a,b)=>a.display_name.localeCompare(b.display_name));
+  const fmtTime=t=>t?new Date(t).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'}):"";
+  const xmlEsc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function cell(v){
+    const num = typeof v==="number" && isFinite(v);
+    return `<Cell><Data ss:Type="${num?'Number':'String'}">${xmlEsc(v)}</Data></Cell>`;
+  }
+  function sheet(name, rows){
+    const safe=name.replace(/[^\w ]/g,"").slice(0,28);
+    const body=rows.map(r=>`<Row>${r.map(cell).join("")}</Row>`).join("");
+    return `<Worksheet ss:Name="${safe}"><Table>${body}</Table></Worksheet>`;
+  }
+  const tb=standings();
+  // Resumen
+  const resumen=[["Jugador","Email","Pago","Tarjeta enviada","Enviada el","Total Principal","Total Wasabi","TOTAL"]];
+  players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{}; const r=tb.find(x=>x.id===p.id)||{};
+    resumen.push([p.display_name,p.email||"",hasPaid(p.id)?"SÍ":"NO",pred.locked?"SÍ":"No (borrador)",fmtTime(pred.locked_at),
+      (r.main||0)+(r.extra||0),r.wasabi||0,r.total||0]); });
+  // Wasabi
+  const wasabi=[["Jugador",...APP.wasabiQs.map((q,i)=>`${i+1}. ${q.t.slice(0,40)}`)]];
+  players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{}; wasabi.push([p.display_name,...APP.wasabiQs.map(q=>(pred.wasabi||{})[q.id]??"")]); });
+  // Principal
+  const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:""))]];
+  players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
+    principal.push([p.display_name,...FIXTURE.map(m=>{const v=(pred.main||{})[m.id]; return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]); });
+  // Comodines
+  const com=[["Tipo","De","A","Fase","Jornada"]];
+  APP.comodines.forEach(c=>com.push([c.type==="sang"?"Sanguijuela":"Nitro",
+    APP.profiles.find(x=>x.id===c.by_user)?.display_name||"?",
+    c.target_user?(APP.profiles.find(x=>x.id===c.target_user)?.display_name||"?"):"-",c.phase,c.jor||""]));
+  // Bitácora
+  const bit=[["Fecha","Jugador","Tarjeta","Campo","Valor anterior","Valor nuevo"]];
+  (log||[]).forEach(e=>bit.push([fmtTime(e.created_at),APP.profiles.find(x=>x.id===e.target_user)?.display_name||"?",
+    e.card,e.field,e.old_value||"",e.new_value||""]));
+
+  const xml=`<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+${sheet("Resumen",resumen)}
+${sheet("Wasabi",wasabi)}
+${sheet("Principal",principal)}
+${sheet("Comodines",com)}
+${sheet("Bitacora",bit)}
+</Workbook>`;
+  const blob=new Blob([xml],{type:"application/vnd.ms-excel"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=`PinguiProde-respaldo-${new Date().toISOString().slice(0,10)}.xls`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("Excel descargado ✓","ok");
+}
+
+/* ---------- ARRANQUE ---------- */
+boot();
