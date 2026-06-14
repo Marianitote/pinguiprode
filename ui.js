@@ -327,9 +327,10 @@ function renderInicio(v){
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
       const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
       const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
-      const enabled = reteables.length>0 && hasMatches2 && wOpen2;
+      const yaSang = !!askedSangToday(APP.user?.id);
+      const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
-      const disabledReason = !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      const disabledReason = yaSang ? 'Ya aplicaste sanguijuela hoy' : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
       return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
         <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
@@ -871,9 +872,9 @@ function standingsTableHTML(opts){
       r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
       `<span class="move same">=</span>`;
     const sangBy = quienSanguijuelo(r.id);
-    const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸</span>`:""; 
+    const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸 <span style="font-size:11px;color:var(--muted)">por ${sangBy}</span></span>`:""; 
     const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(todayDayKey());
-    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
+    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:askedSangToday(APP.user.id)?`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
