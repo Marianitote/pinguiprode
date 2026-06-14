@@ -267,8 +267,10 @@ function renderInicio(v){
     const dayEnd=new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
     // convertir a UTC para comparar con kickoffs
     const toUTC=d=>new Date(d.toLocaleString('en-CA',{timeZone:'UTC'}));
-    const startUTC=new Date(dayRef.getFullYear(),dayRef.getMonth(),dayRef.getDate(),9,0,0); // 6am ARG = 9am UTC
-    const endUTC=new Date(startUTC); endUTC.setDate(endUTC.getDate()+1);
+    // 6am ARG = 9am UTC; usar ISO string para evitar ambigüedad de zona local del browser
+    const y=dayRef.getFullYear(), mo=String(dayRef.getMonth()+1).padStart(2,'0'), d2=String(dayRef.getDate()).padStart(2,'0');
+    const startUTC=new Date(`${y}-${mo}-${d2}T09:00:00Z`);
+    const endUTC=new Date(startUTC.getTime()+24*60*60*1000);
     const todayMatches=FIXTURE.filter(m=>{
       if(!m.kickoff) return false;
       const k=new Date(m.kickoff);
