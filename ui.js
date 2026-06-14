@@ -258,18 +258,14 @@ function renderInicio(v){
     // Partidos del día (6am Argentina a 6am del día siguiente)
     const tz='America/Argentina/Buenos_Aires';
     const now=new Date();
-    const argNow=new Date(now.toLocaleString('en-CA',{timeZone:tz}));
-    const argH=argNow.getHours();
-    // si es antes de las 6am, el "día de partidos" es el día anterior
-    const dayRef=new Date(argNow);
-    if(argH<6) dayRef.setDate(dayRef.getDate()-1);
-    const dayStart=new Date(dayRef); dayStart.setHours(6,0,0,0);
-    const dayEnd=new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
-    // convertir a UTC para comparar con kickoffs
-    const toUTC=d=>new Date(d.toLocaleString('en-CA',{timeZone:'UTC'}));
-    // 6am ARG = 9am UTC; usar ISO string para evitar ambigüedad de zona local del browser
-    const y=dayRef.getFullYear(), mo=String(dayRef.getMonth()+1).padStart(2,'0'), d2=String(dayRef.getDate()).padStart(2,'0');
-    const startUTC=new Date(`${y}-${mo}-${d2}T09:00:00Z`);
+    // obtener fecha argentina como string YYYY-MM-DD
+    const argDateStr=now.toLocaleDateString('en-CA',{timeZone:tz}); // "2026-06-14"
+    const argH=parseInt(now.toLocaleTimeString('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}));
+    // si antes de las 6am, tomar el día anterior
+    let [yy,mm,dd]=argDateStr.split('-').map(Number);
+    if(argH<6){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
+    const pad=n=>String(n).padStart(2,'0');
+    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T09:00:00Z`); // 6am ARG = UTC-3 = 9am UTC
     const endUTC=new Date(startUTC.getTime()+24*60*60*1000);
     const todayMatches=FIXTURE.filter(m=>{
       if(!m.kickoff) return false;
