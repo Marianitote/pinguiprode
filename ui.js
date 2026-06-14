@@ -180,6 +180,22 @@ function menuUser(){
 /* =====================================================================
    PESTAÑA · INICIO
    ===================================================================== */
+const AVATAR_MAP = {
+  'Penk': 'penk',
+  'Lagarto_Juancho': 'lagarto_juancho',
+  'Damián': 'damian',
+  'Toro': 'toro',
+  'Canario': 'canario',
+  'Morsa': 'morsa',
+  'Pato': 'pato',
+  'Dani': 'dani',
+  'Reicho': 'reicho',
+  'Yanko': 'yanko',
+  'Campeón 2014 (Frankie nunca pagó el asado)': 'campeon2014',
+  'Truman': 'truman',
+};
+const AVATAR_BASE = 'https://vbkiqqbybiitsljummpp.supabase.co/storage/v1/object/public/avatars/';
+function avatarUrl(name){ const k=AVATAR_MAP[name]; return k?`${AVATAR_BASE}${k}.jpg`:null; }
 function renderInicio(v){
   const tb=standings();
   // ---- VISTA DEL ADMIN: tabla completa + accesos rápidos al panel ----
@@ -324,6 +340,18 @@ function renderInicio(v){
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
     ${(()=>{
+    const tb3=standings();
+    const last=tb3[tb3.length-1];
+    if(!last) return '';
+    const av=avatarUrl(last.name);
+    return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06)">
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
+      ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px">`:``}
+      <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
+    </div>`;
+  })()}
+  ${(()=>{
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
       const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
       const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
