@@ -42,24 +42,22 @@ async function createProfile(displayName){
 
 /* ---------- DATOS ---------- */
 async function loadAll(){
-  // perfiles (todos, para la tabla)
-  const {data:profs}=await sb.from('profiles').select('*');
-  APP.profiles=profs||[];
-  // mis predicciones
-  const {data:mp}=await sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle();
-  APP.myPred=mp||null;
-  // resultados
-  const {data:rs}=await sb.from('results').select('*').eq('id',1).maybeSingle();
-  if(rs) APP.results=rs;
-  // comodines
-  const {data:cm}=await sb.from('comodines').select('*').order('created_at');
-  APP.comodines=cm||[];
-  // cargar predicciones de todos para calcular tabla de puntos
-  const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
-  (allP||[]).forEach(p=>{ _predCache[p.user_id]=p; });
+  // cargar todo en paralelo para mayor velocidad
+  const [profsRes, mpRes, rsRes, cmRes, allPRes] = await Promise.all([
+    sb.from('profiles').select('*'),
+    sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
+    sb.from('results').select('*').eq('id',1).maybeSingle(),
+    sb.from('comodines').select('*').order('created_at'),
+    sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
+  ]);
+  APP.profiles=profsRes.data||[];
+  APP.myPred=mpRes.data||null;
+  if(rsRes.data) APP.results=rsRes.data;
+  APP.comodines=cmRes.data||[];
+  (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   // si es admin: cargar pagos y datos completos
   if(APP.profile?.is_admin){ await loadPayments(); await adminLoadAllPreds(); }
-  // snapshots de posiciones (para las flechas ▲▼) — crea los que falten si ya cerró la fecha
+  // snapshots de posiciones (para las flechas ▲▼)
   await syncSnapshots();
 }
 
