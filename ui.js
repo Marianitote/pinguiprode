@@ -254,6 +254,65 @@ function renderInicio(v){
     </div>
     ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
   </div>
+  ${(()=>{
+    // Partidos del día (6am Argentina a 6am del día siguiente)
+    const tz='America/Argentina/Buenos_Aires';
+    const now=new Date();
+    const argNow=new Date(now.toLocaleString('en-CA',{timeZone:tz}));
+    const argH=argNow.getHours();
+    // si es antes de las 6am, el "día de partidos" es el día anterior
+    const dayRef=new Date(argNow);
+    if(argH<6) dayRef.setDate(dayRef.getDate()-1);
+    const dayStart=new Date(dayRef); dayStart.setHours(6,0,0,0);
+    const dayEnd=new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+    // convertir a UTC para comparar con kickoffs
+    const toUTC=d=>new Date(d.toLocaleString('en-CA',{timeZone:'UTC'}));
+    const startUTC=new Date(dayRef.getFullYear(),dayRef.getMonth(),dayRef.getDate(),9,0,0); // 6am ARG = 9am UTC
+    const endUTC=new Date(startUTC); endUTC.setDate(endUTC.getDate()+1);
+    const todayMatches=FIXTURE.filter(m=>{
+      if(!m.kickoff) return false;
+      const k=new Date(m.kickoff);
+      return k>=startUTC && k<endUTC;
+    });
+    if(!todayMatches.length) return '';
+    const res=APP.results?.main||{};
+    const myMain=APP.myPred?.main||{};
+    let rows='';
+    todayMatches.forEach(m=>{
+      const r=res[m.id]; const p=myMain[m.id]||{};
+      const kickoff=new Date(m.kickoff);
+      const hora=kickoff.toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
+      const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
+      const resultStr=r&&r.h!=null&&r.h!==''?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">${hora}hs</span>`;
+      const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
+      // acertaron si hay resultado
+      let acertaronStr='';
+      if(r&&r.h!=null&&r.h!==''){
+        const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
+        const exact=[],suman=[];
+        players.forEach(pl=>{
+          const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
+          const pred2=preds[m.id]; if(!pred2) return;
+          if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
+          const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+          const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
+          if(rWin===pWin) suman.push(pl.display_name);
+        });
+        acertaronStr=`<div class="acertaron" style="margin-top:4px">
+          <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
+          <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+        </div>`;
+      }
+      rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="flex:1;font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+          <span style="font-size:13px;min-width:40px;text-align:center">${resultStr}</span>
+          <span style="font-size:12px;color:var(--muted);min-width:40px;text-align:right">Tu pred: ${predStr}</span>
+        </div>${acertaronStr}
+      </div>`;
+    });
+    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>${rows}</div>`;
+  })()}
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
     ${(()=>{
       const ua = APP.results?.updated_at;
@@ -929,8 +988,8 @@ function renderReglamento(v){
     <div class="card flat"><div class="sec-title">Las tres tarjetas</div>
       ${R.tarjetas.map(t=>`<div style="margin-bottom:12px"><b>${t.n}${t.pts?` · ${t.pts} pts`:''}</b><div class="note">${esc(t.desc)}</div></div>`).join("")}</div>
     <details class="fold" open><summary>🃏 Sanguijuelas<span class="arr">›</span></summary><div class="body">${list(R.sanguijuela)}</div></details>
-    <details class="fold"><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
-    <details class="fold"><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>`;
+    <details class="fold" open><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
+    <details class="fold" open><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>`;
 }
 
 /* =====================================================================
