@@ -722,6 +722,7 @@ function validateSang(by,target){
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
   if(q[qKey]<=0) return "Ya usaste tus 3 sanguijuelas de esta fase.";
   // interacciones del mismo día
+  if(askedSangToday(by)) return "Ya aplicaste una sanguijuela hoy. Solo podés aplicar una por día.";
   if(askedNitroToday(by)) return "No podés usar Sanguijuela y Nitro el mismo día.";
   if(askedNitroToday(target)) return "No podés retar a quien pidió Nitro hoy (perderías la sanguijuela).";
   // máximo 2 veces a la misma persona por fase
