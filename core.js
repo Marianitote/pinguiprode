@@ -614,9 +614,10 @@ async function syncSnapshots(){
         }
       }
     }
-    // la "foto anterior" para las flechas = penúltima fecha cerrada
+    // la "foto anterior" para las flechas = último snapshot guardado (o penúltimo si hay fecha en curso)
     const closed=allDateKeys().filter(d=>{const e=dateEndKickoff(d.phase,d.jor);return e&&now>e.getTime();});
-    if(closed.length>=2) APP.lastSnapshot=have[closed[closed.length-2].key]||null;
+    const allSnapped=allDateKeys().filter(d=>have[d.key]);
+    if(allSnapped.length>=1) APP.lastSnapshot=have[allSnapped[allSnapped.length-1].key]||null;
     else APP.lastSnapshot=null;
   }catch(e){ console.warn("snapshots:",e.message); APP.lastSnapshot=null; }
 }
