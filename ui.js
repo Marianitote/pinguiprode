@@ -839,12 +839,18 @@ function standingsTableHTML(opts){
         btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
       } else if(!hasMatches||!wOpen){
         btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else if(askedSangToday(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else if(askedNitroToday(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Ya pediste nitro hoy" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
       } else {
         btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
       }
     } else {
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
-      if(reteable) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
+      const yaSangHoy = !!askedSangToday(me?.id);
+      if(reteable && !yaSangHoy) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
+      else if(reteable && yaSangHoy) btns+=`<span class="btn-mini sang" title="Ya aplicaste sanguijuela hoy" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
