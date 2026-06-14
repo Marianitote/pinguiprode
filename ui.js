@@ -302,10 +302,10 @@ function renderInicio(v){
         </div>`;
       }
       rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="flex:1;font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
-          <span style="font-size:13px;min-width:40px;text-align:center">${resultStr}</span>
-          <span style="font-size:12px;color:var(--muted);min-width:40px;text-align:right">Tu pred: ${predStr}</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--aqua)">· Tu pred: ${predStr}</span>
+          <span style="margin-left:auto;font-size:13px">${resultStr}</span>
         </div>${acertaronStr}
       </div>`;
     });
