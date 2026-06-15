@@ -880,8 +880,9 @@ function standingsTableHTML(opts){
     } else {
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
-      if(reteable && !yaSangHoy) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
-      else if(reteable && yaSangHoy) btns+=`<span class="btn-mini sang" title="${wasChallengedToday(me?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+      const ventanaAbierta = wOpen && hasMatches;
+      if(reteable && !yaSangHoy && ventanaAbierta) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
+      else if(reteable) btns+=`<span class="btn-mini sang" title="${yaSangHoy?(wasChallengedToday(me?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy'):'Ventana cerrada (6-12hs con partidos)'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
