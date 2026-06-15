@@ -281,8 +281,8 @@ function renderInicio(v){
     let [yy,mm,dd]=argDateStr.split('-').map(Number);
     if(argH<6){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
     const pad=n=>String(n).padStart(2,'0');
-    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T09:00:00Z`); // 6am ARG = UTC-3 = 9am UTC
-    const endUTC=new Date(startUTC.getTime()+24*60*60*1000);
+    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T11:00:00Z`); // 8am ARG = UTC-3 = 11am UTC
+    const endUTC=new Date(startUTC.getTime()+20*60*60*1000); // 8am + 20hs = 4am ARG siguiente = 7am UTC
     const todayMatches=FIXTURE.filter(m=>{
       if(!m.kickoff) return false;
       const k=new Date(m.kickoff);
