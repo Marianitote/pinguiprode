@@ -1037,11 +1037,11 @@ function renderAdmin(v){
   if(!isAdmin()){ v.innerHTML=adminHint("🔒","Solo el COMIPRO."); return; }
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
-      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["export","📤 Exportar"]]
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["historial","📊 Historial"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
     </div></div><div id="admArea"></div>`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
-  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,export:admExport}[ADM])($("#admArea"));
+  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
 }
 function admPenalizaciones(area){
   const players = APP.profiles.filter(p=>!p.is_admin);
@@ -1434,6 +1434,64 @@ async function doAdminEdit(uid,card,field,value){
 }
 
 /* ---------- ADMIN: exportar todo a Excel ---------- */
+function admHistorial(area){
+  const preds = APP.allPreds||{};
+  const players = APP.profiles.filter(p=>!p.is_admin);
+  const res = APP.results.main||{};
+
+  // Agrupar comodines por día/bloque
+  const byBlock={};
+  APP.comodines.forEach(c=>{
+    const k=c.day||'sin-fecha';
+    if(!byBlock[k]) byBlock[k]=[];
+    byBlock[k].push(c);
+  });
+
+  const blocks=Object.keys(byBlock).sort().reverse();
+
+  let html=`<div class="card"><div class="sec-title">📊 Historial de comodines</div>
+    <p class="note">Sanguijuelas y Nitros aplicados por bloque, con resultado y puntos transferidos.</p>`;
+
+  if(!blocks.length){ html+=`<p class="note">No hay comodines registrados aún.</p>`; }
+
+  blocks.forEach(block=>{
+    html+=`<div style="margin-top:18px"><div class="sec-title" style="font-size:13px;color:var(--muted)">📅 Bloque ${block}</div>`;
+    byBlock[block].forEach(c=>{
+      const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';
+      const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?':'-';
+      if(c.type==='nitro'){
+        const pts=mainPointsByDay(preds[c.by_user]||{},block);
+        html+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:8px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">🔥</span>
+          <div style="flex:1"><b>${byName}</b> usó Nitro</div>
+          <span style="color:var(--gold);font-weight:700">x3 → ${pts*3} pts</span>
+        </div>`;
+      } else if(c.type==='sang'){
+        const pBy=mainPointsByDay(preds[c.by_user]||{},block);
+        const pTg=mainPointsByDay(preds[c.target_user]||{},block);
+        let resultado='', color='var(--muted)', ptsBadge='';
+        if(pBy>pTg){ resultado=`${byName} ganó`; color='var(--aqua)'; ptsBadge=`+${pTg} pts para ${byName}`; }
+        else if(pBy<pTg){ resultado=`${byName} perdió`; color='#ef4444'; ptsBadge=`-${Math.round(pTg*0.5)} pts para ${byName}`; }
+        else { resultado='Empate'; color='var(--muted)'; ptsBadge='Sin transferencia'; }
+        html+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">🩸</span>
+            <div style="flex:1"><b>${byName}</b> retó a <b>${tgName}</b></div>
+            <span style="color:${color};font-weight:700">${resultado}</span>
+          </div>
+          <div style="margin-top:4px;font-size:12px;color:var(--muted);padding-left:30px">
+            ${byName}: ${pBy} pts · ${tgName}: ${pTg} pts · ${ptsBadge}
+          </div>
+        </div>`;
+      }
+    });
+    html+=`</div>`;
+  });
+
+  html+=`</div>`;
+  area.innerHTML=html;
+}
+
 function admExport(area){
   area.innerHTML=`<div class="card"><div class="sec-title">📤 Exportar respaldo</div>
     <p class="note">Descargá una planilla Excel con todo lo que cargó cada jugador (Wasabi y Principal), el estado de pago y la bitácora de correcciones. Sirve como respaldo ante reclamos: es una foto de la base en este momento.</p>
