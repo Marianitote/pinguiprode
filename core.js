@@ -711,7 +711,7 @@ function windowErrorToday(){
 
 // ¿el usuario fue retado en partido alguno de hoy?
 function wasChallengedToday(uid){
-  const day=todayDayKey();
+  const day=todayBlockKey();
   return APP.comodines.find(c=>c.type==="sang"&&c.target_user===uid&&c.day===day);
 }
 function askedNitroToday(uid){
@@ -739,7 +739,8 @@ function validateSang(by,target){
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
   if(q[qKey]<=0) return "Ya usaste tus 3 sanguijuelas de esta fase.";
   // interacciones del mismo día
-  if(askedSangToday(by)) return "Ya aplicaste una sanguijuela hoy. Solo podés aplicar una por día.";
+  if(askedSangToday(by)) return "Ya aplicaste una sanguijuela hoy. Solo podés aplicar una por bloque.";
+  if(wasChallengedToday(by)) return "Fuiste sanguijueleado en este bloque: no podés aplicar sanguijuela hasta el próximo.";
   if(askedNitroToday(by)) return "No podés usar Sanguijuela y Nitro el mismo día.";
   if(askedNitroToday(target)) return "No podés retar a quien pidió Nitro hoy (perderías la sanguijuela).";
   // máximo 2 veces a la misma persona por fase
@@ -761,7 +762,7 @@ function validateNitro(by){
   if(q[qKey]<=0) return "Ya usaste tus 2 nitros de esta fase.";
   if(askedNitroToday(by)) return "Ya tenés un nitro pedido para hoy.";
   if(askedSangToday(by)) return "No podés usar Nitro y Sanguijuela el mismo día.";
-  if(wasChallengedToday(by)) return "Fuiste retado hoy: no podés usar Nitro.";
+  if(wasChallengedToday(by)) return "Fuiste sanguijueleado en este bloque: no podés usar Nitro hasta el próximo.";
   const tb=standings(); const me=tb.find(r=>r.id===by);
   if(!me) return "Jugador no encontrado.";
   if(me.pos===1||me.pos===2) return "El 1° y 2° no pueden usar nitro.";
