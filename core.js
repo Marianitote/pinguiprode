@@ -158,7 +158,7 @@ async function adminLoadEditLog(){
 
 /* ---------- COMODINES ---------- */
 async function requestComodin(type, targetUser){
-  const day = todayDayKey();
+  const day = todayBlockKey();
   const phase = phaseOfDay(day);
   if(!phase) throw new Error("No hay partidos hoy.");
   const {error}=await sb.from('comodines').insert({
@@ -650,6 +650,18 @@ function todayDayKey(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',
     year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 }
+// Clave del "bloque de partidos" actual: 8am ARG a 4am ARG del día siguiente
+// Si son las 0am-4am ARG, pertenecemos al bloque del día anterior
+function todayBlockKey(){
+  const tz='America/Argentina/Buenos_Aires';
+  const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(new Date()));
+  const d=new Date();
+  if(h<4){
+    // antes de las 4am = bloque del día anterior
+    d.setDate(d.getDate()-1);
+  }
+  return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
 
 // ¿hay partidos hoy de la fase X?
 function phaseOfDay(day){
@@ -703,11 +715,11 @@ function wasChallengedToday(uid){
   return APP.comodines.find(c=>c.type==="sang"&&c.target_user===uid&&c.day===day);
 }
 function askedNitroToday(uid){
-  const day=todayDayKey();
+  const day=todayBlockKey();
   return APP.comodines.find(c=>c.type==="nitro"&&c.by_user===uid&&c.day===day);
 }
 function askedSangToday(uid){
-  const day=todayDayKey();
+  const day=todayBlockKey();
   return APP.comodines.find(c=>c.type==="sang"&&c.by_user===uid&&c.day===day);
 }
 
