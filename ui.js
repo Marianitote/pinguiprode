@@ -356,10 +356,10 @@ function renderInicio(v){
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
       const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
       const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
-      const yaSang = !!askedSangToday(APP.user?.id);
+      const yaSang = !!askedSangToday(APP.user?.id) || !!wasChallengedToday(APP.user?.id);
       const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
-      const disabledReason = yaSang ? 'Ya aplicaste sanguijuela hoy' : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      const disabledReason = yaSang ? (wasChallengedToday(APP.user?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy') : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
       return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
         <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
@@ -868,6 +868,8 @@ function standingsTableHTML(opts){
         btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
       } else if(!hasMatches||!wOpen){
         btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+      } else if(wasChallengedToday(r.id)){
+        btns+=`<span class="btn-mini nitro" title="Fuiste sanguijueleado en este bloque, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
       } else if(askedSangToday(r.id)){
         btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
       } else if(askedNitroToday(r.id)){
@@ -877,9 +879,9 @@ function standingsTableHTML(opts){
       }
     } else {
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
-      const yaSangHoy = !!askedSangToday(me?.id);
+      const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
       if(reteable && !yaSangHoy) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
-      else if(reteable && yaSangHoy) btns+=`<span class="btn-mini sang" title="Ya aplicaste sanguijuela hoy" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+      else if(reteable && yaSangHoy) btns+=`<span class="btn-mini sang" title="${wasChallengedToday(me?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
