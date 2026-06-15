@@ -856,7 +856,7 @@ function standingsTableHTML(opts){
   // ¿a quién recibió sanguijuela? (en cualquier fecha de la fase actual) → para el ícono
   function recibioSang(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid); }
   function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid); }
-  function quienSanguijuelo(uid){ const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
+  function quienSanguijuelo(uid){ const block=todayBlockKey(); const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid&&co.day===block); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
   // botones inline
   function actions(r){
     if(!opts.inline||isAdmin()) return "";
