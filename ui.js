@@ -1474,11 +1474,26 @@ function buildExcel(log){
   const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:""))]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
     principal.push([p.display_name,...FIXTURE.map(m=>{const v=(pred.main||{})[m.id]; return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]); });
-  // Comodines
-  const com=[["Tipo","De","A","Fase","Jornada"]];
-  APP.comodines.forEach(c=>com.push([c.type==="sang"?"Sanguijuela":"Nitro",
-    APP.profiles.find(x=>x.id===c.by_user)?.display_name||"?",
-    c.target_user?(APP.profiles.find(x=>x.id===c.target_user)?.display_name||"?"):"-",c.phase,c.jor||""]));
+  // Comodines - con detalle de resultado
+  const com=[["Fecha","Tipo","De","A","Fase","Dia","Resultado","Pts transferidos"]];
+  APP.comodines.forEach(c=>{
+    const byName=APP.profiles.find(x=>x.id===c.by_user)?.display_name||"?";
+    const tgName=c.target_user?(APP.profiles.find(x=>x.id===c.target_user)?.display_name||"?"):"-";
+    let resultado="", ptsTrans="";
+    if(c.type==="sang"&&c.target_user){
+      const day=c.day||"";
+      const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},day);
+      const pTg=mainPointsByDay(APP.allPreds?.[c.target_user]||{},day);
+      if(pBy>pTg){ resultado=byName+" gano"; ptsTrans=pTg; }
+      else if(pBy<pTg){ resultado=byName+" perdio"; ptsTrans=Math.round(pTg*0.5); }
+      else { resultado="Empate"; ptsTrans=0; }
+    } else if(c.type==="nitro"){
+      const day=c.day||"";
+      const pts=mainPointsByDay(APP.allPreds?.[c.by_user]||{},day);
+      resultado="Nitro aplicado"; ptsTrans="x3 ("+pts+" pts)";
+    }
+    com.push([fmtTime(c.created_at),c.type==="sang"?"Sanguijuela":"Nitro",byName,tgName,c.phase,c.day||"",resultado,ptsTrans]);
+  });
   // Bitácora
   const bit=[["Fecha","Jugador","Tarjeta","Campo","Valor anterior","Valor nuevo"]];
   (log||[]).forEach(e=>bit.push([fmtTime(e.created_at),APP.profiles.find(x=>x.id===e.target_user)?.display_name||"?",
