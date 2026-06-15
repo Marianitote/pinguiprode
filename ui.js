@@ -288,6 +288,7 @@ function renderInicio(v){
       const k=new Date(m.kickoff);
       return k>=startUTC && k<endUTC;
     });
+    todayMatches.sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!todayMatches.length) return '';
     const res=APP.results?.main||{};
     const myMain=APP.myPred?.main||{};
