@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE - MUNDIAL 2026 — INTERFAZ (ui.js)
+   PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
 const $=s=>document.querySelector(s);
 const app=$("#app");
