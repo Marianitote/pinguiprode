@@ -340,6 +340,24 @@ function renderInicio(v){
     })()}
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
+  ${(()=>{
+      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
+      const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
+      const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
+      const yaSang = !!askedSangToday(APP.user?.id) || !!wasChallengedToday(APP.user?.id);
+      const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
+      const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+      const disabledReason = yaSang ? (wasChallengedToday(APP.user?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy') : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
+        <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
+          <option value="">— elegí un rival —</option>
+          ${opts2}
+        </select>
+        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayDayKey())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
+      </div>`;
+    })()}
+  </div>
     ${(()=>{
     const tb3=standings();
     const last=tb3[tb3.length-1];
@@ -395,24 +413,6 @@ function renderInicio(v){
     if(!rows) return '';
     return `<div class="card" style="margin-top:16px"><div class="sec-title">📊 Historial de comodines</div>${rows}</div>`;
   })()}
-  ${(()=>{
-      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
-      const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
-      const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
-      const yaSang = !!askedSangToday(APP.user?.id) || !!wasChallengedToday(APP.user?.id);
-      const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
-      const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
-      const disabledReason = yaSang ? (wasChallengedToday(APP.user?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy') : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
-      return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
-        <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
-          <option value="">— elegí un rival —</option>
-          ${opts2}
-        </select>
-        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayDayKey())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
-      </div>`;
-    })()}
-  </div>
   ${(()=>{
     const myPens=(APP.myPred?.penalties||[]);
     if(!myPens.length) return '';
