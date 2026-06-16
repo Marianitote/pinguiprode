@@ -1604,6 +1604,62 @@ function buildExcel(log){
   (log||[]).forEach(e=>bit.push([fmtTime(e.created_at),APP.profiles.find(x=>x.id===e.target_user)?.display_name||"?",
     e.card,e.field,e.old_value||"",e.new_value||""]));
 
+  // Log por fechas (formato pivotado — una fila por jugador, columnas por jornada)
+  const allDays=[...new Set(FIXTURE.map(m=>m.kickoff?m.kickoff.slice(0,10):null).filter(Boolean))].sort();
+  // agrupar partidos por día
+  const matchesByDay={};
+  FIXTURE.forEach(m=>{
+    if(!m.kickoff) return;
+    const d=m.kickoff.slice(0,10);
+    if(!matchesByDay[d]) matchesByDay[d]=[];
+    matchesByDay[d].push(m);
+  });
+  // calcular posición por día acumulada
+  function posAtDay(uid, upToDay){
+    // suma pts de todos los días hasta upToDay inclusive
+    let tot=0;
+    allDays.filter(d=>d<=upToDay).forEach(d=>{
+      tot+=mainPointsByDay(APP.allPreds?.[uid]||{},d);
+    });
+    return tot;
+  }
+  // header: Jugador | por cada día: ctrl, TE, TP, TW, Pen, Comod/pen, PtsGenFecha, ComodRecib, TotalFecha, Acum, Pos, ctrl
+  const logHeader1=["Jugador"];
+  const logHeader2=[""];
+  allDays.forEach(d=>{
+    const label=d.slice(5); // MM-DD
+    logHeader1.push(label,"","","","","","","","","","","");
+    logHeader2.push("ctrl","TE","TP","TW","Pen","Comod/pen","Pts Gen fecha","Comod recib","Total fecha","Acum","Pos","ctrl");
+  });
+  const logRows=[logHeader1,logHeader2];
+  const sortedPlayers=tb.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  sortedPlayers.forEach(r=>{
+    const uid=r.id;
+    const pred=APP.allPreds?.[uid]||{};
+    const row=[r.name];
+    let acum=0;
+    let prevPos=null;
+    allDays.forEach((d,di)=>{
+      const tp=mainPointsByDay(pred,d);
+      const tw=0; // wasabi no se calcula por día fácilmente
+      const te=di===allDays.length-1?(extraTotal(uid)||0):0; // extra solo en último día
+      const pen=penaltyTotal(uid)||0; // simplificado
+      // comodines del día
+      const dayComods=APP.comodines.filter(c=>c.day===d&&c.by_user===uid);
+      const nitro=dayComods.find(c=>c.type==="sang"||c.type==="nitro");
+      const comodPen=0;
+      const comodRecib=APP.comodines.filter(c=>c.day===d&&c.target_user===uid).length;
+      const totalFecha=tp+tw+te;
+      acum+=totalFecha;
+      // posición aproximada
+      const pos=tb.findIndex(x=>x.id===uid)+1;
+      const ctrl=prevPos!=null?prevPos-pos:0;
+      row.push(ctrl,te,tp,tw,pen,comodPen,totalFecha,comodRecib,totalFecha,acum,pos,ctrl);
+      prevPos=pos;
+    });
+    logRows.push(row);
+  });
+
   const xml=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -1612,6 +1668,7 @@ ${sheet("Wasabi",wasabi)}
 ${sheet("Principal",principal)}
 ${sheet("Comodines",com)}
 ${sheet("Bitacora",bit)}
+${sheet("Log Fechas",logRows)}
 </Workbook>`;
   const blob=new Blob([xml],{type:"application/vnd.ms-excel"});
   const url=URL.createObjectURL(blob);
