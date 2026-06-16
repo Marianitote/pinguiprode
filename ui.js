@@ -281,12 +281,12 @@ function renderInicio(v){
     let [yy,mm,dd]=argDateStr.split('-').map(Number);
     if(argH<6){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
     const pad=n=>String(n).padStart(2,'0');
-    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T11:00:00Z`); // 8am ARG = UTC-3 = 11am UTC
-    const endUTC=new Date(startUTC.getTime()+20*60*60*1000); // 8am + 20hs = 4am ARG siguiente = 7am UTC
+    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T11:00:00Z`); // 8am ARG = 11am UTC
     const todayMatches=FIXTURE.filter(m=>{
       if(!m.kickoff) return false;
-      const k=new Date(m.kickoff);
-      return k>=startUTC && k<endUTC;
+      // usar la fecha ARG del kickoff para determinar el bloque
+      const kickoffArgDate=new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'});
+      return kickoffArgDate===`${yy}-${pad(mm)}-${pad(dd)}`;
     });
     todayMatches.sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!todayMatches.length) return '';
