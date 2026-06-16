@@ -1041,8 +1041,10 @@ function openSangTo(targetId){ openSang(targetId); }
 async function confirmSang(){
   const target=$("#sangT").value; if(!target) return toast("No hay rival válido","err");
   const err=validateSang(APP.user.id,target); if(err) return toast(err,"err");
+  const btn=document.querySelector(".modal-inner button.btn.primary,.modal-inner button[onclick*=confirmSang]");
+  if(btn){ btn.disabled=true; btn.textContent="Activando..."; }
   try{ await requestComodin("sang",target); closeModal(); render(); toast("Sanguijuela activada 🩸","ok"); }
-  catch(e){ toast(e.message,"err"); }
+  catch(e){ toast(e.message,"err"); if(btn){ btn.disabled=false; btn.textContent="Confirmar reto"; } }
 }
 function openNitro(){
   const day=todayDayKey(); const phase=phaseOfDay(day);
@@ -1055,8 +1057,10 @@ function openNitro(){
 }
 async function confirmNitro(){
   const err=validateNitro(APP.user.id); if(err) return toast(err,"err");
+  const btn=document.querySelector(".modal-inner button.btn.gold");
+  if(btn){ btn.disabled=true; btn.textContent="Activando..."; }
   try{ await requestComodin("nitro",null); closeModal(); render(); toast("Nitro activado 🔥","ok"); }
-  catch(e){ toast(e.message,"err"); }
+  catch(e){ toast(e.message,"err"); if(btn){ btn.disabled=false; btn.textContent="Activar nitro x3"; } }
 }
 
 /* =====================================================================
