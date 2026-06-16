@@ -183,9 +183,9 @@ function matchPointsGrupos(pred,res){
   if(!pred||!res) return 0;
   if(res.h==null||res.h===""||res.a==null||res.a==="") return 0;
   let pt=0; const ps=sign(pred.h,pred.a), rs=sign(res.h,res.a);
-  if(+pred.h===+res.h&&+pred.a===+res.a) pt+=PTS.grupos.exact;
-  else { if(ps&&ps===rs) pt+=PTS.grupos.result;
-         if((+pred.h-+pred.a)===(+res.h-+res.a)) pt+=PTS.grupos.gd; }
+  if(+pred.h===+res.h&&+pred.a===+res.a){ pt+=PTS.grupos.exact; }
+  else if(ps&&ps===rs){ pt+=PTS.grupos.result; }
+  else if((+pred.h-+pred.a)===(+res.h-+res.a)){ pt+=PTS.grupos.gd; }
   return pt;
 }
 
