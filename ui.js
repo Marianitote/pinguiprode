@@ -298,7 +298,10 @@ function renderInicio(v){
       const kickoff=new Date(m.kickoff);
       const hora=kickoff.toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
       const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
-      const resultStr=r&&r.h!=null&&r.h!==''?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">${hora}hs</span>`;
+      const hasRes = r&&r.h!=null&&r.h!=='';
+      const resultStr = hasRes
+        ? `<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`
+        : `<span style="color:var(--muted)">${hora}hs</span>`;
       const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
       // acertaron si hay resultado
       let acertaronStr='';
