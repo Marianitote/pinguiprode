@@ -211,6 +211,29 @@ function renderInicio(v){
       <div class="k"><div class="n">${APP.comodines.length}</div><div class="l">Comodines pedidos</div></div>
       <div class="k"><div class="n">${tb.filter(r=>r.paid).length}</div><div class="l">Pagaron</div></div>
     </div>
+    ${(()=>{
+      const _tz='America/Argentina/Buenos_Aires';
+      const _ds=new Date().toLocaleDateString('en-CA',{timeZone:_tz});
+      const _h=parseInt(new Date().toLocaleTimeString('en-CA',{timeZone:_tz,hour:'2-digit',hour12:false}));
+      let [_y,_m,_d]=_ds.split('-').map(Number);
+      if(_h<4){const _p=new Date(Date.UTC(_y,_m-1,_d-1));_y=_p.getUTCFullYear();_m=_p.getUTCMonth()+1;_d=_p.getUTCDate();}
+      const _pad=n=>String(n).padStart(2,'0');
+      const _tm=FIXTURE.filter(m=>{
+        if(!m.kickoff) return false;
+        return new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:_tz})===`${_y}-${_pad(_m)}-${_pad(_d)}`;
+      }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+      if(!_tm.length) return '';
+      const _res=APP.results?.main||{};
+      let _rows='';
+      _tm.forEach(m=>{
+        const r=_res[m.id];
+        const ht=TEAMS[m.home];const at=TEAMS[m.away];
+        const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:_tz,hour:'2-digit',minute:'2-digit'});
+        const hasRes=r&&r.h!=null&&r.h!=='';
+        _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
+      });
+      return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
+    })()}
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
       <p class="note">Vista en vivo de las posiciones (incluye flechas ▲▼ y zonas).</p>
       ${standingsTableHTML({inline:false})}
