@@ -817,7 +817,17 @@ function renderWasabi(v){
     const isAnswered = v!=null && v!=="";
     const isBonus = q.type==="bonus";
     // colores de fondo: verde si respondida, oro si bonus, neutro si pendiente
-    const bgClass = isBonus ? "wq-bonus" : (isAnswered ? "wq-answered" : "");
+    const resVal=(APP.results.wasabi||{})[q.id];
+    const hasResult = !isBonus && resVal!=null && resVal!=="";
+    // puntos que sumó este jugador en esta pregunta
+    let myPts=0;
+    if(hasResult && q.type==="approx"){
+      myPts=approxPts(APP.user.id, q.id);
+    } else if(hasResult){
+      myPts=matchesResult(v, resVal)?q.pts:0;
+    }
+    // color de fondo: verde si tiene resultado del admin, amarillo si bonus, verde claro si respondida
+    const bgClass = isBonus ? "wq-bonus" : hasResult ? "wq-has-result" : (isAnswered ? "wq-answered" : "");
     html+=`<div class="wq ${bgClass}"><div class="qh"><div class="qn">${i+1}</div>
       <div class="qt">${esc(q.t)}</div><div><span class="badge ${q.noComo?'r':'w'}">${q.pts}</span></div></div>
       ${isBonus
@@ -827,13 +837,14 @@ function renderWasabi(v){
                : `<div style="font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0">Sin responder</div>`)
           : inputFor(q,v??"","wasabi",sent)}
       ${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}
+      ${hasResult?`<div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12.5px;color:var(--muted)">✔️ Respuesta correcta: <b style="color:var(--text)">${esc(resVal)}</b></span>
+        <span style="font-size:12.5px;font-weight:700;color:${myPts>0?'var(--aqua)':'#ef4444'}">Sumaste: ${myPts} pts</span>
+      </div>`:""}
       ${(()=>{
-        if(q.type==="bonus") return "";
-        const resVal=(APP.results.wasabi||{})[q.id];
-        if(resVal==null||resVal==="") return "";
+        if(!hasResult) return "";
         let ganadores=[];
         if(q.type==="approx"){
-          // para preguntas de aproximación: el/los más cercanos al resultado
           const resNum=parseFloat(resVal);
           if(!isNaN(resNum)){
             const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
