@@ -1102,7 +1102,42 @@ function renderAdmin(v){
     <div class="seg" style="margin-top:10px" id="admSeg">
       ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["historial","📊 Historial"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
-    </div></div><div id="admArea"></div>`;
+    </div></div>
+  ${(()=>{
+    // Partidos del día
+    const tz='America/Argentina/Buenos_Aires';
+    const argDateStr=new Date().toLocaleDateString('en-CA',{timeZone:tz});
+    const argH=parseInt(new Date().toLocaleTimeString('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}));
+    let [yy,mm,dd]=argDateStr.split('-').map(Number);
+    if(argH<4){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
+    const pad=n=>String(n).padStart(2,'0');
+    const todayMatches=FIXTURE.filter(m=>{
+      if(!m.kickoff) return false;
+      const kickoffArgDate=new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:tz});
+      return kickoffArgDate===`${yy}-${pad(mm)}-${pad(dd)}`;
+    }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    if(!todayMatches.length) return '<div id="admArea"></div>';
+    const res=APP.results?.main||{};
+    let rows='';
+    todayMatches.forEach(m=>{
+      const r=res[m.id];
+      const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
+      const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
+      const hasRes=r&&r.h!=null&&r.h!=='';
+      const resultStr=hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`;
+      rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
+        <span style="flex:1;font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+        <span>${resultStr}</span>
+      </div>`;
+    });
+    return `<div class="card" style="margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="sec-title" style="margin:0">⚽ Partidos de hoy</div>
+        <button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button>
+      </div>
+      ${rows}
+    </div><div id="admArea"></div>`;
+  })()}`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
   ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
 }
