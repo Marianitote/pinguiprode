@@ -1266,7 +1266,23 @@ function admWasabi(area){
       <button class="btn sm" onclick="toggleAutoWasabi()">${autoEnabled?'Deshabilitar':'Habilitar'}</button>
     </div>
   </div>`;
+  const SECTION_HEADERS_ADM = {
+    "w1":  { label:"Preguntas Generales", icon:"🌍", color:"#3b82f6" },
+    "w21": { label:"Preguntas de la Fase de Grupos", icon:"🏟️", color:"#8b5cf6" },
+    "w27": { label:"Primer Partido de Argentina", icon:"🇦🇷", color:"#16a34a" },
+    "w31": { label:"Segundo Partido de Argentina", icon:"🇦🇷", color:"#b45309" },
+    "w33": { label:"Tercer Partido de Argentina", icon:"🇦🇷", color:"#dc2626" },
+    "w38": { label:"Preguntas Cuartos de Final", icon:"🏅", color:"#7c3aed" },
+    "w47": { label:"Preguntas Absolutas", icon:"🌍", color:"#3b82f6" },
+  };
+  let openSectionAdm = false;
   APP.wasabiQs.forEach((q,i)=>{
+    if(SECTION_HEADERS_ADM[q.id]){
+      if(openSectionAdm) html+=`</div>`;
+      const s=SECTION_HEADERS_ADM[q.id];
+      html+=`<div class="wasabi-section" style="--sc:${s.color}"><div class="wasabi-section-title">${s.icon} ${s.label}</div>`;
+      openSectionAdm=true;
+    }
     if(AUTOQS.has(q.id)){
       html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>
         <p class="note" style="font-style:italic">Se completa de manera automática al cierre del Mundial.</p></div>`;
@@ -1317,6 +1333,7 @@ function admWasabi(area){
     }
     html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${input}${q.ac?`<p class="note" style="margin-top:8px;font-size:12.5px;font-style:italic">${esc(q.ac)}</p>`:""}${acertaronW}</div>`;
   });
+  if(openSectionAdm) html+=`</div>`;
   area.innerHTML=html;
 }
 async function setResWas(id,val){ const wasabi={...(APP.results.wasabi||{})}; wasabi[id]=val; try{ await adminSaveResults({wasabi}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
