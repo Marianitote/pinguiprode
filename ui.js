@@ -934,8 +934,8 @@ function standingsTableHTML(opts){
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
   // ¿a quién recibió sanguijuela? (en cualquier fecha de la fase actual) → para el ícono
-  function recibioSang(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid); }
-  function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid); }
+  function recibioSang(uid){ const block=todayBlockKey(); return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid&&c.day===block); }
+  function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid&&c.day===todayBlockKey()); }
   function quienSanguijuelo(uid){ const block=todayBlockKey(); const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid&&co.day===block); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
   // botones inline
   function actions(r){
@@ -991,8 +991,8 @@ function standingsTableHTML(opts){
       `<span class="move same">=</span>`;
     const sangBy = quienSanguijuelo(r.id);
     const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸 <span style="font-size:11px;color:var(--muted)">por ${sangBy}</span></span>`:""; 
-    const nitroHoy = askedNitroToday(r.id);
-    const nitroTag = nitroHoy?`<span class="recv-sang" title="Usó Nitro hoy">🔥</span>`:"";
+    const nitroHoyBlock = APP.comodines.some(c=>c.type==="nitro"&&c.by_user===r.id&&c.day===todayBlockKey());
+    const nitroTag = nitroHoyBlock?`<span class="recv-sang" title="Usó Nitro hoy">🔥</span>`:""; 
     const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(todayDayKey());
     const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:askedSangToday(APP.user.id)?`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
