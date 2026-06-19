@@ -57,8 +57,12 @@ async function loadAll(){
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   invalidateStandings();
   // cargar en paralelo: admin data + snapshots (no dependen entre sí)
-  const extraTasks = [syncSnapshots()];
-  if(APP.profile?.is_admin){ extraTasks.push(loadPayments(), adminLoadAllPreds()); }
+  // cada tarea tiene su propio catch para que un fallo no cuelgue toda la carga
+  const safe = fn => Promise.resolve(fn).catch(e => console.warn('loadAll extra:', e?.message||e));
+  const extraTasks = [safe(syncSnapshots())];
+  if(APP.profile?.is_admin){
+    extraTasks.push(safe(loadPayments()), safe(adminLoadAllPreds()));
+  }
   await Promise.all(extraTasks);
 }
 
