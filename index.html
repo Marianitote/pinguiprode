@@ -168,7 +168,63 @@ tr.me td{background:rgba(56,225,196,.07)}
 </head>
 <body>
 <div id="globalHeader" class="global-header">El único prode que premia al que menos sabe, y el único en el que ganan todos</div>
-<div id="app"><div class="auth-wrap"><div class="empty"><div class="big">🐧</div>Cargando…</div></div></div>
+<div id="app"><div class="auth-wrap"><div class="empty"><div class="big">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 130" width="90" height="90" style="overflow:visible">
+  <style>
+    .peng-body { animation: pengBounce 0.6s ease-in-out infinite alternate; transform-origin: 60px 90px; }
+    .peng-leg-r { animation: legKick 0.6s ease-in-out infinite; transform-origin: 68px 100px; }
+    .peng-leg-l { animation: legStand 0.6s ease-in-out infinite; transform-origin: 52px 100px; }
+    .ball { animation: ballRoll 0.6s ease-in-out infinite; transform-origin: 95px 115px; }
+    @keyframes pengBounce { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+    @keyframes legKick { 0% { transform: rotate(0deg); } 50% { transform: rotate(-40deg) translateX(6px); } 100% { transform: rotate(0deg); } }
+    @keyframes legStand { 0% { transform: rotate(0deg); } 50% { transform: rotate(10deg); } 100% { transform: rotate(0deg); } }
+    @keyframes ballRoll { 0% { transform: translateX(0px) rotate(0deg); } 50% { transform: translateX(8px) rotate(30deg); } 100% { transform: translateX(0px) rotate(0deg); } }
+  </style>
+  <!-- Pelota -->
+  <g class="ball">
+    <circle cx="95" cy="115" r="11" fill="#fff" stroke="#222" stroke-width="1.5"/>
+    <path d="M95 104 l3 5 l-3 2 l-3-2z M106 111 l-4 2 l-1-4 l4-1z M84 111 l4 2 l1-4 l-4-1z M99 122 l-4-1 l1-4 l3 1z M91 122 l4-1 l-1-4 l-3 1z" fill="#222" opacity="0.7"/>
+  </g>
+  <!-- Sombra -->
+  <ellipse cx="60" cy="125" rx="28" ry="5" fill="rgba(0,0,0,0.15)"/>
+  <!-- Cuerpo pingüino -->
+  <g class="peng-body">
+    <!-- Cuerpo negro -->
+    <ellipse cx="60" cy="82" rx="22" ry="28" fill="#1a1a2e"/>
+    <!-- Panza blanca -->
+    <ellipse cx="60" cy="85" rx="14" ry="20" fill="#f0f0f0"/>
+    <!-- Cabeza -->
+    <circle cx="60" cy="52" r="18" fill="#1a1a2e"/>
+    <!-- Cara blanca -->
+    <ellipse cx="60" cy="54" rx="11" ry="13" fill="#f0f0f0"/>
+    <!-- Ojos -->
+    <circle cx="55" cy="50" r="3.5" fill="white"/>
+    <circle cx="65" cy="50" r="3.5" fill="white"/>
+    <circle cx="56" cy="50" r="2" fill="#1a1a2e"/>
+    <circle cx="66" cy="50" r="2" fill="#1a1a2e"/>
+    <circle cx="56.5" cy="49.2" r="0.7" fill="white"/>
+    <circle cx="66.5" cy="49.2" r="0.7" fill="white"/>
+    <!-- Pico -->
+    <path d="M57 57 l3 5 l3-5z" fill="#f4a000"/>
+    <!-- Alas -->
+    <path d="M38 72 Q28 80 30 95 Q36 100 40 92 Q42 82 46 74z" fill="#1a1a2e"/>
+    <path d="M82 72 Q92 80 90 95 Q84 100 80 92 Q78 82 74 74z" fill="#1a1a2e"/>
+    <!-- Bufanda -->
+    <path d="M42 65 Q60 72 78 65 Q78 70 60 77 Q42 70 42 65z" fill="#e63946"/>
+    <rect x="72" y="65" width="8" height="14" rx="2" fill="#e63946"/>
+    <!-- Pierna izquierda -->
+    <g class="peng-leg-l">
+      <rect x="50" y="100" width="8" height="14" rx="3" fill="#1a1a2e"/>
+      <path d="M46 113 l12 0 l2 5 l-16 0z" fill="#f4a000"/>
+    </g>
+    <!-- Pierna derecha (la que patea) -->
+    <g class="peng-leg-r">
+      <rect x="62" y="100" width="8" height="14" rx="3" fill="#1a1a2e"/>
+      <path d="M58 113 l12 0 l2 5 l-16 0z" fill="#f4a000"/>
+    </g>
+  </g>
+</svg>
+</div>Cargando…</div></div></div>
 <footer id="globalFooter" class="global-footer">
   <div class="gf-title">Somos una organización transparente, profesional y diversa</div>
   <div class="gf-roles">
