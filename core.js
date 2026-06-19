@@ -57,11 +57,17 @@ async function loadAll(){
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   invalidateStandings();
   // cargar en paralelo: admin data + snapshots (no dependen entre sí)
-  // cada tarea tiene su propio catch para que un fallo no cuelgue toda la carga
-  const safe = fn => Promise.resolve(fn).catch(e => console.warn('loadAll extra:', e?.message||e));
-  const extraTasks = [safe(syncSnapshots())];
+  // timeout de 12 segundos por tarea para que un cuelgue no bloquee la carga
+  const withTimeout = (p, label) => Promise.race([
+    p.catch(e => console.warn(label, e?.message||e)),
+    new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
+  ]);
+  const extraTasks = [withTimeout(syncSnapshots(), 'syncSnapshots')];
   if(APP.profile?.is_admin){
-    extraTasks.push(safe(loadPayments()), safe(adminLoadAllPreds()));
+    extraTasks.push(
+      withTimeout(loadPayments(), 'loadPayments'),
+      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds')
+    );
   }
   await Promise.all(extraTasks);
 }
