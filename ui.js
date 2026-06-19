@@ -6,7 +6,7 @@ const app=$("#app");
 let TAB="inicio";
 function toast(m,k){const t=$("#toast");t.textContent=m;t.className="toast show "+(k||"");setTimeout(()=>t.className="toast",2600);}
 function esc(s){return(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
-function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
+function team(c){const t=TEAMS[c];return t?`${flagImg(c,20)}<span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
 function isAdmin(){return APP.profile?.is_admin;}
 function modal(html){let m=document.createElement("div");m.className="modal-bg";m.id="modalBg";m.innerHTML=`<div class="modal">${html}</div>`;m.onclick=e=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
 function closeModal(){const m=$("#modalBg");if(m)m.remove();}
@@ -230,7 +230,7 @@ function renderInicio(v){
         const ht=TEAMS[m.home];const at=TEAMS[m.away];
         const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:_tz,hour:'2-digit',minute:'2-digit'});
         const hasRes=r&&r.h!=null&&r.h!=='';
-        _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
+        _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?flagImg(m.home,18):''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?flagImg(m.away,18):''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
       });
       return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
     })()}
@@ -346,7 +346,7 @@ function renderInicio(v){
       }
       rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+          <span style="font-size:13px">${homeTeam?flagImg(m.home,18):''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?flagImg(m.away,18):''}</span>
           <span style="font-size:13px;font-weight:700;color:var(--aqua)">· Tu pred: ${predStr}</span>
           <span style="margin-left:auto;font-size:13px">${resultStr}</span>
         </div>${acertaronStr}
@@ -1139,7 +1139,7 @@ function renderAdmin(v){
     const ht=TEAMS[m.home];const at=TEAMS[m.away];
     const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:_tz,hour:'2-digit',minute:'2-digit'});
     const hasRes=r&&r.h!=null&&r.h!=='';
-    _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
+    _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?flagImg(m.home,18):''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?flagImg(m.away,18):''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
   });
   const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
