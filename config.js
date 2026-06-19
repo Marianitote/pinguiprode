@@ -64,6 +64,30 @@ const TEAMS = {
   POR:{n:"Portugal",f:"🇵🇹",g:"K"}, COD:{n:"RD Congo",f:"🇨🇩",g:"K"}, UZB:{n:"Uzbekistán",f:"🇺🇿",g:"K"}, COL:{n:"Colombia",f:"🇨🇴",g:"K"},
   ENG:{n:"Inglaterra",f:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",g:"L"}, CRO:{n:"Croacia",f:"🇭🇷",g:"L"}, GHA:{n:"Ghana",f:"🇬🇭",g:"L"}, PAN:{n:"Panamá",f:"🇵🇦",g:"L"},
 };
+
+/* Mapa de código FIFA → ISO 3166-1 alpha-2 para imágenes de banderas (CDN flagcdn.com).
+   Escocia (SCO) e Inglaterra (ENG) usan sus propios códigos de subdivisión. */
+const FLAG_ISO2 = {
+  MEX:'mx',RSA:'za',KOR:'kr',CZE:'cz',
+  CAN:'ca',BIH:'ba',QAT:'qa',SUI:'ch',
+  BRA:'br',MAR:'ma',HAI:'ht',SCO:'gb-sct',
+  USA:'us',PAR:'py',AUS:'au',TUR:'tr',
+  GER:'de',CUW:'cw',CIV:'ci',ECU:'ec',
+  NED:'nl',JPN:'jp',SWE:'se',TUN:'tn',
+  BEL:'be',EGY:'eg',IRN:'ir',NZL:'nz',
+  ESP:'es',CPV:'cv',KSA:'sa',URU:'uy',
+  FRA:'fr',SEN:'sn',IRQ:'iq',NOR:'no',
+  ARG:'ar',ALG:'dz',AUT:'at',JOR:'jo',
+  POR:'pt',COD:'cd',UZB:'uz',COL:'co',
+  ENG:'gb-eng',CRO:'hr',GHA:'gh',PAN:'pa',
+};
+/* Retorna un <img> de bandera compatible con todos los sistemas (sin depender de emojis) */
+function flagImg(code, size){
+  const iso = FLAG_ISO2[code];
+  if(!iso) return '';
+  const px = size||20;
+  return `<img src="https://flagcdn.com/${px}x${Math.round(px*0.75)}/${iso}.png" width="${px}" height="${Math.round(px*0.75)}" style="border-radius:2px;vertical-align:middle;margin-right:3px" alt="${code}">`;
+}
 const GROUPS="ABCDEFGHIJKL".split("");
 const GROUP_TEAMS={}; GROUPS.forEach(g=>GROUP_TEAMS[g]=Object.keys(TEAMS).filter(k=>TEAMS[k].g===g));
 const RR=[ [[0,1],[2,3]], [[0,2],[3,1]], [[3,0],[1,2]] ];
