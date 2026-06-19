@@ -56,10 +56,10 @@ async function loadAll(){
   APP.comodines=cmRes.data||[];
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   invalidateStandings();
-  // si es admin: cargar pagos y datos completos
-  if(APP.profile?.is_admin){ await loadPayments(); await adminLoadAllPreds(); }
-  // snapshots de posiciones (para las flechas ▲▼)
-  await syncSnapshots();
+  // cargar en paralelo: admin data + snapshots (no dependen entre sí)
+  const extraTasks = [syncSnapshots()];
+  if(APP.profile?.is_admin){ extraTasks.push(loadPayments(), adminLoadAllPreds()); }
+  await Promise.all(extraTasks);
 }
 
 async function ensureMyPredRow(){
