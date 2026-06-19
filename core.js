@@ -604,24 +604,35 @@ async function syncSnapshots(){
   try{
     const {data:snaps}=await sb.from('standings_snapshots').select('*');
     const have={}; (snaps||[]).forEach(s=>have[s.date_key]=s.positions);
-    const now=Date.now();
-    let lastClosedKey=null;
-    for(const d of allDateKeys()){
-      const end=dateEndKickoff(d.phase,d.jor);
-      if(end && now>end.getTime()){
-        lastClosedKey=d.key;
-        if(!have[d.key]){
-          // crear snapshot de esta fecha cerrada
-          const pos=currentPositions();
-          await sb.from('standings_snapshots').insert({date_key:d.key,positions:pos});
-          have[d.key]=pos;
-        }
-      }
+    const tz='America/Argentina/Buenos_Aires';
+    const now=new Date();
+    // Usar fecha calendario ARG como date_key
+    // Un "día" cierra a las 4am ARG del día siguiente
+    const argH=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'numeric',hour12:false}).format(now));
+    const argDate=new Intl.DateTimeFormat('en-CA',{timeZone:tz}).format(now);
+    // obtener todos los días distintos con partidos ya jugados
+    const matchDays=[...new Set(FIXTURE.filter(m=>m.kickoff).map(m=>{
+      const k=new Date(m.kickoff);
+      return new Intl.DateTimeFormat('en-CA',{timeZone:tz}).format(k);
+    }))].sort();
+    for(const day of matchDays){
+      // el día cerró si ya pasaron las 4am ARG del día siguiente
+      const nextDay=new Date(day+'T07:00:00Z'); // 4am ARG = 7am UTC
+      nextDay.setDate(nextDay.getDate()+1);
+      if(now<nextDay) continue; // día todavía no cerró
+      if(have[day]) continue; // ya tiene snapshot
+      // crear snapshot para este día
+      const pos=currentPositions();
+      await sb.from('standings_snapshots').insert({date_key:day,positions:pos});
+      have[day]=pos;
     }
-    // la "foto anterior" para las flechas = último snapshot guardado (o penúltimo si hay fecha en curso)
-    const closed=allDateKeys().filter(d=>{const e=dateEndKickoff(d.phase,d.jor);return e&&now>e.getTime();});
-    const allSnapped=allDateKeys().filter(d=>have[d.key]);
-    if(allSnapped.length>=1) APP.lastSnapshot=have[allSnapped[allSnapped.length-1].key]||null;
+    // lastSnapshot = el snapshot del día anterior al actual
+    const closedDays=matchDays.filter(day=>{
+      const nextDay=new Date(day+'T07:00:00Z');
+      nextDay.setDate(nextDay.getDate()+1);
+      return now>=nextDay && have[day];
+    });
+    if(closedDays.length>=1) APP.lastSnapshot=have[closedDays[closedDays.length-1]]||null;
     else APP.lastSnapshot=null;
   }catch(e){ console.warn("snapshots:",e.message); APP.lastSnapshot=null; }
 }
