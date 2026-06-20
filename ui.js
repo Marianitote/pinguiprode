@@ -351,6 +351,82 @@ function renderInicio(v){
     });
     return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>${rows}</div>`;
   })()}
+  ${(()=>{
+    // ── Sanguijuelas frente a frente (bloque actual) ──────────────────
+    const block = todayBlockKey();
+    const sangsHoy = APP.comodines.filter(c=>c.type==='sang'&&c.day===block);
+    if(!sangsHoy.length) return '';
+    // partidos del día
+    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===block);
+    if(!matchesHoy.length) return '';
+    const resMain = APP.results?.main||{};
+    const preds = APP.allPreds||{};
+    // columnas: una por sanguijuela
+    const cols = sangsHoy.map(c=>{
+      const byName = APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';
+      const tgName = APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?';
+      return {c, byName, tgName};
+    });
+    // puntos totales por columna para determinar ganador/perdedor
+    const totals = cols.map(({c})=>({
+      pBy: mainPointsByDay(preds[c.by_user]||{}, block),
+      pTg: mainPointsByDay(preds[c.target_user]||{}, block),
+    }));
+    // header
+    let thead = `<tr><th style="text-align:left;font-size:12px;min-width:110px">Partido</th>`;
+    cols.forEach(({byName,tgName})=>{
+      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(byName)}<br><span style="color:var(--muted);font-weight:400">por ${esc(tgName)}</span></th>`;
+    });
+    // columna resultado
+    thead+=`<th style="font-size:11px;text-align:center">Resultado</th></tr>`;
+    // filas por partido
+    let tbody='';
+    matchesHoy.forEach(m=>{
+      const ht=TEAMS[m.home], at=TEAMS[m.away];
+      const r=resMain[m.id];
+      const hasRes=r&&r.h!=null&&r.h!=='';
+      let rowHtml=`<td style="font-size:12px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
+      cols.forEach(({c}, ci)=>{
+        const {pBy,pTg}=totals[ci];
+        // color de fondo según resultado global de la sang
+        const isRetador = true; // la pred mostrada es la del retador (by_user)
+        let bg='';
+        if(pBy>pTg) bg='rgba(34,197,94,0.15)';       // retador ganó → verde
+        else if(pBy<pTg) bg='rgba(239,68,68,0.15)';   // retador perdió → rojo
+        else bg='rgba(100,149,237,0.12)';              // empate → azul
+        const pred=(preds[c.by_user]?.main||{})[m.id];
+        const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
+        rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bg};padding:5px 8px">${predStr}</td>`;
+      });
+      // resultado real
+      const resStr=hasRes?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">—</span>`;
+      rowHtml+=`<td style="text-align:center;font-size:13px">${resStr}</td>`;
+      tbody+=`<tr style="border-bottom:1px solid var(--line)">${rowHtml}</tr>`;
+    });
+    // fila de totales
+    let tfoot=`<tr style="border-top:2px solid var(--line)"><td style="font-size:11px;font-weight:700;color:var(--muted)">Pts generados</td>`;
+    cols.forEach(({c,byName,tgName},ci)=>{
+      const {pBy,pTg}=totals[ci];
+      let res='', col='var(--muted)';
+      if(pBy>pTg){res=`${byName} 🏆`;col='#22c55e';}
+      else if(pBy<pTg){res=`${tgName} 🏆`;col='#22c55e';}
+      else{res='Empate';col='cornflowerblue';}
+      tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
+        <div style="font-weight:700">${pBy} vs ${pTg}</div>
+        <div style="font-size:11px;color:${col}">${res}</div>
+      </td>`;
+    });
+    tfoot+=`<td></td></tr>`;
+    return `<div class="card">
+      <div class="sec-title">🩸 Sanguijuelas · frente a frente</div>
+      <p class="note" style="margin-bottom:10px">Retos activos de hoy. Verde = retador gana · Rojo = retador pierde · Azul = empate.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead>${thead}</thead>
+        <tbody>${tbody}</tbody>
+        <tfoot>${tfoot}</tfoot>
+      </table></div>
+    </div>`;
+  })()}
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
     ${(()=>{
       const ua = APP.results?.updated_at;
