@@ -417,11 +417,11 @@ function renderInicio(v){
       </td>`;
     });
     tfoot+=`<td></td></tr>`;
-    return `<div class="card">
-      <div class="sec-title">🩸 Sanguijuelas · frente a frente</div>
+    return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
+      <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
       <p class="note" style="margin-bottom:10px">Retos activos de hoy. Verde = retador gana · Rojo = retador pierde · Azul = empate.</p>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-        <thead>${thead}</thead>
+        <thead style="border-bottom:2px solid #7f1d1d">${thead}</thead>
         <tbody>${tbody}</tbody>
         <tfoot>${tfoot}</tfoot>
       </table></div>
