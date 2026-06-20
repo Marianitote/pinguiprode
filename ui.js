@@ -1641,60 +1641,176 @@ async function doAdminEdit(uid,card,field,value){
 }
 
 /* ---------- ADMIN: exportar todo a Excel ---------- */
-function admHistorial(area){
+async function admHistorial(area){
+  area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>Cargando historial…</div></div>`;
+  // cargar snapshots de wasabi por día
+  const wasabiSnaps = await loadWasabiSnapshots();
   const preds = APP.allPreds||{};
-  const players = APP.profiles.filter(p=>!p.is_admin);
-  const res = APP.results.main||{};
+  const players = APP.profiles.filter(p=>!p.is_admin).sort((a,b)=>a.display_name.localeCompare(b.display_name));
 
-  // Agrupar comodines por día/bloque
-  const byBlock={};
-  APP.comodines.forEach(c=>{
-    const k=c.day||'sin-fecha';
-    if(!byBlock[k]) byBlock[k]=[];
-    byBlock[k].push(c);
+  // todos los días con partidos
+  const allDays=[...new Set(FIXTURE.filter(m=>m.kickoff).map(m=>dayKey(m.kickoff)))].sort();
+  // días con resultados cargados (al menos un partido con resultado)
+  const daysWithRes = allDays.filter(d=>{
+    const matches=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===d);
+    return matches.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
   });
 
+  // puntos acumulados por jugador antes de cada día
+  const acumBefore={}; // acumBefore[uid][day] = puntos acumulados ANTES de ese día
+  players.forEach(p=>{
+    acumBefore[p.id]={};
+    let acum=0;
+    daysWithRes.forEach(d=>{
+      acumBefore[p.id][d]=acum;
+      // sumar principal del día
+      const ptsPrinc=mainPointsByDay(preds[p.id]||{},d);
+      // sumar wasabi con snapshot del día (o el más reciente anterior)
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(p.id,wasabiSnap):0;
+      // wasabi incremental: diferencia con el día anterior
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(p.id,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      // comodines
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||""]||{},d);
+        if(c.type==="nitro"&&c.by_user===p.id) comodDelta+=pBy*2;
+        if(c.type==="sang"){
+          if(c.by_user===p.id){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===p.id&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      acum+=ptsPrinc+wasabiDelta+comodDelta;
+    });
+  });
+
+  // función desglose de un día para un jugador (modal)
+  window._histDesglose=(uid,day)=>{
+    const pred=preds[uid]||{};
+    const pName=APP.profiles.find(p=>p.id===uid)?.display_name||"?";
+    const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=day).sort();
+    const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:{};
+    const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<day).sort();
+    const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:{};
+    // partidos del día
+    const matches=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===day);
+    let rows="";
+    matches.forEach(m=>{
+      const p=(pred.main||{})[m.id]; const r=(APP.results.main||{})[m.id];
+      if(!r||r.h==null||r.h==="") return;
+      const pts=matchPointsGrupos(p,r);
+      const ht=TEAMS[m.home],at=TEAMS[m.away];
+      rows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px">
+        <span style="flex:1">${ht?.f||""} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||""}</span>
+        <span style="color:var(--muted)">Pred: ${p?`${p.h}-${p.a}`:"—"}</span>
+        <span style="color:var(--muted)">Real: ${r.h}-${r.a}</span>
+        <span style="font-weight:700;color:${pts>0?"var(--aqua)":"var(--muted)"};min-width:28px;text-align:right">${pts>0?"+"+pts:"0"}</span>
+      </div>`;
+    });
+    // preguntas wasabi con resultado en ese día
+    let wasabiRows="";
+    APP.wasabiQs.forEach((q,i)=>{
+      if(q.type==="bonus") return;
+      const resVal=wasabiSnap[q.id]; if(resVal==null||resVal==="") return;
+      const prevVal=prevSnap[q.id];
+      if(resVal===prevVal) return; // no cambió ese día
+      const ans=(pred.wasabi||{})[q.id];
+      const pts=q.type==="approx"?approxPts(uid,q.id):(matchesResult(ans,resVal)?q.pts:0);
+      wasabiRows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+        <span style="flex:1;color:var(--muted)">${i+1}. ${esc(q.t.slice(0,50))}</span>
+        <span style="color:var(--muted);font-size:11px">R: ${esc(resVal)}</span>
+        <span style="font-weight:700;color:${pts>0?"var(--aqua)":"var(--muted)"};min-width:28px;text-align:right">${pts>0?"+"+pts:"0"}</span>
+      </div>`;
+    });
+    modal(`<h3>📊 ${esc(pName)} · ${day}</h3>
+      ${rows||""}
+      ${wasabiRows?`<div style="margin-top:12px"><div class="sec-title" style="font-size:12px">🌶️ Wasabi resuelto este día</div>${wasabiRows}</div>`:""}
+      <button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`);
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────
+  let html=`<div class="card"><div class="sec-title">📊 Historial por día</div>
+    <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
+    <div style="overflow-x:auto;margin-top:12px"><table>
+      <tr><th>Jugador</th>${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join("")}</tr>
+      <tr><th></th>${daysWithRes.map(()=>`<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>`).join("")}</tr>`;
+
+  players.forEach(p=>{
+    html+=`<tr><td class="name" style="font-size:13px">${esc(p.display_name)}</td>`;
+    daysWithRes.forEach(d=>{
+      const antes=acumBefore[p.id]?.[d]??0;
+      const ptsPrinc=mainPointsByDay(preds[p.id]||{},d);
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(p.id,wasabiSnap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(p.id,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      const gen=ptsPrinc+wasabiDelta;
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||""]||{},d);
+        if(c.type==="nitro"&&c.by_user===p.id) comodDelta+=pBy*2;
+        if(c.type==="sang"){
+          if(c.by_user===p.id){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===p.id&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      const total=gen+comodDelta;
+      const comodStr=comodDelta===0?"0":(comodDelta>0?"+"+comodDelta:comodDelta);
+      html+=`<td style="text-align:right;font-size:12px;color:var(--muted)">${antes}</td>
+        <td style="text-align:right;font-size:12px">
+          <span style="color:${gen>0?"var(--aqua)":"var(--muted)"};cursor:${gen>0?"pointer":"default"};text-decoration:${gen>0?"underline":"none"}"
+            ${gen>0?`onclick="_histDesglose('${p.id}','${d}')"`:""}>${gen>0?"+"+gen:"0"}</span>
+        </td>
+        <td style="text-align:right;font-size:12px;color:${comodDelta>0?"#22c55e":comodDelta<0?"#ef4444":"var(--muted)"}">${comodStr}</td>
+        <td style="text-align:right;font-size:12px;font-weight:700">${total>0?"+"+total:total||0}</td>`;
+    });
+    html+=`</tr>`;
+  });
+
+  html+=`</table></div></div>`;
+
+  // ── Comodines del día (sección existente abajo) ──────────────────
+  const byBlock={};
+  APP.comodines.forEach(c=>{ const k=c.day||'sin-fecha'; if(!byBlock[k]) byBlock[k]=[]; byBlock[k].push(c); });
   const blocks=Object.keys(byBlock).sort().reverse();
-
-  let html=`<div class="card"><div class="sec-title">📊 Historial de comodines</div>
-    <p class="note">Sanguijuelas y Nitros aplicados por bloque, con resultado y puntos transferidos.</p>`;
-
+  html+=`<div class="card" style="margin-top:16px"><div class="sec-title">🩸🔥 Detalle de comodines</div>`;
   if(!blocks.length){ html+=`<p class="note">No hay comodines registrados aún.</p>`; }
-
   blocks.forEach(block=>{
-    html+=`<div style="margin-top:18px"><div class="sec-title" style="font-size:13px;color:var(--muted)">📅 Bloque ${block}</div>`;
+    html+=`<div style="margin-top:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">📅 ${block}</div>`;
     byBlock[block].forEach(c=>{
       const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';
       const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?':'-';
       if(c.type==='nitro'){
         const pts=mainPointsByDay(preds[c.by_user]||{},block);
-        html+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:8px;display:flex;align-items:center;gap:10px">
-          <span style="font-size:20px">🔥</span>
-          <div style="flex:1"><b>${byName}</b> usó Nitro</div>
-          <span style="color:var(--gold);font-weight:700">x3 → ${pts*3} pts</span>
-        </div>`;
+        html+=`<div style="padding:8px 10px;border-radius:8px;background:var(--card2);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+          <span>🔥</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> usó Nitro</div>
+          <span style="color:var(--gold);font-weight:700;font-size:12px">x3 → ${pts*3} pts</span></div>`;
       } else if(c.type==='sang'){
         const pBy=mainPointsByDay(preds[c.by_user]||{},block);
         const pTg=mainPointsByDay(preds[c.target_user]||{},block);
-        let resultado='', color='var(--muted)', ptsBadge='';
-        if(pBy>pTg){ resultado=`${byName} ganó`; color='var(--aqua)'; ptsBadge=`+${pTg} pts para ${byName}`; }
-        else if(pBy<pTg){ resultado=`${byName} perdió`; color='#ef4444'; ptsBadge=`-${Math.round(pTg*0.5)} pts para ${byName}`; }
-        else { resultado='Empate'; color='var(--muted)'; ptsBadge='Sin transferencia'; }
-        html+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:20px">🩸</span>
-            <div style="flex:1"><b>${byName}</b> retó a <b>${tgName}</b></div>
-            <span style="color:${color};font-weight:700">${resultado}</span>
-          </div>
-          <div style="margin-top:4px;font-size:12px;color:var(--muted);padding-left:30px">
-            ${byName}: ${pBy} pts · ${tgName}: ${pTg} pts · ${ptsBadge}
-          </div>
+        let res='',col='var(--muted)',badge='';
+        if(pBy>pTg){res=`${byName} ganó`;col='var(--aqua)';badge=`+${pTg} pts`;}
+        else if(pBy<pTg){res=`${byName} perdió`;col='#ef4444';badge=`-${pBy*0.5} pts`;}
+        else{res='Empate';badge='Sin transferencia';}
+        html+=`<div style="padding:8px 10px;border-radius:8px;background:var(--card2);margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span>🩸</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> retó a <b>${esc(tgName)}</b></div>
+            <span style="color:${col};font-weight:700;font-size:12px">${res}</span></div>
+          <div style="font-size:11px;color:var(--muted);padding-left:22px;margin-top:2px">${esc(byName)}: ${pBy}pts · ${esc(tgName)}: ${pTg}pts · ${badge}</div>
         </div>`;
       }
     });
     html+=`</div>`;
   });
-
   html+=`</div>`;
   area.innerHTML=html;
 }
@@ -1709,7 +1825,8 @@ async function doExport(){
   try{
     toast("Generando Excel…");
     await adminLoadAllPreds();
-    const log=await adminLoadEditLog();
+    const [log, wasabiSnaps] = await Promise.all([adminLoadEditLog(), loadWasabiSnapshots()]);
+    APP._wasabiSnaps = wasabiSnaps;
     buildExcel(log);
   }catch(e){ toast(e.message,"err"); }
 }
@@ -1768,58 +1885,56 @@ function buildExcel(log){
   (log||[]).forEach(e=>bit.push([fmtTime(e.created_at),APP.profiles.find(x=>x.id===e.target_user)?.display_name||"?",
     e.card,e.field,e.old_value||"",e.new_value||""]));
 
-  // Log por fechas (formato pivotado — una fila por jugador, columnas por jornada)
-  const allDays=[...new Set(FIXTURE.map(m=>m.kickoff?m.kickoff.slice(0,10):null).filter(Boolean))].sort();
-  // agrupar partidos por día
-  const matchesByDay={};
-  FIXTURE.forEach(m=>{
-    if(!m.kickoff) return;
-    const d=m.kickoff.slice(0,10);
-    if(!matchesByDay[d]) matchesByDay[d]=[];
-    matchesByDay[d].push(m);
+  // Log por fechas — desglose completo por día
+  // necesitamos los snapshots wasabi; como buildExcel es sync, usamos APP._wasabiSnaps si está cargado
+  const wasabiSnapsExcel = APP._wasabiSnaps||{};
+  const allDaysExcel=[...new Set(FIXTURE.filter(m=>m.kickoff).map(m=>dayKey(m.kickoff)))].sort();
+  const daysWithResExcel = allDaysExcel.filter(d=>{
+    const ms=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===d);
+    return ms.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
   });
-  // calcular posición por día acumulada
-  function posAtDay(uid, upToDay){
-    // suma pts de todos los días hasta upToDay inclusive
-    let tot=0;
-    allDays.filter(d=>d<=upToDay).forEach(d=>{
-      tot+=mainPointsByDay(APP.allPreds?.[uid]||{},d);
-    });
-    return tot;
-  }
-  // header: Jugador | por cada día: ctrl, TE, TP, TW, Pen, Comod/pen, PtsGenFecha, ComodRecib, TotalFecha, Acum, Pos, ctrl
+
+  // header fijo por día: Pts antes | Principal | Wasabi | Generados | Comodines | Total día
   const logHeader1=["Jugador"];
   const logHeader2=[""];
-  allDays.forEach(d=>{
-    const label=d.slice(5); // MM-DD
-    logHeader1.push(label,"","","","","","","","","","","");
-    logHeader2.push("ctrl","TE","TP","TW","Pen","Comod/pen","Pts Gen fecha","Comod recib","Total fecha","Acum","Pos","ctrl");
+  daysWithResExcel.forEach(d=>{
+    logHeader1.push(d.slice(5),"","","","","");
+    logHeader2.push("Pts antes","Principal","Wasabi","Generados","Comodines","Total día");
   });
   const logRows=[logHeader1,logHeader2];
-  const sortedPlayers=tb.slice().sort((a,b)=>a.name.localeCompare(b.name));
-  sortedPlayers.forEach(r=>{
+
+  const sortedPlayersExcel=tb.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  sortedPlayersExcel.forEach(r=>{
     const uid=r.id;
     const pred=APP.allPreds?.[uid]||{};
     const row=[r.name];
     let acum=0;
-    let prevPos=null;
-    allDays.forEach((d,di)=>{
-      const tp=mainPointsByDay(pred,d);
-      const tw=0; // wasabi no se calcula por día fácilmente
-      const te=di===allDays.length-1?(extraTotal(uid)||0):0; // extra solo en último día
-      const pen=penaltyTotal(uid)||0; // simplificado
-      // comodines del día
-      const dayComods=APP.comodines.filter(c=>c.day===d&&c.by_user===uid);
-      const nitro=dayComods.find(c=>c.type==="sang"||c.type==="nitro");
-      const comodPen=0;
-      const comodRecib=APP.comodines.filter(c=>c.day===d&&c.target_user===uid).length;
-      const totalFecha=tp+tw+te;
-      acum+=totalFecha;
-      // posición aproximada
-      const pos=tb.findIndex(x=>x.id===uid)+1;
-      const ctrl=prevPos!=null?prevPos-pos:0;
-      row.push(ctrl,te,tp,tw,pen,comodPen,totalFecha,comodRecib,totalFecha,acum,pos,ctrl);
-      prevPos=pos;
+    daysWithResExcel.forEach(d=>{
+      const antes=acum;
+      const ptsPrinc=mainPointsByDay(pred,d);
+      // wasabi incremental
+      const snapKeys=Object.keys(wasabiSnapsExcel).filter(k=>k<=d).sort();
+      const prevSnapKeys=Object.keys(wasabiSnapsExcel).filter(k=>k<d).sort();
+      const snap=snapKeys.length?wasabiSnapsExcel[snapKeys[snapKeys.length-1]]:null;
+      const prevSnap=prevSnapKeys.length?wasabiSnapsExcel[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=snap?wasabiTotalAtDay(uid,snap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      const gen=ptsPrinc+wasabiDelta;
+      // comodines
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},d);
+        const pTg=mainPointsByDay(APP.allPreds?.[c.target_user||""]||{},d);
+        if(c.type==="nitro"&&c.by_user===uid) comodDelta+=pBy*2;
+        if(c.type==="sang"){
+          if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===uid&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      const totalDia=gen+comodDelta;
+      acum+=totalDia;
+      row.push(antes, ptsPrinc, wasabiDelta, gen, comodDelta, totalDia);
     });
     logRows.push(row);
   });
