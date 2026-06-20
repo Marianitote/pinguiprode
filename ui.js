@@ -1241,7 +1241,8 @@ async function syncESPN(){
     if(updated>0){
       await adminSaveResults({main});
       toast(`✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`, 'ok');
-      admResultados(document.getElementById('admArea'));
+      const admArea = document.getElementById('admArea');
+      if(admArea) admResultados(admArea);
     } else {
       toast('No hay resultados nuevos', 'ok');
     }
