@@ -1733,6 +1733,69 @@ async function admHistorial(area){
       <button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`);
   };
 
+  // desglose de comodines de un jugador en un día
+  window._histComodDesglose=(uid,day)=>{
+    const pName=APP.profiles.find(p=>p.id===uid)?.display_name||"?";
+    const dayComods=APP.comodines.filter(c=>c.day===day&&(c.by_user===uid||c.target_user===uid));
+    if(!dayComods.length){ modal(`<h3>🎮 ${esc(pName)} · ${day}</h3><p class="note">Sin comodines ese día.</p><button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`); return; }
+
+    let rows="";
+    dayComods.forEach(c=>{
+      const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||"?";
+      const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||"?":"-";
+      const pBy=mainPointsByDay(preds[c.by_user]||{},day);
+      const pTg=c.target_user?mainPointsByDay(preds[c.target_user]||{},day):0;
+
+      if(c.type==="nitro"){
+        const ptsFinal=pBy*3;
+        rows+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:18px">🔥</span>
+            <b style="flex:1">${esc(byName)} usó Nitro</b>
+            <span style="color:var(--gold);font-weight:700">x3</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px;padding-left:26px">
+            <span>Puntos base del día: <b style="color:var(--text)">${pBy} pts</b></span>
+            <span>Con nitro (×3): <b style="color:var(--gold)">${ptsFinal} pts</b></span>
+            <span style="color:#22c55e;font-weight:600">Bonus aplicado: +${pBy*2} pts</span>
+          </div>
+        </div>`;
+      } else if(c.type==="sang"){
+        let resultado="", color="var(--muted)", detalle="";
+        if(pBy>pTg){
+          resultado=`${byName} ganó`;
+          color="var(--aqua)";
+          if(c.by_user===uid) detalle=`<span style="color:#22c55e;font-weight:600">+${pTg} pts (puntos del retado)</span>`;
+          else detalle=`<span style="color:#ef4444;font-weight:600">-${pTg} pts (te los llevó ${esc(byName)})</span>`;
+        } else if(pBy<pTg){
+          resultado=`${byName} perdió`;
+          color="#ef4444";
+          if(c.by_user===uid) detalle=`<span style="color:#ef4444;font-weight:600">-${pBy*0.5} pts (50% de tus puntos)</span>`;
+          else detalle=`<span style="color:#22c55e;font-weight:600">Sin efecto (el retador perdió)</span>`;
+        } else {
+          resultado="Empate";
+          detalle=`<span style="color:var(--muted)">Sin transferencia</span>`;
+        }
+        rows+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:18px">🩸</span>
+            <b style="flex:1">${esc(byName)} retó a ${esc(tgName)}</b>
+            <span style="color:${color};font-weight:700">${resultado}</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px;padding-left:26px">
+            <span>${esc(byName)}: <b style="color:var(--text)">${pBy} pts</b> ese día</span>
+            <span>${esc(tgName)}: <b style="color:var(--text)">${pTg} pts</b> ese día</span>
+            ${detalle}
+          </div>
+        </div>`;
+      }
+    });
+
+    modal(`<h3>🎮 ${esc(pName)} · comodines ${day}</h3>
+      ${rows}
+      <button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`);
+  };
+
   // ── Render ──────────────────────────────────────────────────────────
   let html=`<div class="card"><div class="sec-title">📊 Historial por día</div>
     <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
@@ -1770,7 +1833,10 @@ async function admHistorial(area){
           <span style="color:${gen>0?"var(--aqua)":"var(--muted)"};cursor:${gen>0?"pointer":"default"};text-decoration:${gen>0?"underline":"none"}"
             ${gen>0?`onclick="_histDesglose('${p.id}','${d}')"`:""}>${gen>0?"+"+gen:"0"}</span>
         </td>
-        <td style="text-align:right;font-size:12px;color:${comodDelta>0?"#22c55e":comodDelta<0?"#ef4444":"var(--muted)"}">${comodStr}</td>
+        <td style="text-align:right;font-size:12px;color:${comodDelta>0?"#22c55e":comodDelta<0?"#ef4444":"var(--muted)"}">
+          <span style="cursor:${comodDelta!==0?"pointer":"default"};text-decoration:${comodDelta!==0?"underline":"none"}"
+            ${comodDelta!==0?`onclick="_histComodDesglose('${p.id}','${d}')"`:""}>${comodStr}</span>
+        </td>
         <td style="text-align:right;font-size:12px;font-weight:700">${total>0?"+"+total:total||0}</td>`;
     });
     html+=`</tr>`;
