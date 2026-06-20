@@ -42,46 +42,32 @@ async function createProfile(displayName){
 
 /* ---------- DATOS ---------- */
 async function loadAll(){
-  const isAdm = APP.profile?.is_admin;
-  const withTimeout = (p, label) => Promise.race([
-    p.catch(e => console.warn(label, e?.message||e)),
-    new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
-  ]);
-
-  // queries base — siempre necesarias
-  const baseQueries = [
+  // cargar todo en paralelo para mayor velocidad
+  const [profsRes, mpRes, rsRes, cmRes, allPRes] = await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
     sb.from('results').select('*').eq('id',1).maybeSingle(),
     sb.from('comodines').select('*').order('created_at'),
     sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
-  ];
-  // para jugadores: agregar snapshot liviano en el mismo Promise.all (evita ronda extra)
-  if(!isAdm){
-    baseQueries.push(
-      sb.from('standings_snapshots').select('date_key,positions').order('date_key',{ascending:false}).limit(1)
-    );
-  }
-
-  const results = await Promise.all(baseQueries);
-  const [profsRes, mpRes, rsRes, cmRes, allPRes, snapRes] = results;
-
+  ]);
   APP.profiles=profsRes.data||[];
   APP.myPred=mpRes.data||null;
   if(rsRes.data) APP.results=rsRes.data;
   APP.comodines=cmRes.data||[];
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
-  if(snapRes) APP.lastSnapshot = snapRes.data?.[0]?.positions||null;
   invalidateStandings();
-
-  // admin: syncSnapshots completo + pagos + todas las preds
-  if(isAdm){
-    await Promise.all([
-      withTimeout(syncSnapshots(), 'syncSnapshots'),
+  const withTimeout = (p, label) => Promise.race([
+    p.catch(e => console.warn(label, e?.message||e)),
+    new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
+  ]);
+  const extraTasks = [withTimeout(syncSnapshots(), 'syncSnapshots')];
+  if(APP.profile?.is_admin){
+    extraTasks.push(
       withTimeout(loadPayments(), 'loadPayments'),
-      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds'),
-    ]);
+      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds')
+    );
   }
+  await Promise.all(extraTasks);
 }
 
 async function ensureMyPredRow(){
