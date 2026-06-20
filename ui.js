@@ -366,16 +366,20 @@ function renderInicio(v){
       return {c, byName, tgName};
     });
 
-    // partidos del bloque de la sang (usar c.day de la primera sang, todas del mismo bloque)
+    // partidos del bloque: el día de la sang + el día siguiente (para partidos nocturnos >medianoche ARG)
     const sangDay = sangsHoy[0].day;
-    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===sangDay)
-      .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    const nextDay = (d=>{ const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); })(sangDay);
+    const matchesHoy = FIXTURE.filter(m=>{
+      if(!m.kickoff) return false;
+      const dk=dayKey(m.kickoff);
+      return dk===sangDay || dk===nextDay;
+    }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!matchesHoy.length) return '';
 
-    // puntos totales por sang para determinar ganador/perdedor
+    // puntos: sumar los dos días del bloque
     const totals = cols.map(({c})=>({
-      pBy: mainPointsByDay(preds[c.by_user]||{}, sangDay),
-      pTg: mainPointsByDay(preds[c.target_user]||{}, sangDay),
+      pBy: mainPointsByDay(preds[c.by_user]||{}, sangDay) + mainPointsByDay(preds[c.by_user]||{}, nextDay),
+      pTg: mainPointsByDay(preds[c.target_user]||{}, sangDay) + mainPointsByDay(preds[c.target_user]||{}, nextDay),
     }));
 
     // header — "Retado / por Retador" como en el ejemplo
