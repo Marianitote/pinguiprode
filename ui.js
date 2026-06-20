@@ -360,15 +360,10 @@ function renderInicio(v){
     const preds = APP.allPreds||{};
     const sangDay = sangsHoy[0].day;
 
-    // blockKeyOf: igual que todayBlockKey pero para un kickoff arbitrario
-    const tz='America/Argentina/Buenos_Aires';
-    function blockKeyOf(kickoff){
-      const d=new Date(kickoff);
-      const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
-      if(h<4) d.setDate(d.getDate()-1);
-      return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
-    }
-    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&blockKeyOf(m.kickoff)===sangDay)
+    // IMPORTANTE: filtrar los partidos EXACTAMENTE igual que mainPointsByDay (usa dayKey,
+    // el día calendario ARG). Así los partidos mostrados son los mismos que cuentan para
+    // los puntos de la sanguijuela — sin esto se desalinean (ver bug Türkiye-Paraguay).
+    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===sangDay)
       .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!matchesHoy.length) return '';
 
