@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 - INTERFAZ (ui.js)
+   PINGÜIPRODE · MUNDIAL 2026 — INTERFAZ (ui.js)
    ===================================================================== */
 const $=s=>document.querySelector(s);
 const app=$("#app");
@@ -424,20 +424,14 @@ function renderInicio(v){
         const roles=playerSangs[uid];
         const pred=(preds[uid]?.main||{})[m.id];
         const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
-        if(roles.length===1){
-          // un solo rol → una celda con color de esa sang
-          const bg=sangBg(roles[0].c, uid);
-          rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bg};padding:5px 8px">${predStr}</td>`;
+        const bgs=[...new Set(roles.map(rr=>sangBg(rr.c, uid)))];
+        if(bgs.length<=1){
+          // un solo color (un rol, o dos roles con mismo resultado) → celda única
+          rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bgs[0]||''};padding:5px 8px">${predStr}</td>`;
         } else {
-          // dos roles (encadenado) → celda dividida diagonalmente con dos colores
-          const bg1=sangBg(roles[0].c, uid);
-          const bg2=sangBg(roles[1].c, uid);
-          rowHtml+=`<td style="padding:0;text-align:center;font-size:13px;font-weight:600">
-            <div style="display:flex;height:100%">
-              <div style="flex:1;padding:5px 4px;background:${bg1}">${predStr}</div>
-              <div style="flex:1;padding:5px 4px;background:${bg2};border-left:1px solid rgba(255,255,255,0.15)">${predStr}</div>
-            </div>
-          </td>`;
+          // dos roles con resultados distintos → celda dividida en franjas de color
+          const franjas=bgs.map((bg,i)=>`<div style="flex:1;padding:5px 4px;background:${bg};${i>0?'border-left:1px solid rgba(255,255,255,0.15)':''}">${predStr}</div>`).join('');
+          rowHtml+=`<td style="padding:0;text-align:center;font-size:13px;font-weight:600"><div style="display:flex;height:100%">${franjas}</div></td>`;
         }
       });
       const resStr=hasRes?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">—</span>`;
