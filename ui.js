@@ -358,16 +358,9 @@ function renderInicio(v){
     if(!sangsHoy.length) return '';
     const resMain = APP.results?.main||{};
     const preds = APP.allPreds||{};
-
-    // columnas: una por sanguijuela — header "Retado por Retador" (quien es retado primero)
-    const cols = sangsHoy.map(c=>{
-      const byName = APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';   // retador
-      const tgName = APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?'; // retado
-      return {c, byName, tgName};
-    });
+    const sangDay = sangsHoy[0].day;
 
     // blockKeyOf: igual que todayBlockKey pero para un kickoff arbitrario
-    // partidos antes de las 4am ARG pertenecen al bloque del día anterior
     const tz='America/Argentina/Buenos_Aires';
     function blockKeyOf(kickoff){
       const d=new Date(kickoff);
@@ -375,66 +368,124 @@ function renderInicio(v){
       if(h<4) d.setDate(d.getDate()-1);
       return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
     }
-    const sangDay = sangsHoy[0].day;
-    // filtrar partidos cuyo bloque === sangDay (igual que mainPointsByDay)
     const matchesHoy = FIXTURE.filter(m=>m.kickoff&&blockKeyOf(m.kickoff)===sangDay)
       .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!matchesHoy.length) return '';
 
-    // puntos totales — idéntico a mainPointsByDay
-    const totals = cols.map(({c})=>({
-      pBy: mainPointsByDay(preds[c.by_user]||{}, sangDay),
-      pTg: mainPointsByDay(preds[c.target_user]||{}, sangDay),
-    }));
+    // ── Construir columnas: una por jugador único, en orden de aparición ──
+    // Cada jugador puede ser retador 💉, retado 🩸, o ambos 💉🩸
+    const playerOrder = []; // UIDs en orden de aparición
+    const playerSangs = {}; // uid → [{sang, role: 'by'|'tg'}]
+    sangsHoy.forEach(c=>{
+      [c.by_user, c.target_user].forEach((uid,i)=>{
+        const role = i===0?'by':'tg';
+        if(!playerSangs[uid]){ playerSangs[uid]=[]; playerOrder.push(uid); }
+        playerSangs[uid].push({c, role});
+      });
+    });
 
-    // header — "Retado / por Retador" como en el ejemplo
-    let thead = `<tr><th style="text-align:left;font-size:12px;min-width:110px;padding:4px 6px">Partido</th>`;
-    cols.forEach(({byName,tgName})=>{
-      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(byName)} 💉 ${esc(tgName)}</th>`;
+    // puntos por jugador (para fila de totales y colores)
+    const ptsByUid = {};
+    sangsHoy.forEach(c=>{
+      ptsByUid[c.by_user] = ptsByUid[c.by_user] ?? mainPointsByDay(preds[c.by_user]||{}, sangDay);
+      ptsByUid[c.target_user] = ptsByUid[c.target_user] ?? mainPointsByDay(preds[c.target_user]||{}, sangDay);
+    });
+
+    // color de fondo para (uid, sang): según resultado de ESA sang
+    function sangBg(sang, uid){
+      const pBy=ptsByUid[sang.by_user], pTg=ptsByUid[sang.target_user];
+      const isByUser = uid===sang.by_user;
+      // verde = ganó, rojo = perdió, azul = empate — desde la perspectiva del jugador
+      if(pBy===pTg) return 'rgba(100,149,237,0.18)';
+      const won = isByUser ? pBy>pTg : pTg>pBy;
+      return won ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)';
+    }
+
+    // ── Header ──
+    let thead=`<tr><th style="text-align:left;font-size:12px;min-width:100px;padding:4px 6px">Partido</th>`;
+    playerOrder.forEach(uid=>{
+      const name=APP.profiles.find(p=>p.id===uid)?.display_name||'?';
+      const roles=playerSangs[uid];
+      const isBy=roles.some(r=>r.role==='by');
+      const isTg=roles.some(r=>r.role==='tg');
+      const badge=(isBy&&isTg)?'💉🩸':isBy?'💉':'🩸';
+      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(name)} ${badge}</th>`;
     });
     thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">Resultado</th></tr>`;
 
-    // filas por partido — mostramos pred del RETADO en cada columna (como en el ejemplo)
+    // ── Filas por partido ──
     let tbody='';
     matchesHoy.forEach(m=>{
-      const ht=TEAMS[m.home], at=TEAMS[m.away];
+      const ht=TEAMS[m.home],at=TEAMS[m.away];
       const r=resMain[m.id];
       const hasRes=r&&r.h!=null&&r.h!=='';
       let rowHtml=`<td style="font-size:12px;padding:5px 6px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
-      cols.forEach(({c},ci)=>{
-        const {pBy,pTg}=totals[ci];
-        let bg='';
-        if(pBy>pTg) bg='rgba(239,68,68,0.18)';       // retador ganó → retado pierde → rojo
-        else if(pBy<pTg) bg='rgba(34,197,94,0.18)';   // retador perdió → retado gana → verde
-        else bg='rgba(100,149,237,0.15)';              // empate → azul
-        // mostramos la pred del retado (target_user), como en el ejemplo de la imagen
-        const pred=(preds[c.target_user]?.main||{})[m.id];
+      playerOrder.forEach(uid=>{
+        const roles=playerSangs[uid];
+        const pred=(preds[uid]?.main||{})[m.id];
         const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
-        rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bg};padding:5px 8px">${predStr}</td>`;
+        if(roles.length===1){
+          // un solo rol → una celda con color de esa sang
+          const bg=sangBg(roles[0].c, uid);
+          rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bg};padding:5px 8px">${predStr}</td>`;
+        } else {
+          // dos roles (encadenado) → celda dividida diagonalmente con dos colores
+          const bg1=sangBg(roles[0].c, uid);
+          const bg2=sangBg(roles[1].c, uid);
+          rowHtml+=`<td style="padding:0;text-align:center;font-size:13px;font-weight:600">
+            <div style="display:flex;height:100%">
+              <div style="flex:1;padding:5px 4px;background:${bg1}">${predStr}</div>
+              <div style="flex:1;padding:5px 4px;background:${bg2};border-left:1px solid rgba(255,255,255,0.15)">${predStr}</div>
+            </div>
+          </td>`;
+        }
       });
       const resStr=hasRes?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">—</span>`;
       rowHtml+=`<td style="text-align:center;font-size:13px;padding:5px 8px">${resStr}</td>`;
       tbody+=`<tr style="border-bottom:1px solid rgba(127,29,29,0.2)">${rowHtml}</tr>`;
     });
 
-    // fila de totales con ganador
+    // ── Fila de totales ──
     let tfoot=`<tr style="border-top:2px solid rgba(127,29,29,0.4)"><td style="font-size:11px;font-weight:700;color:var(--muted);padding:6px 6px">Pts generados</td>`;
-    cols.forEach(({c,byName,tgName},ci)=>{
-      const {pBy,pTg}=totals[ci];
-      // pBy = retador, pTg = retado
-      let ganador='', col='cornflowerblue';
-      if(pBy>pTg){ganador=`${byName} 🏆`;col='#22c55e';}
-      else if(pBy<pTg){ganador=`${tgName} 🏆`;col='#22c55e';}
-      else{ganador='Empate';}
-      tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
-        <div style="font-weight:700">${pBy} vs ${pTg}</div>
-        <div style="font-size:11px;color:${col}">${ganador}</div>
-      </td>`;
+    playerOrder.forEach(uid=>{
+      const roles=playerSangs[uid];
+      const pts=ptsByUid[uid];
+      if(roles.length===1){
+        const sang=roles[0].c;
+        const pBy=ptsByUid[sang.by_user], pTg=ptsByUid[sang.target_user];
+        const isByUser=uid===sang.by_user;
+        const won=isByUser?pBy>pTg:pTg>pBy;
+        const tied=pBy===pTg;
+        const col=tied?'cornflowerblue':won?'#22c55e':'#ef4444';
+        const rival=isByUser?sang.target_user:sang.by_user;
+        const rivalPts=ptsByUid[rival];
+        tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
+          <div style="font-weight:700">${pts} pts</div>
+          <div style="font-size:11px;color:${col}">${tied?'Empate':won?'Ganó 🏆':'Perdió'}</div>
+        </td>`;
+      } else {
+        // dos sangs: mostrar pts + resultado de cada una
+        const parts=roles.map(({c,role})=>{
+          const pBy=ptsByUid[c.by_user], pTg=ptsByUid[c.target_user];
+          const isByUser=uid===c.by_user;
+          const won=isByUser?pBy>pTg:pTg>pBy;
+          const tied=pBy===pTg;
+          const col=tied?'cornflowerblue':won?'#22c55e':'#ef4444';
+          const icon=isByUser?'💉':'🩸';
+          return `<span style="color:${col}">${icon}${tied?'=':won?'✓':'✗'}</span>`;
+        }).join(' ');
+        tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
+          <div style="font-weight:700">${pts} pts</div>
+          <div style="font-size:13px">${parts}</div>
+        </td>`;
+      }
     });
     tfoot+=`<td></td></tr>`;
+
     return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
       <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
-      <p class="note" style="margin-bottom:10px">Retos activos de hoy. <span style="color:#22c55e;font-weight:600">Verde = retador gana</span> · <span style="color:#ef4444;font-weight:600">Rojo = retador pierde</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
+      <p class="note" style="margin-bottom:6px">Retos activos de hoy. <span style="color:#22c55e;font-weight:600">Verde = ganó</span> · <span style="color:#ef4444;font-weight:600">Rojo = perdió</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
+      <p class="note" style="margin-bottom:10px;font-size:11.5px">💉 Retador &nbsp;·&nbsp; 🩸 Retado</p>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
         <thead style="border-bottom:2px solid #7f1d1d">${thead}</thead>
         <tbody>${tbody}</tbody>
