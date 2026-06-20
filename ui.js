@@ -390,7 +390,7 @@ function renderInicio(v){
     // header — "Retado / por Retador" como en el ejemplo
     let thead = `<tr><th style="text-align:left;font-size:12px;min-width:110px;padding:4px 6px">Partido</th>`;
     cols.forEach(({byName,tgName})=>{
-      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(tgName)}<br><span style="color:var(--muted);font-weight:400">por ${esc(byName)}</span></th>`;
+      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(byName)} 💉 ${esc(tgName)}</th>`;
     });
     thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">Resultado</th></tr>`;
 
@@ -434,7 +434,7 @@ function renderInicio(v){
     tfoot+=`<td></td></tr>`;
     return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
       <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
-      <p class="note" style="margin-bottom:10px">Retos activos de hoy. Verde = retador gana · Rojo = retador pierde · Azul = empate.</p>
+      <p class="note" style="margin-bottom:10px">Retos activos de hoy. <span style="color:#22c55e;font-weight:600">Verde = retador gana</span> · <span style="color:#ef4444;font-weight:600">Rojo = retador pierde</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
         <thead style="border-bottom:2px solid #7f1d1d">${thead}</thead>
         <tbody>${tbody}</tbody>
