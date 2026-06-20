@@ -952,49 +952,63 @@ function standingsTableHTML(opts){
     const wOpen = windowOpenNow(); const hasMatches = dayHasMatches(day);
     const ventanaAbierta = wOpen && hasMatches;
     let btns="";
-    if(r.id===APP.user.id || isAdmin()){
-      // botón nitro — solo para el propio jugador, no admin
-      if(!isAdmin()){
-        const qn = nitrosQuedan(r.id);
-        if(usoNitro(r.id)){
-          btns+=`<span class="btn-mini nitro" title="Nitro activado hoy 🔥" style="cursor:default">🔥✅</span>`;
-        } else if(qn===0){
-          btns+=`<span class="btn-mini nitro" title="Agotaste tus nitros de esta fase (0 restantes)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-        } else if(!ventanaAbierta){
-          btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos) · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-        } else if(wasChallengedToday(r.id)){
-          btns+=`<span class="btn-mini nitro" title="Fuiste sanguijueleado hoy, no podés usar nitro · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-        } else if(askedSangToday(r.id)){
-          btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-        } else if(askedNitroToday(r.id)){
-          btns+=`<span class="btn-mini nitro" title="Ya pediste nitro hoy" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-        } else {
-          btns+=`<button class="btn-mini nitro" title="Usar nitro (te quedan ${qn})" onclick="openNitro()">🔥</button>`;
-        }
-      }
-    } else {
-      // botón sanguijuela para otros jugadores
-      const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
-      const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
-      const qs = sangQuedan(me?.id||"");
-      const recibidas = sangRecibidas(r.id);
-      const targetAgotado = recibidas >= 3;
-      const yoAgotado = qs <= 0;
-      if(reteable){
-        if(yoAgotado){
-          btns+=`<span class="btn-mini sang" title="Agotaste tus sanguijuelas de esta fase (0 restantes)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
-        } else if(targetAgotado){
-          btns+=`<span class="btn-mini sang" title="${esc(r.name)} ya recibió 3 retos esta fase (máximo)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
-        } else if(yaSangHoy){
-          btns+=`<span class="btn-mini sang" title="${wasChallengedToday(me?.id)?'Fuiste sanguijueleado hoy':'Ya aplicaste sanguijuela hoy'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
-        } else if(!ventanaAbierta){
-          btns+=`<span class="btn-mini sang" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
-        } else {
-          btns+=`<button class="btn-mini sang" title="Retar con sanguijuela (te quedan ${qs})" onclick="openSangTo('${r.id}')">🩸</button>`;
-        }
+
+    // ── Botón NITRO (aparece en la propia fila del jugador) ──────────
+    if(r.id===APP.user.id && !isAdmin()){
+      const qn = nitrosQuedan(r.id);
+      const disabled = qn===0 || !ventanaAbierta || !!wasChallengedToday(r.id) || !!askedSangToday(r.id) || !!askedNitroToday(r.id);
+      const tip = usoNitro(r.id) ? "Nitro activado hoy"
+        : qn===0 ? "Sin nitros restantes esta fase"
+        : !ventanaAbierta ? "Ventana cerrada (6-12hs con partidos)"
+        : wasChallengedToday(r.id) ? "Te sanguijuelearon hoy"
+        : askedSangToday(r.id) ? "Usaste sanguijuela hoy"
+        : askedNitroToday(r.id) ? "Ya usaste nitro hoy" : "Usar nitro";
+      if(usoNitro(r.id)){
+        btns+=`<span class="btn-mini nitro" title="${tip}" style="cursor:default">🔥 ✅</span>`;
+      } else if(disabled){
+        btns+=`<span class="btn-mini nitro" title="${tip}" style="cursor:not-allowed;opacity:0.4">🔥 ${qn}</span>`;
+      } else {
+        btns+=`<button class="btn-mini nitro" title="${tip}" onclick="openNitro()">🔥 ${qn}</button>`;
       }
     }
-    return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
+
+    // ── Botón NITRO en filas ajenas (solo informativo: cuántos le quedan) ──
+    if(r.id!==APP.user.id){
+      const qnOtro = nitrosQuedan(r.id);
+      const nitroHoyOtro = usoNitro(r.id);
+      const tip = nitroHoyOtro ? "Usó nitro hoy" : qnOtro===0 ? "Sin nitros restantes esta fase" : `Le quedan ${qnOtro} nitro${qnOtro!==1?'s':''}`;
+      btns+=nitroHoyOtro
+        ? `<span class="btn-mini nitro" title="${tip}" style="cursor:default">🔥 ✅</span>`
+        : `<span class="btn-mini nitro" title="${tip}" style="cursor:default;${qnOtro===0?'opacity:0.35':''}"">🔥 ${qnOtro}</span>`;
+    }
+
+    // ── Botón SANGUIJUELA (solo en filas de otros jugadores) ────────
+    if(r.id!==APP.user.id){
+      const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
+      const recibidas = sangRecibidas(r.id);
+      const queLeQuedan = Math.max(0, 3 - recibidas); // cuántas más puede recibir
+      const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
+      const targetAgotado = recibidas >= 3;
+      const yoAgotado = sangQuedan(me?.id||"") <= 0;
+      const tip = targetAgotado ? `${esc(r.name)} ya recibió 3 retos esta fase (máximo)`
+        : yoAgotado ? "Agotaste tus sanguijuelas de esta fase"
+        : yaSangHoy ? (wasChallengedToday(me?.id) ? "Te sanguijuelearon hoy" : "Ya aplicaste sanguijuela hoy")
+        : !ventanaAbierta ? "Ventana cerrada (6-12hs con partidos)"
+        : `Retar · puede recibir ${queLeQuedan} reto${queLeQuedan!==1?'s':'' } más esta fase`;
+      const disabled = targetAgotado || yoAgotado || yaSangHoy || !ventanaAbierta;
+      if(reteable){
+        if(disabled){
+          btns+=`<span class="btn-mini sang" title="${tip}" style="cursor:not-allowed;opacity:0.4">🩸 ${queLeQuedan}</span>`;
+        } else {
+          btns+=`<button class="btn-mini sang" title="${tip}" onclick="openSangTo('${r.id}')">🩸 ${queLeQuedan}</button>`;
+        }
+      } else {
+        // no reteable pero igual mostramos cuántas puede recibir
+        btns+=`<span class="btn-mini sang" title="${tip}" style="cursor:default;opacity:${targetAgotado?0.35:0.6}">🩸 ${queLeQuedan}</span>`;
+      }
+    }
+
+    return `<div class="tbl-actions" style="display:flex;gap:4px;align-items:center">${btns}</div>`;
   }
   const allZero = tb.every(r=>r.total===0);
   // Si todos tienen 0, forzamos zona pobreza para todos visualmente
@@ -1019,27 +1033,18 @@ function standingsTableHTML(opts){
       r.move>0 ? `<span class="move up">▲${r.move}</span>` :
       r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
       `<span class="move same">=</span>`;
-    // badges en el nombre
-    const sangRecib = sangRecibidas(r.id);
-    const sangBy = quienSanguijuelo(r.id);
-    // ícono sanguijuela recibida hoy
-    const recvHoy = sangBy ? `<span class="recv-sang" title="Sanguijueleado hoy por: ${sangBy}">🩸</span>` : "";
-    // contador de sanguijuelas recibidas en la fase (en rojo si llegó al límite)
-    const sangRecibBadge = sangRecib>0
-      ? `<span title="${sangRecib} reto${sangRecib!==1?'s':''} recibido${sangRecib!==1?'s':''} esta fase${sangRecib>=3?' (máximo alcanzado)':''}" style="font-size:10px;font-weight:700;color:${sangRecib>=3?'#ef4444':'var(--muted)'};margin-left:2px">🩸×${sangRecib}</span>`
-      : "";
-    // nitros restantes en la fase
-    const qnRow = nitrosQuedan(r.id);
-    const nitroUsadoHoy = usoNitro(r.id);
-    const nitroFaseBadge = nitroUsadoHoy
-      ? `<span title="Usó nitro hoy 🔥" style="font-size:10px;font-weight:700;color:var(--gold);margin-left:2px">🔥✅</span>`
-      : qnRow < 2
-        ? `<span title="${qnRow} nitro${qnRow!==1?'s':''} restante${qnRow!==1?'s':''} en la fase${qnRow===0?' (agotados)':''}" style="font-size:10px;font-weight:700;color:${qnRow===0?'#ef4444':'var(--muted)'};margin-left:2px">🔥×${qnRow}</span>`
-        : "";
+    // ── badges al lado del nombre ──────────────────────────────────────
+    // 🩸 si el jugador aplicó sanguijuela esta fase
+    const aplSang = sangAplicadas(r.id) > 0;
+    const aplNitro = nitrosUsados(r.id) > 0;
+    const sangBy = quienSanguijuelo(r.id); // quién lo retó hoy (para el ícono "recibida hoy")
+    const recvHoyBadge = sangBy ? `<span title="Retado hoy por ${sangBy}" style="margin-left:3px">🩸</span>` : "";
+    const aplSangBadge = aplSang ? `<span title="Aplicó sanguijuela esta fase" style="margin-left:3px;filter:hue-rotate(180deg)">🩸</span>` : "";
+    const aplNitroBadge = aplNitro ? `<span title="Usó nitro esta fase" style="margin-left:3px">🔥</span>` : "";
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
-      <td class="name">${esc(r.name)}${recvHoy}${sangRecibBadge}${nitroFaseBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td class="name">${esc(r.name)}${recvHoyBadge}${aplSangBadge}${aplNitroBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
@@ -1048,7 +1053,8 @@ function standingsTableHTML(opts){
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
     <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
-    🩸 recibió sanguijuela (no puede recibir otra esa fecha) &nbsp;·&nbsp; 🔥 activar nitro &nbsp;·&nbsp; 🔥✅ nitro activado</div>`;
+    🩸 aplicó sanguijuela esta fase &nbsp;·&nbsp; 🔥 usó nitro esta fase &nbsp;·&nbsp;
+    🩸 <i>N</i> = retos que puede recibir ese jugador &nbsp;·&nbsp; 🔥 <i>N</i> = nitros que le quedan</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
       <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
       ${out}
