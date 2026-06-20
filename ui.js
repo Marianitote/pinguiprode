@@ -366,20 +366,25 @@ function renderInicio(v){
       return {c, byName, tgName};
     });
 
-    // partidos del bloque: el día de la sang + el día siguiente (para partidos nocturnos >medianoche ARG)
+    // blockKeyOf: igual que todayBlockKey pero para un kickoff arbitrario
+    // partidos antes de las 4am ARG pertenecen al bloque del día anterior
+    const tz='America/Argentina/Buenos_Aires';
+    function blockKeyOf(kickoff){
+      const d=new Date(kickoff);
+      const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
+      if(h<4) d.setDate(d.getDate()-1);
+      return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+    }
     const sangDay = sangsHoy[0].day;
-    const nextDay = (d=>{ const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); })(sangDay);
-    const matchesHoy = FIXTURE.filter(m=>{
-      if(!m.kickoff) return false;
-      const dk=dayKey(m.kickoff);
-      return dk===sangDay || dk===nextDay;
-    }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    // filtrar partidos cuyo bloque === sangDay (igual que mainPointsByDay)
+    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&blockKeyOf(m.kickoff)===sangDay)
+      .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!matchesHoy.length) return '';
 
-    // puntos: sumar los dos días del bloque
+    // puntos totales — idéntico a mainPointsByDay
     const totals = cols.map(({c})=>({
-      pBy: mainPointsByDay(preds[c.by_user]||{}, sangDay) + mainPointsByDay(preds[c.by_user]||{}, nextDay),
-      pTg: mainPointsByDay(preds[c.target_user]||{}, sangDay) + mainPointsByDay(preds[c.target_user]||{}, nextDay),
+      pBy: mainPointsByDay(preds[c.by_user]||{}, sangDay),
+      pTg: mainPointsByDay(preds[c.target_user]||{}, sangDay),
     }));
 
     // header — "Retado / por Retador" como en el ejemplo
