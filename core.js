@@ -55,6 +55,12 @@ async function loadAll(){
   if(rsRes.data) APP.results=rsRes.data;
   APP.comodines=cmRes.data||[];
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
+  // poblar APP.allPreds para los paneles de ui.js (comodines, "quién acertó", etc.)
+  // el admin lo sobrescribe luego con datos completos vía adminLoadAllPreds()
+  if(!APP.profile?.is_admin){
+    APP.allPreds={};
+    (allPRes.data||[]).forEach(p=>{ APP.allPreds[p.user_id]=p; });
+  }
   invalidateStandings();
   const withTimeout = (p, label) => Promise.race([
     p.catch(e => console.warn(label, e?.message||e)),
