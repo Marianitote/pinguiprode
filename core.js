@@ -381,11 +381,7 @@ function mainPointsByDay(pred, day){
    En el modelo diario: cada nitro/sang opera sobre los puntos de SU DÍA. */
 function mainTotal(uid){
   const pred=predFor(uid); let total=0;
-  // sumar puntos por todos los días que tienen partidos
-  const allDays = new Set();
-  FIXTURE.forEach(m=>{ if(m.kickoff) allDays.add(dayKey(m.kickoff)); });
-  // (cálculo "base" por día, sin nitros aún) — pero como mainPointsByDate ya cubre todas
-  // las fases en su conjunto, mantenemos el cálculo agregado base + ajustes diarios:
+  // mainPointsByDate cubre todas las fases; sumamos base + ajustes diarios
   ALL_DATES.forEach(d=>{
     total+=mainPointsByDate(pred,d.phase,d.jor);
   });
@@ -427,7 +423,9 @@ function extraTotal(uid){
    Devuelve un map {w5: [nombres correctos], w6: [...], w7: [...], w8: [...]}.
    Los empates en una posición producen MÚLTIPLES respuestas correctas; si hay
    2 empatados en 1°, NO hay 2° (la siguiente posición es 3°). */
+let _autoWasabiCache=null;
 function autoWasabiAnswers(){
+  if(_autoWasabiCache) return _autoWasabiCache;
   // standings sin contar w5-w8 (computamos un "total parcial")
   function partialTotal(uid){
     const pred=predFor(uid);
@@ -451,9 +449,9 @@ function autoWasabiAnswers(){
     return true;
   }).map(p=>({name:p.display_name, total:partialTotal(p.id)}));
   rows.sort((a,b)=> b.total-a.total);
-  if(!rows.length) return {};
+  if(!rows.length){ _autoWasabiCache={}; return {}; }
   // Si el máximo puntaje es 0, no hay posiciones reales todavía
-  if(rows[0].total === 0) return {};
+  if(rows[0].total === 0){ _autoWasabiCache={}; return {}; }
   // agrupar por puntaje para detectar empates
   const groups=[]; let cur=null;
   rows.forEach(r=>{
@@ -474,6 +472,7 @@ function autoWasabiAnswers(){
   if(groups[groups.length-1]?.names.length===1 && groups.length>=2 && groups[groups.length-2]){
     ans.w8 = groups[groups.length-2].names;
   }
+  _autoWasabiCache = ans;
   return ans;
 }
 
@@ -571,7 +570,7 @@ function predFor(uid){
 
 /* tabla de posiciones (solo JUGADORES, no admins) — con posiciones compartidas */
 let _standingsCache=null;
-function invalidateStandings(){ _standingsCache=null; }
+function invalidateStandings(){ _standingsCache=null; _autoWasabiCache=null; }
 function standings(){
   if(_standingsCache) return _standingsCache;
   const rows=APP.profiles.filter(p=>{
