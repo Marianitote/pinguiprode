@@ -23,8 +23,10 @@ async function signIn(email, pass){
 async function signOut(){ await sb.auth.signOut(); location.reload(); }
 
 async function loadSession(){
-  const {data}=await sb.auth.getUser();
-  APP.user=data?.user||null;
+  // getSession() lee del almacenamiento local (instantáneo), a diferencia de
+  // getUser() que valida el token contra el servidor (una ronda de red extra).
+  const {data}=await sb.auth.getSession();
+  APP.user=data?.session?.user||null;
   if(APP.user){
     const {data:prof}=await sb.from('profiles').select('*').eq('id',APP.user.id).maybeSingle();
     APP.profile=prof||null;
