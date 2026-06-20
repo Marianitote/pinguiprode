@@ -930,36 +930,69 @@ function standingsTableHTML(opts){
   const tb=standings();
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
-  // ¿a quién recibió sanguijuela? (en cualquier fecha de la fase actual) → para el ícono
-  function recibioSang(uid){ const block=todayBlockKey(); return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid&&c.day===block); }
+  const day=todayDayKey(); const phase=phaseOfDay(day)||"grupos";
+  const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
+
+  // helpers por fase
+  function sangRecibidas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.target_user===uid&&c.phase===phase).length; }
+  function sangAplicadas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.by_user===uid&&c.phase===phase).length; }
+  function nitrosUsados(uid){
+    const ph1 = phase==="tp"||phase==="final" ? ["tp","final"] : [phase];
+    return APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&ph1.includes(c.phase)).length;
+  }
+  function nitrosQuedan(uid){ return Math.max(0, 2 - nitrosUsados(uid)); }
+  function sangQuedan(uid){ return Math.max(0, 3 - sangAplicadas(uid)); }
+  function recibioSangHoy(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid&&c.day===todayBlockKey()); }
   function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid&&c.day===todayBlockKey()); }
   function quienSanguijuelo(uid){ const block=todayBlockKey(); const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid&&co.day===block); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
+
   // botones inline
   function actions(r){
-    if(!opts.inline||isAdmin()) return "";
+    if(!opts.inline) return "";
+    const wOpen = windowOpenNow(); const hasMatches = dayHasMatches(day);
+    const ventanaAbierta = wOpen && hasMatches;
     let btns="";
-    // sanguijuela si es reteable (está arriba mío hasta 3 posiciones y yo no soy 1°)
-    const wOpen = windowOpenNow(); const hasMatches = dayHasMatches(todayDayKey());
-    if(r.id===APP.user.id){
-      if(usoNitro(r.id)){
-        btns+=`<span class="btn-mini nitro" title="Nitro activado" style="cursor:default">🔥✅</span>`;
-      } else if(!hasMatches||!wOpen){
-        btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-      } else if(wasChallengedToday(r.id)){
-        btns+=`<span class="btn-mini nitro" title="Fuiste sanguijueleado en este bloque, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-      } else if(askedSangToday(r.id)){
-        btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-      } else if(askedNitroToday(r.id)){
-        btns+=`<span class="btn-mini nitro" title="Ya pediste nitro hoy" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
-      } else {
-        btns+=`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()">🔥</button>`;
+    if(r.id===APP.user.id || isAdmin()){
+      // botón nitro — solo para el propio jugador, no admin
+      if(!isAdmin()){
+        const qn = nitrosQuedan(r.id);
+        if(usoNitro(r.id)){
+          btns+=`<span class="btn-mini nitro" title="Nitro activado hoy 🔥" style="cursor:default">🔥✅</span>`;
+        } else if(qn===0){
+          btns+=`<span class="btn-mini nitro" title="Agotaste tus nitros de esta fase (0 restantes)" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+        } else if(!ventanaAbierta){
+          btns+=`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos) · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+        } else if(wasChallengedToday(r.id)){
+          btns+=`<span class="btn-mini nitro" title="Fuiste sanguijueleado hoy, no podés usar nitro · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+        } else if(askedSangToday(r.id)){
+          btns+=`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy · Te quedan ${qn} nitro${qn!==1?'s':''}" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+        } else if(askedNitroToday(r.id)){
+          btns+=`<span class="btn-mini nitro" title="Ya pediste nitro hoy" style="cursor:not-allowed;opacity:0.4">🔥</span>`;
+        } else {
+          btns+=`<button class="btn-mini nitro" title="Usar nitro (te quedan ${qn})" onclick="openNitro()">🔥</button>`;
+        }
       }
     } else {
+      // botón sanguijuela para otros jugadores
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
-      const ventanaAbierta = wOpen && hasMatches;
-      if(reteable && !yaSangHoy && ventanaAbierta) btns+=`<button class="btn-mini sang" title="Retar con sanguijuela" onclick="openSangTo('${r.id}')">🩸</button>`;
-      else if(reteable) btns+=`<span class="btn-mini sang" title="${yaSangHoy?(wasChallengedToday(me?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy'):'Ventana cerrada (6-12hs con partidos)'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+      const qs = sangQuedan(me?.id||"");
+      const recibidas = sangRecibidas(r.id);
+      const targetAgotado = recibidas >= 3;
+      const yoAgotado = qs <= 0;
+      if(reteable){
+        if(yoAgotado){
+          btns+=`<span class="btn-mini sang" title="Agotaste tus sanguijuelas de esta fase (0 restantes)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+        } else if(targetAgotado){
+          btns+=`<span class="btn-mini sang" title="${esc(r.name)} ya recibió 3 retos esta fase (máximo)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+        } else if(yaSangHoy){
+          btns+=`<span class="btn-mini sang" title="${wasChallengedToday(me?.id)?'Fuiste sanguijueleado hoy':'Ya aplicaste sanguijuela hoy'}" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+        } else if(!ventanaAbierta){
+          btns+=`<span class="btn-mini sang" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4">🩸</span>`;
+        } else {
+          btns+=`<button class="btn-mini sang" title="Retar con sanguijuela (te quedan ${qs})" onclick="openSangTo('${r.id}')">🩸</button>`;
+        }
+      }
     }
     return `<div class="tbl-actions">${btns||'<span style="color:var(--muted)">–</span>'}</div>`;
   }
@@ -986,16 +1019,27 @@ function standingsTableHTML(opts){
       r.move>0 ? `<span class="move up">▲${r.move}</span>` :
       r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
       `<span class="move same">=</span>`;
+    // badges en el nombre
+    const sangRecib = sangRecibidas(r.id);
     const sangBy = quienSanguijuelo(r.id);
-    const recv = sangBy?`<span class="recv-sang" title="Sanguijueleado por: ${sangBy}">🩸 <span style="font-size:11px;color:var(--muted)">por ${sangBy}</span></span>`:""; 
-    const nitroHoyBlock = APP.comodines.some(c=>c.type==="nitro"&&c.by_user===r.id&&c.day===todayBlockKey());
-    const nitroTag = nitroHoyBlock?`<span class="recv-sang" title="Usó Nitro hoy">🔥</span>`:""; 
-    const wOpenRow = windowOpenNow(); const hasMatchesRow = dayHasMatches(todayDayKey());
-    const nit = usoNitro(r.id)?`<span class="recv-sang" title="Nitro activado">🔥✅</span>`:(!opts.inline||r.id!==APP.user?.id?"":(!hasMatchesRow||!wOpenRow?`<span class="btn-mini nitro" title="Ventana cerrada (6-12hs con partidos)" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:askedSangToday(APP.user.id)?`<span class="btn-mini nitro" title="Ya usaste sanguijuela hoy, no podés usar nitro" style="cursor:not-allowed;opacity:0.4;font-size:16px">🔥</span>`:`<button class="btn-mini nitro" title="Usar nitro" onclick="openNitro()" style="background:none;border:none;cursor:pointer;padding:0;font-size:16px">🔥</button>`));
+    // ícono sanguijuela recibida hoy
+    const recvHoy = sangBy ? `<span class="recv-sang" title="Sanguijueleado hoy por: ${sangBy}">🩸</span>` : "";
+    // contador de sanguijuelas recibidas en la fase (en rojo si llegó al límite)
+    const sangRecibBadge = sangRecib>0
+      ? `<span title="${sangRecib} reto${sangRecib!==1?'s':''} recibido${sangRecib!==1?'s':''} esta fase${sangRecib>=3?' (máximo alcanzado)':''}" style="font-size:10px;font-weight:700;color:${sangRecib>=3?'#ef4444':'var(--muted)'};margin-left:2px">🩸×${sangRecib}</span>`
+      : "";
+    // nitros restantes en la fase
+    const qnRow = nitrosQuedan(r.id);
+    const nitroUsadoHoy = usoNitro(r.id);
+    const nitroFaseBadge = nitroUsadoHoy
+      ? `<span title="Usó nitro hoy 🔥" style="font-size:10px;font-weight:700;color:var(--gold);margin-left:2px">🔥✅</span>`
+      : qnRow < 2
+        ? `<span title="${qnRow} nitro${qnRow!==1?'s':''} restante${qnRow!==1?'s':''} en la fase${qnRow===0?' (agotados)':''}" style="font-size:10px;font-weight:700;color:${qnRow===0?'#ef4444':'var(--muted)'};margin-left:2px">🔥×${qnRow}</span>`
+        : "";
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
-      <td class="name">${esc(r.name)}${recv}${nitroTag}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td class="name">${esc(r.name)}${recvHoy}${sangRecibBadge}${nitroFaseBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
@@ -1035,11 +1079,46 @@ function renderComodines(v){
     <p class="note">Pedí tus sanguijuelas (3 por fase) y nitros (2 por fase). Se solicitan en la ventana de <b>6:00 a 12:00 (hora argentina)</b> de cualquier día con partidos, y valen para los partidos de ese día.</p>
     <div class="pill" style="margin-top:10px">📅 Hoy: ${dayLbl} ${hasMatchesToday?(wOpen?'· <b style="color:var(--ok)">Ventana abierta</b>':'· <span style="color:var(--bad)">Ventana cerrada (6-12)</span>'):'· Sin partidos'}</div></div>`;
   if(!isAdmin()){
-    const qs=quotaLeft(uid,"sang"), qn=quotaLeft(uid,"nitro");
     const phaseLbl = phase ? ({grupos:"grupos",r32:"R32",r16:"octavos",qf:"cuartos",sf:"semis",tp:"finales",final:"finales"}[phase]||phase) : "—";
-    const qKey = phase==="tp"||phase==="final" ? "finals" : (phase||"grupos");
-    html+=`<div class="como sang"><div class="ic">🩸</div><div class="info"><b>Sanguijuela</b> — robá puntos<br><span class="note">Te quedan ${qs[qKey]||0} sanguijuelas en ${phaseLbl}</span></div><button class="btn sm primary" onclick="openSang()" ${(!hasMatchesToday||!wOpen)?'disabled':''}>Usar hoy</button></div>
-    <div class="como nitro"><div class="ic">🔥</div><div class="info"><b>Nitro</b> — x3 tus puntos<br><span class="note">Te quedan ${qn[qKey]||0} nitros en ${phaseLbl}</span></div><button class="btn sm gold" onclick="openNitro()" ${(!hasMatchesToday||!wOpen)?'disabled':''}>Usar hoy</button></div>`;
+    const phaseKey = phase==="tp"||phase==="final" ? ["tp","final"] : [phase||"grupos"];
+    const sangUsadasFase = APP.comodines.filter(c=>c.type==="sang"&&c.by_user===uid&&phaseKey.includes(c.phase)).length;
+    const nitroUsadosFase = APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&phaseKey.includes(c.phase)).length;
+    const sangRestantes = Math.max(0, 3 - sangUsadasFase);
+    const nitroRestantes = Math.max(0, 2 - nitroUsadosFase);
+    // sanguijuela recibida (cuántas veces me retaron esta fase)
+    const sangRecibidasFase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===uid&&phaseKey.includes(c.phase)).length;
+    const ventana = hasMatchesToday && wOpen;
+    const sangDisabled = !ventana || sangRestantes===0 || !!askedSangToday(uid) || !!wasChallengedToday(uid) || !!askedNitroToday(uid);
+    const nitroDisabled = !ventana || nitroRestantes===0 || !!askedNitroToday(uid) || !!askedSangToday(uid) || !!wasChallengedToday(uid);
+    const sangTip = sangRestantes===0 ? "Agotaste tus sanguijuelas de esta fase"
+      : !ventana ? "Ventana cerrada (6-12hs con partidos)"
+      : askedSangToday(uid) ? "Ya usaste sanguijuela hoy"
+      : wasChallengedToday(uid) ? "Fuiste sanguijueleado hoy"
+      : askedNitroToday(uid) ? "Usaste nitro hoy" : "";
+    const nitroTip = nitroRestantes===0 ? "Agotaste tus nitros de esta fase"
+      : !ventana ? "Ventana cerrada (6-12hs con partidos)"
+      : askedNitroToday(uid) ? "Ya usaste nitro hoy"
+      : askedSangToday(uid) ? "Usaste sanguijuela hoy"
+      : wasChallengedToday(uid) ? "Fuiste sanguijueleado hoy" : "";
+    html+=`
+    <div class="como sang" style="${sangDisabled?'opacity:0.6':''}" title="${sangTip}">
+      <div class="ic">🩸</div>
+      <div class="info">
+        <b>Sanguijuela</b> — robá puntos<br>
+        <span class="note">Restantes esta fase: <b style="color:${sangRestantes===0?'#ef4444':'var(--aqua)'}">${sangRestantes}/3</b>
+        ${sangRecibidasFase>0?`· Recibiste: <b style="color:${sangRecibidasFase>=3?'#ef4444':'var(--gold)'}">${sangRecibidasFase}/3</b>`:''}
+        </span>
+      </div>
+      <button class="btn sm primary" onclick="openSang()" ${sangDisabled?'disabled':''}>Usar hoy</button>
+    </div>
+    <div class="como nitro" style="${nitroDisabled?'opacity:0.6':''}" title="${nitroTip}">
+      <div class="ic">🔥</div>
+      <div class="info">
+        <b>Nitro</b> — x3 tus puntos<br>
+        <span class="note">Restantes esta fase: <b style="color:${nitroRestantes===0?'#ef4444':'var(--aqua)'}">${nitroRestantes}/2</b></span>
+      </div>
+      <button class="btn sm gold" onclick="openNitro()" ${nitroDisabled?'disabled':''}>Usar hoy</button>
+    </div>`;
   }
   html+=`<div class="card"><div class="sec-title">Comodines registrados</div>`;
   if(!APP.comodines.length) html+=`<div class="empty"><div class="big">🩸</div>Todavía nadie usó comodines.</div>`;
