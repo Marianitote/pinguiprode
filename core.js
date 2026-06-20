@@ -132,6 +132,56 @@ async function adminSaveResults(patch){
   clearApproxCache(); invalidateStandings();
   const {error}=await sb.from('results').update({...patch,updated_at:new Date().toISOString()}).eq('id',1);
   if(error) throw error; await loadAll();
+  // si cambió wasabi, guardar snapshot del día para historial por fecha
+  if(patch.wasabi){
+    const dateKey = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(new Date());
+    const wasabiSnap = {...(APP.results.wasabi||{}), ...patch.wasabi};
+    sb.from('wasabi_result_snapshots')
+      .upsert({date_key:dateKey, results_wasabi:wasabiSnap},{onConflict:'date_key'})
+      .then(()=>{}).catch(e=>console.warn('wasabi snapshot:', e.message));
+  }
+}
+
+// Cargar todos los snapshots de resultados Wasabi por día
+async function loadWasabiSnapshots(){
+  const {data} = await sb.from('wasabi_result_snapshots').select('date_key,results_wasabi').order('date_key');
+  const map = {};
+  (data||[]).forEach(s=>{ map[s.date_key]=s.results_wasabi; });
+  return map;
+}
+
+// Calcular puntos Wasabi de un jugador usando los resultados de un día específico
+function wasabiTotalAtDay(uid, wasabiResultsAtDay){
+  const w=(predFor(uid).wasabi)||{}; let pts=0;
+  const res = wasabiResultsAtDay||{};
+  const auto = autoWasabiAnswers(); // aproximación: usamos el estado actual
+  APP.wasabiQs.forEach(q=>{
+    if(q.type==="bonus"){ if(res["bonus_"+q.id]===uid) pts+=q.pts; return; }
+    if(["w5","w6","w7","w8"].includes(q.id)){
+      if(!APP.results.auto_wasabi_enabled) return;
+      const correctNames = auto[q.id]||[];
+      if(!correctNames.length) return;
+      const ans = w[q.id];
+      if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
+      return;
+    }
+    if(q.type==="approx"){
+      const resVal=parseFloat(res[q.id]);
+      if(isNaN(resVal)) return;
+      // ganadores: quien más se acercó
+      const entries=APP.profiles.filter(p=>!p.is_admin).map(p=>{
+        const ww=(predFor(p.id).wasabi)||{};
+        return {uid:p.id, val:parseFloat(ww[q.id])};
+      }).filter(e=>!isNaN(e.val));
+      if(!entries.length) return;
+      const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resVal)));
+      if(Math.abs(parseFloat(w[q.id])-resVal)===minDist) pts+=q.pts;
+      return;
+    }
+    if(res[q.id]==null||res[q.id]==="") return;
+    if(matchesResult(w[q.id],res[q.id])) pts+=q.pts;
+  });
+  return pts;
 }
 async function adminAddEmail(email){
   const {error}=await sb.from('allowed_emails').insert({email:email.toLowerCase().trim()});
