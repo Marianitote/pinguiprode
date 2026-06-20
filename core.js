@@ -60,14 +60,25 @@ async function loadAll(){
     p.catch(e => console.warn(label, e?.message||e)),
     new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
   ]);
-  const extraTasks = [withTimeout(syncSnapshots(), 'syncSnapshots')];
+
   if(APP.profile?.is_admin){
-    extraTasks.push(
+    // admin: syncSnapshots completo + pagos + todas las preds en paralelo
+    await Promise.all([
+      withTimeout(syncSnapshots(), 'syncSnapshots'),
       withTimeout(loadPayments(), 'loadPayments'),
-      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds')
-    );
+      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds'),
+    ]);
+  } else {
+    // jugador: solo el snapshot más reciente (1 fila, sin inserts)
+    try{
+      const {data:snap} = await sb.from('standings_snapshots')
+        .select('date_key,positions')
+        .order('date_key',{ascending:false})
+        .limit(1)
+        .maybeSingle();
+      APP.lastSnapshot = snap?.positions||null;
+    }catch(e){ APP.lastSnapshot=null; }
   }
-  await Promise.all(extraTasks);
 }
 
 async function ensureMyPredRow(){
