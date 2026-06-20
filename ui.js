@@ -1800,11 +1800,17 @@ async function admHistorial(area){
   let html=`<div class="card"><div class="sec-title">📊 Historial por día</div>
     <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
     <div style="overflow-x:auto;margin-top:12px"><table>
-      <tr><th>Jugador</th>${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join("")}</tr>
-      <tr><th></th>${daysWithRes.map(()=>`<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>`).join("")}</tr>`;
+      <tr>
+        <th style="position:sticky;left:0;z-index:2;background:var(--card)">Jugador</th>
+        ${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join("")}
+      </tr>
+      <tr>
+        <th style="position:sticky;left:0;z-index:2;background:var(--card)"></th>
+        ${daysWithRes.map(()=>`<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>`).join("")}
+      </tr>`;
 
   players.forEach(p=>{
-    html+=`<tr><td class="name" style="font-size:13px">${esc(p.display_name)}</td>`;
+    html+=`<tr><td class="name" style="font-size:13px;position:sticky;left:0;z-index:1;background:var(--card)">${esc(p.display_name)}</td>`;
     daysWithRes.forEach(d=>{
       const antes=acumBefore[p.id]?.[d]??0;
       const ptsPrinc=mainPointsByDay(preds[p.id]||{},d);
