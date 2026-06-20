@@ -28,11 +28,15 @@ async function boot(){
 // flag para no re-renderizar la app encima de la pantalla de nueva contraseña
 let RECOVERING=false;
 // re-cargar cuando cambia la sesión (ej: al volver del mail de confirmación)
+let _firstAuthEvent=true;
 sb.auth.onAuthStateChange((event,_s)=>{
   // si el usuario entró desde el link de "recuperar contraseña", mostramos la
   // pantalla para escribir la clave nueva en vez de entrar normal a la app
   if(event==="PASSWORD_RECOVERY"){ RECOVERING=true; renderResetPassword(); return; }
   if(RECOVERING) return; // ya está en la pantalla de nueva clave, no pisar
+  // El primer evento (INITIAL_SESSION, que Supabase dispara al cargar) se ignora:
+  // el arranque ya llama boot() una vez al final del archivo. Evita doble carga.
+  if(_firstAuthEvent){ _firstAuthEvent=false; return; }
   boot();
 });
 
