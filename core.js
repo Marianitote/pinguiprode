@@ -42,67 +42,34 @@ async function createProfile(displayName){
 
 /* ---------- DATOS ---------- */
 async function loadAll(){
-  const isAdm = APP.profile?.is_admin;
+  // cargar todo en paralelo para mayor velocidad
+  const [profsRes, mpRes, rsRes, cmRes, allPRes] = await Promise.all([
+    sb.from('profiles').select('*'),
+    sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
+    sb.from('results').select('*').eq('id',1).maybeSingle(),
+    sb.from('comodines').select('*').order('created_at'),
+    sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
+  ]);
+  APP.profiles=profsRes.data||[];
+  APP.myPred=mpRes.data||null;
+  if(rsRes.data) APP.results=rsRes.data;
+  APP.comodines=cmRes.data||[];
+  (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
+  invalidateStandings();
+  // cargar en paralelo: admin data + snapshots (no dependen entre sí)
+  // timeout de 12 segundos por tarea para que un cuelgue no bloquee la carga
   const withTimeout = (p, label) => Promise.race([
     p.catch(e => console.warn(label, e?.message||e)),
     new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
   ]);
-
-  if(isAdm){
-    // ---- ADMIN: carga completa en paralelo ----
-    const [profsRes, mpRes, rsRes, cmRes, allPRes] = await Promise.all([
-      sb.from('profiles').select('*'),
-      sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
-      sb.from('results').select('*').eq('id',1).maybeSingle(),
-      sb.from('comodines').select('*').order('created_at'),
-      sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
-    ]);
-    APP.profiles=profsRes.data||[];
-    APP.myPred=mpRes.data||null;
-    if(rsRes.data) APP.results=rsRes.data;
-    APP.comodines=cmRes.data||[];
-    (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
-    invalidateStandings();
-    await Promise.all([
-      withTimeout(syncSnapshots(), 'syncSnapshots'),
+  const extraTasks = [withTimeout(syncSnapshots(), 'syncSnapshots')];
+  if(APP.profile?.is_admin){
+    extraTasks.push(
       withTimeout(loadPayments(), 'loadPayments'),
-      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds'),
-    ]);
-  } else {
-    // ---- JUGADOR: carga mínima primero (solo lo suyo) ----
-    const [profsRes, mpRes, rsRes, cmRes] = await Promise.all([
-      sb.from('profiles').select('id,display_name,is_admin'),
-      sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
-      sb.from('results').select('*').eq('id',1).maybeSingle(),
-      sb.from('comodines').select('*').order('created_at'),
-    ]);
-    APP.profiles=profsRes.data||[];
-    APP.myPred=mpRes.data||null;
-    if(rsRes.data) APP.results=rsRes.data;
-    APP.comodines=cmRes.data||[];
-    // su propia pred al cache (mínimo para standings)
-    if(APP.myPred) _predCache[APP.user.id]=APP.myPred;
-    invalidateStandings();
-    // snapshot liviano: solo el más reciente para las flechas ▲▼
-    withTimeout(
-      sb.from('standings_snapshots').select('date_key,positions').order('date_key',{ascending:false}).limit(1)
-        .then(({data})=>{ APP.lastSnapshot = data?.[0]?.positions||null; })
-        .catch(()=>{ APP.lastSnapshot=null; }),
-      'lastSnapshot'
-    );
-    // cargar predicciones de todos en background (para tabla y "quién acertó")
-    APP._bgLoaded = false;
-    withTimeout(
-      sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties')
-        .then(({data})=>{
-          (data||[]).forEach(p=>{ _predCache[p.user_id]=p; if(!APP.allPreds) APP.allPreds={}; APP.allPreds[p.user_id]=p; });
-          invalidateStandings();
-          APP._bgLoaded = true;
-        })
-        .catch(e=>console.warn('bgPreds:', e?.message||e)),
-      'bgPreds'
+      withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds')
     );
   }
+  await Promise.all(extraTasks);
 }
 
 async function ensureMyPredRow(){
