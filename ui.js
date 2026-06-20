@@ -17,27 +17,12 @@ async function boot(){
     // Si venimos del link de reseteo de contraseña, el evento puede haberse
     // disparado antes de registrar el listener. Lo detectamos por la URL.
     if(!RECOVERING && /type=recovery/.test(location.hash)){ RECOVERING=true; renderResetPassword(); return; }
-    const _t0=performance.now();
     await loadSession();
-    const _t1=performance.now();
     if(!APP.user){ renderAuth(); return; }
     // logueado pero sin perfil → crear perfil
     if(!APP.profile){ renderCreateProfile(); return; }
     await loadAll();
-    const _t2=performance.now();
     render();
-    const _t3=performance.now();
-    // ⏱️ Diagnóstico de tiempos de carga (temporal) — visible en pantalla
-    const _ms=n=>Math.round(n);
-    const _diag=`⏱️ Sesión: ${_ms(_t1-_t0)}ms · Datos: ${_ms(_t2-_t1)}ms · Render: ${_ms(_t3-_t2)}ms · TOTAL: ${_ms(_t3-_t0)}ms`;
-    setTimeout(()=>{
-      const d=document.createElement('div');
-      d.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;z-index:99999;background:#1a1a2e;color:#74b9ff;padding:10px 14px;border-radius:10px;border:1px solid #74b9ff;font-size:12px;font-family:monospace;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5)';
-      d.textContent=_diag;
-      d.onclick=()=>d.remove();
-      document.body.appendChild(d);
-      setTimeout(()=>d.remove(),15000);
-    },100);
   }catch(e){ console.error(e); app.innerHTML=`<div class="auth-wrap"><div class="card"><div class="sec-title">Error</div><p class="lead">${esc(e.message||e)}</p><p class="note" style="margin-top:10px">Si recién configuraste Supabase, revisá que las claves en config.js sean correctas.</p></div></div>`; }
 }
 // flag para no re-renderizar la app encima de la pantalla de nueva contraseña
