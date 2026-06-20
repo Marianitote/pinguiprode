@@ -22,14 +22,12 @@ async function boot(){
     // logueado pero sin perfil → crear perfil
     if(!APP.profile){ renderCreateProfile(); return; }
     await loadAll();
-    // cargar predicciones de todos para acertaronPublic (jugadores no-admin)
-    if(!isAdmin()){
-      try{
-        const {data:allP}=await sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties');
-        (allP||[]).forEach(p=>{ if(!APP.allPreds) APP.allPreds={}; APP.allPreds[p.user_id]=p; });
-      }catch(e){ console.warn('No se pudieron cargar predicciones de todos:',e); }
-    }
     render();
+    // para jugadores: re-renderizar tabla cuando terminen de cargar las preds en background
+    if(!isAdmin()){
+      const poll = setInterval(()=>{ if(APP._bgLoaded){ clearInterval(poll); render(); } }, 500);
+      setTimeout(()=>clearInterval(poll), 15000); // máx 15s de polling
+    }
   }catch(e){ console.error(e); app.innerHTML=`<div class="auth-wrap"><div class="card"><div class="sec-title">Error</div><p class="lead">${esc(e.message||e)}</p><p class="note" style="margin-top:10px">Si recién configuraste Supabase, revisá que las claves en config.js sean correctas.</p></div></div>`; }
 }
 // flag para no re-renderizar la app encima de la pantalla de nueva contraseña
