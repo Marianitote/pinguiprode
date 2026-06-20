@@ -209,11 +209,18 @@ function sign(h,a){ if(h==null||a==null||h===""||a==="")return null; h=+h;a=+a; 
 function matchPointsGrupos(pred,res){
   if(!pred||!res) return 0;
   if(res.h==null||res.h===""||res.a==null||res.a==="") return 0;
-  let pt=0; const ps=sign(pred.h,pred.a), rs=sign(res.h,res.a);
-  if(+pred.h===+res.h&&+pred.a===+res.a){ pt+=PTS.grupos.exact; }
-  else if(ps&&ps===rs){ pt+=PTS.grupos.result; }
-  else if((+pred.h-+pred.a)===(+res.h-+res.a)){ pt+=PTS.grupos.gd; }
-  return pt;
+  const ph=+pred.h, pa=+pred.a, rh=+res.h, ra=+res.a;
+  const ps=sign(ph,pa), rs=sign(rh,ra);
+  const dif=ph-pa, rdif=rh-ra;
+  // Exacto: marcador idéntico → +5
+  if(ph===rh && pa===ra) return PTS.grupos.exact;
+  // Resultado correcto (+3), con bonus +1 si además la diferencia es igual y no es empate
+  if(ps && ps===rs){
+    const bonus = (dif===rdif && rdif!==0) ? PTS.grupos.gd : 0;
+    return PTS.grupos.result + bonus;
+  }
+  // Sin acertar ganador: 0 (aunque la diferencia coincida)
+  return 0;
 }
 
 /* Evalúa un cruce del bracket del jugador contra el cruce real.
@@ -405,7 +412,7 @@ function sangDelta(uid){
     // EMPATE: no pasa nada (la sang se neutraliza)
     if(c.by_user===uid){
       if(pBy>pTg) delta+=pTg;
-      else if(pBy<pTg) delta-=Math.round(pTg*0.5);
+      else if(pBy<pTg) delta-=pBy*0.5; // pierde 50% de sus propios puntos
     }
     if(c.target_user===uid){
       if(pBy>pTg) delta-=pTg;
