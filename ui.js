@@ -223,7 +223,7 @@ function renderInicio(v){
         const hasRes=r&&r.h!=null&&r.h!=='';
         _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}</span>`}</span></div>`;
       });
-      return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
+      return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
     })()}
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
       <p class="note">Vista en vivo de las posiciones (incluye flechas ▲▼ y zonas).</p>
@@ -345,7 +345,7 @@ function renderInicio(v){
     });
 
     if(!rowsHoy && !prevHtml) return '';
-    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>
+    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(hoyFifa+'T12:00:00'))}</span></div>
       ${rowsHoy || '<p class="note">No hay partidos hoy.</p>'}
       ${prevHtml ? `<details class="fold" style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:6px 0">📂 Fechas anteriores (${anteriores.length})<span class="arr">›</span></summary><div style="margin-top:8px">${prevHtml}</div></details>` : ''}
     </div>`;
@@ -478,7 +478,7 @@ function renderInicio(v){
     if(!tablaHoy && !prevHtml) return '';
 
     return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
-      <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
+      <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente · <span style="font-weight:400;color:rgba(239,68,68,0.7);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(hoy+'T12:00:00'))}</span></div>
       <p class="note" style="margin-bottom:6px">Retos de hoy. <span style="color:#22c55e;font-weight:600">Verde = ganó</span> · <span style="color:#ef4444;font-weight:600">Rojo = perdió</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
       <p class="note" style="margin-bottom:10px;font-size:11.5px">💉 Retador &nbsp;·&nbsp; 🩸 Retado</p>
       ${tablaHoy || '<p class="note">No hay retos activos hoy.</p>'}
@@ -1370,7 +1370,7 @@ function renderAdmin(v){
     const hasRes=r&&r.h!=null&&r.h!=='';
     _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}</span>`}</span></div>`;
   });
-  const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
+  const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
       ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["historial","📊 Historial"],["export","📤 Exportar"]]
