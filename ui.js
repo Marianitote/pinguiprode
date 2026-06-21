@@ -210,15 +210,9 @@ function renderInicio(v){
     </div>
     ${(()=>{
       const _tz='America/Argentina/Buenos_Aires';
-      const _ds=new Date().toLocaleDateString('en-CA',{timeZone:_tz});
-      const _h=parseInt(new Date().toLocaleTimeString('en-CA',{timeZone:_tz,hour:'2-digit',hour12:false}));
-      let [_y,_m,_d]=_ds.split('-').map(Number);
-      if(_h<4){const _p=new Date(Date.UTC(_y,_m-1,_d-1));_y=_p.getUTCFullYear();_m=_p.getUTCMonth()+1;_d=_p.getUTCDate();}
-      const _pad=n=>String(n).padStart(2,'0');
-      const _tm=FIXTURE.filter(m=>{
-        if(!m.kickoff) return false;
-        return new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:_tz})===`${_y}-${_pad(_m)}-${_pad(_d)}`;
-      }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+      const _hoyFifa=todayFifaDate();
+      const _tm=FIXTURE.filter(m=>fifaDateOf(m)===_hoyFifa)
+        .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!_tm.length) return '';
       const _res=APP.results?.main||{};
       let _rows='';
@@ -291,24 +285,11 @@ function renderInicio(v){
     ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
   </div>
   ${(()=>{
-    // Partidos del día (6am Argentina a 6am del día siguiente)
+    // Partidos del día FIFA actual (fuente única: fifaDateOf)
     const tz='America/Argentina/Buenos_Aires';
-    const now=new Date();
-    // obtener fecha argentina como string YYYY-MM-DD
-    const argDateStr=now.toLocaleDateString('en-CA',{timeZone:tz}); // "2026-06-14"
-    const argH=parseInt(now.toLocaleTimeString('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}));
-    // si antes de las 6am, tomar el día anterior
-    let [yy,mm,dd]=argDateStr.split('-').map(Number);
-    if(argH<6){ const prev=new Date(Date.UTC(yy,mm-1,dd-1)); yy=prev.getUTCFullYear(); mm=prev.getUTCMonth()+1; dd=prev.getUTCDate(); }
-    const pad=n=>String(n).padStart(2,'0');
-    const startUTC=new Date(`${yy}-${pad(mm)}-${pad(dd)}T11:00:00Z`); // 8am ARG = 11am UTC
-    const todayMatches=FIXTURE.filter(m=>{
-      if(!m.kickoff) return false;
-      // usar la fecha ARG del kickoff para determinar el bloque
-      const kickoffArgDate=new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'});
-      return kickoffArgDate===`${yy}-${pad(mm)}-${pad(dd)}`;
-    });
-    todayMatches.sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    const hoyFifa=todayFifaDate();
+    const todayMatches=FIXTURE.filter(m=>fifaDateOf(m)===hoyFifa)
+      .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!todayMatches.length) return '';
     const res=APP.results?.main||{};
     const myMain=APP.myPred?.main||{};
@@ -353,7 +334,7 @@ function renderInicio(v){
   })()}
   ${(()=>{
     // ── Sanguijuelas frente a frente (bloque actual) ──────────────────
-    const block = todayBlockKey();
+    const block = todayFifaDate();
     const sangsHoy = APP.comodines.filter(c=>c.type==='sang'&&c.day===block);
     if(!sangsHoy.length) return '';
     const resMain = APP.results?.main||{};
@@ -363,7 +344,7 @@ function renderInicio(v){
     // IMPORTANTE: filtrar los partidos EXACTAMENTE igual que mainPointsByDay (usa dayKey,
     // el día calendario ARG). Así los partidos mostrados son los mismos que cuentan para
     // los puntos de la sanguijuela — sin esto se desalinean (ver bug Türkiye-Paraguay).
-    const matchesHoy = FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===sangDay)
+    const matchesHoy = FIXTURE.filter(m=>fifaDateOf(m)===sangDay)
       .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
     if(!matchesHoy.length) return '';
 
@@ -492,7 +473,7 @@ function renderInicio(v){
     });
     const blocks=Object.keys(byBlock).sort().reverse();
     if(!blocks.length) return '';
-    const hoy = todayBlockKey();
+    const hoy = todayFifaDate();
 
     function renderBlock(block){
       let blockRows='';
@@ -557,7 +538,7 @@ function renderInicio(v){
     <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
   ${(()=>{
-      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayDayKey());
+      const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayFifaDate());
       const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
       const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
       const yaSang = !!askedSangToday(APP.user?.id) || !!wasChallengedToday(APP.user?.id);
@@ -570,7 +551,7 @@ function renderInicio(v){
           <option value="">— elegí un rival —</option>
           ${opts2}
         </select>
-        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayDayKey())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
+        <button class="btn sm primary" ${!enabled?'disabled':''} title="${disabledReason}" onclick="(function(){if(!windowOpenNow()||!dayHasMatches(todayFifaDate())){toast('Ventana cerrada (6-12hs con partidos)','err');return;}const sel=document.getElementById('sangTarget');if(!sel.value)return;openSangTo(sel.value);})()" >Aplicar 🩸</button>
       </div>`;
     })()}
   </div>
@@ -1080,7 +1061,7 @@ function standingsTableHTML(opts){
   const tb=standings();
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
-  const day=todayDayKey(); const phase=phaseOfDay(day)||"grupos";
+  const day=todayFifaDate(); const phase=phaseOfDay(day)||"grupos";
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
 
   // helpers por fase
@@ -1092,9 +1073,9 @@ function standingsTableHTML(opts){
   }
   function nitrosQuedan(uid){ return Math.max(0, 2 - nitrosUsados(uid)); }
   function sangQuedan(uid){ return Math.max(0, 3 - sangAplicadas(uid)); }
-  function recibioSangHoy(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid&&c.day===todayBlockKey()); }
-  function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid&&c.day===todayBlockKey()); }
-  function quienSanguijuelo(uid){ const block=todayBlockKey(); const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid&&co.day===block); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
+  function recibioSangHoy(uid){ return APP.comodines.some(c=>c.type==="sang"&&c.target_user===uid&&c.day===todayFifaDate()); }
+  function usoNitro(uid){ return APP.comodines.some(c=>c.type==="nitro"&&c.by_user===uid&&c.day===todayFifaDate()); }
+  function quienSanguijuelo(uid){ const block=todayFifaDate(); const c=APP.comodines.find(co=>co.type==="sang"&&co.target_user===uid&&co.day===block); return c?APP.profiles?.find(p=>p.id===c.by_user)?.display_name||"alguien":null; }
 
   // botones inline
   function actions(r){
@@ -1226,7 +1207,7 @@ function renderTabla(v){
    ===================================================================== */
 function renderComodines(v){
   const uid=APP.user.id;
-  const day=todayDayKey();
+  const day=todayFifaDate();
   const phase=phaseOfDay(day);
   const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
   const hasMatchesToday = dayHasMatches(day);
@@ -1296,7 +1277,7 @@ function openSang(preTarget){
   if(!me) return toast("No estás en la tabla.","err");
   const targets=tb.filter(r=>r.id!==APP.user.id&&(me.pos-r.pos)>0&&(me.pos-r.pos)<=3);
   // info del día actual
-  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const day=todayFifaDate(); const phase=phaseOfDay(day);
   const phaseLbl = phase ? ({grupos:"Fase de Grupos",r32:"Ronda de 32",r16:"Octavos",qf:"Cuartos",sf:"Semifinales",tp:"3er puesto",final:"Final"}[phase]||phase) : "—";
   const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
   modal(`<h3>🩸 Usar sanguijuela</h3>
@@ -1316,7 +1297,7 @@ async function confirmSang(){
   catch(e){ toast(e.message,"err"); if(btn){ btn.disabled=false; btn.textContent="Confirmar reto"; } }
 }
 function openNitro(){
-  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const day=todayFifaDate(); const phase=phaseOfDay(day);
   const phaseLbl = phase ? ({grupos:"Fase de Grupos",r32:"Ronda de 32",r16:"Octavos",qf:"Cuartos",sf:"Semifinales",tp:"3er puesto",final:"Final"}[phase]||phase) : "—";
   const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
   modal(`<h3>🔥 Usar nitro</h3>
@@ -1355,15 +1336,9 @@ function renderAdmin(v){
   if(!isAdmin()){ v.innerHTML=adminHint("🔒","Solo el COMIPRO."); return; }
   // Partidos de hoy
   const _tz='America/Argentina/Buenos_Aires';
-  const _ds=new Date().toLocaleDateString('en-CA',{timeZone:_tz});
-  const _h=parseInt(new Date().toLocaleTimeString('en-CA',{timeZone:_tz,hour:'2-digit',hour12:false}));
-  let [_y,_m,_d]=_ds.split('-').map(Number);
-  if(_h<4){const _p=new Date(Date.UTC(_y,_m-1,_d-1));_y=_p.getUTCFullYear();_m=_p.getUTCMonth()+1;_d=_p.getUTCDate();}
-  const _pad=n=>String(n).padStart(2,'0');
-  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>{
-    if(!m.kickoff) return false;
-    return new Date(m.kickoff).toLocaleDateString('en-CA',{timeZone:_tz})===`${_y}-${_pad(_m)}-${_pad(_d)}`;
-  }).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+  const _hoyFifa=todayFifaDate();
+  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>fifaDateOf(m)===_hoyFifa)
+    .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
   const _res=APP.results?.main||{};
   let _rows='';
   _todayM.forEach(m=>{
@@ -1799,10 +1774,10 @@ async function admHistorial(area){
   const players = APP.profiles.filter(p=>!p.is_admin).sort((a,b)=>a.display_name.localeCompare(b.display_name));
 
   // todos los días con partidos
-  const allDays=[...new Set(FIXTURE.filter(m=>m.kickoff).map(m=>dayKey(m.kickoff)))].sort();
+  const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
   // días con resultados cargados (al menos un partido con resultado)
   const daysWithRes = allDays.filter(d=>{
-    const matches=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===d);
+    const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
     return matches.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
   });
 
@@ -1848,7 +1823,7 @@ async function admHistorial(area){
     const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<day).sort();
     const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:{};
     // partidos del día
-    const matches=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===day);
+    const matches=FIXTURE.filter(m=>fifaDateOf(m)===day);
     let rows="";
     matches.forEach(m=>{
       const p=(pred.main||{})[m.id]; const r=(APP.results.main||{})[m.id];
@@ -2110,9 +2085,9 @@ function buildExcel(log){
   // Log por fechas — desglose completo por día
   // necesitamos los snapshots wasabi; como buildExcel es sync, usamos APP._wasabiSnaps si está cargado
   const wasabiSnapsExcel = APP._wasabiSnaps||{};
-  const allDaysExcel=[...new Set(FIXTURE.filter(m=>m.kickoff).map(m=>dayKey(m.kickoff)))].sort();
+  const allDaysExcel=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
   const daysWithResExcel = allDaysExcel.filter(d=>{
-    const ms=FIXTURE.filter(m=>m.kickoff&&dayKey(m.kickoff)===d);
+    const ms=FIXTURE.filter(m=>fifaDateOf(m)===d);
     return ms.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
   });
 
