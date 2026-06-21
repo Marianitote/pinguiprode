@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 — NÚCLEO (Supabase + motor de puntajes)
+   PINGÜIPRODE · MUNDIAL 2026 - NÚCLEO (Supabase + motor de puntajes)
    ===================================================================== */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
