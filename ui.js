@@ -482,6 +482,68 @@ function renderInicio(v){
       </table></div>
     </div>`;
   })()}
+  ${(()=>{
+    // ── Historial de comodines: hoy abierto, días anteriores colapsados ──
+    const byBlock={};
+    APP.comodines.forEach(c=>{
+      const k=c.day||'sin-fecha';
+      if(!byBlock[k]) byBlock[k]=[];
+      byBlock[k].push(c);
+    });
+    const blocks=Object.keys(byBlock).sort().reverse();
+    if(!blocks.length) return '';
+    const hoy = todayBlockKey();
+
+    function renderBlock(block){
+      let blockRows='';
+      byBlock[block].forEach(c=>{
+        const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';
+        const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?':'-';
+        if(c.type==='nitro'){
+          const pts=mainPointsByDay(APP.allPreds?.[c.by_user]||{},block);
+          blockRows+=`<div style="padding:8px;border-radius:8px;background:var(--card2);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+            <span>🔥</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> usó Nitro</div>
+            <span style="color:var(--gold);font-weight:700;font-size:12px">x3 → ${pts*3} pts</span>
+          </div>`;
+        } else if(c.type==='sang'){
+          const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},block);
+          const pTg=mainPointsByDay(APP.allPreds?.[c.target_user]||{},block);
+          let resultado='',color='var(--muted)',ptsBadge='';
+          if(pBy>pTg){resultado=`${esc(byName)} ganó`;color='var(--aqua)';ptsBadge=`+${pTg} pts`;}
+          else if(pBy<pTg){resultado=`${esc(byName)} perdió`;color='#ef4444';ptsBadge=`-${pBy*0.5} pts`;}
+          else{resultado='Empate';color='var(--muted)';ptsBadge='Sin transferencia';}
+          blockRows+=`<div style="padding:8px;border-radius:8px;background:var(--card2);margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span>🩸</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> retó a <b>${esc(tgName)}</b></div>
+              <span style="color:${color};font-weight:700;font-size:12px">${resultado}</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);padding-left:22px;margin-top:2px">${esc(byName)}: ${pBy} pts · ${esc(tgName)}: ${pTg} pts · ${ptsBadge}</div>
+          </div>`;
+        }
+      });
+      return blockRows;
+    }
+
+    // bloque de hoy (abierto, sin colapsar)
+    let html = '';
+    if(byBlock[hoy]){
+      html += `<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--aqua);font-weight:700;margin-bottom:6px">📅 Hoy</div>${renderBlock(hoy)}</div>`;
+    }
+    // días anteriores (colapsados en <details>)
+    const anteriores = blocks.filter(b=>b!==hoy);
+    if(anteriores.length){
+      let prevHtml='';
+      anteriores.forEach(block=>{
+        const rows=renderBlock(block);
+        if(rows) prevHtml+=`<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">📅 ${block}</div>${rows}</div>`;
+      });
+      if(prevHtml){
+        html += `<details class="fold"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:6px 0">📂 Fechas anteriores (${anteriores.length})<span class="arr">›</span></summary><div style="margin-top:10px">${prevHtml}</div></details>`;
+      }
+    }
+    if(!html) return '';
+    return `<div class="card" style="margin-top:16px"><div class="sec-title">📊 Historial de comodines</div>${html}</div>`;
+  })()}
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
     ${(()=>{
       const ua = APP.results?.updated_at;
@@ -523,49 +585,6 @@ function renderInicio(v){
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
     </div>`;
-  })()}
-  ${(()=>{
-    // Historial de comodines (vista jugador)
-    const byBlock={};
-    APP.comodines.forEach(c=>{
-      const k=c.day||'sin-fecha';
-      if(!byBlock[k]) byBlock[k]=[];
-      byBlock[k].push(c);
-    });
-    const blocks=Object.keys(byBlock).sort().reverse();
-    if(!blocks.length) return '';
-    let rows='';
-    blocks.forEach(block=>{
-      let blockRows='';
-      byBlock[block].forEach(c=>{
-        const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||'?';
-        const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||'?':'-';
-        if(c.type==='nitro'){
-          const pts=mainPointsByDay(APP.allPreds?.[c.by_user]||{},block);
-          blockRows+=`<div style="padding:8px;border-radius:8px;background:var(--card2);margin-bottom:6px;display:flex;align-items:center;gap:8px">
-            <span>🔥</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> usó Nitro</div>
-            <span style="color:var(--gold);font-weight:700;font-size:12px">x3 → ${pts*3} pts</span>
-          </div>`;
-        } else if(c.type==='sang'){
-          const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},block);
-          const pTg=mainPointsByDay(APP.allPreds?.[c.target_user]||{},block);
-          let resultado='',color='var(--muted)',ptsBadge='';
-          if(pBy>pTg){resultado=`${esc(byName)} ganó`;color='var(--aqua)';ptsBadge=`+${pTg} pts`;}
-          else if(pBy<pTg){resultado=`${esc(byName)} perdió`;color='#ef4444';ptsBadge=`-${Math.round(pTg*0.5)} pts`;}
-          else{resultado='Empate';color='var(--muted)';ptsBadge='Sin transferencia';}
-          blockRows+=`<div style="padding:8px;border-radius:8px;background:var(--card2);margin-bottom:6px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span>🩸</span><div style="flex:1;font-size:13px"><b>${esc(byName)}</b> retó a <b>${esc(tgName)}</b></div>
-              <span style="color:${color};font-weight:700;font-size:12px">${resultado}</span>
-            </div>
-            <div style="font-size:11px;color:var(--muted);padding-left:22px;margin-top:2px">${esc(byName)}: ${pBy} pts · ${esc(tgName)}: ${pTg} pts · ${ptsBadge}</div>
-          </div>`;
-        }
-      });
-      if(blockRows) rows+=`<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">📅 ${block}</div>${blockRows}</div>`;
-    });
-    if(!rows) return '';
-    return `<div class="card" style="margin-top:16px"><div class="sec-title">📊 Historial de comodines</div>${rows}</div>`;
   })()}
   ${(()=>{
     const myPens=(APP.myPred?.penalties||[]);
