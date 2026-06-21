@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 — CONFIGURACIÓN
+   PINGÜIPRODE · MUNDIAL 2026 - CONFIGURACIÓN
    ---------------------------------------------------------------------
    👉 PEGÁ ACÁ TUS DOS CLAVES DE SUPABASE (ver la guía, paso 3).
       Las encontrás en: Supabase → Project Settings → API
