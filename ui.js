@@ -221,7 +221,7 @@ function renderInicio(v){
         const ht=TEAMS[m.home];const at=TEAMS[m.away];
         const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:_tz,hour:'2-digit',minute:'2-digit'});
         const hasRes=r&&r.h!=null&&r.h!=='';
-        _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
+        _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}</span>`}</span></div>`;
       });
       return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
     })()}
@@ -285,52 +285,70 @@ function renderInicio(v){
     ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
   </div>
   ${(()=>{
-    // Partidos del día FIFA actual (fuente única: fifaDateOf)
+    // Partidos por día FIFA (hoy abierto + fechas anteriores colapsadas)
     const tz='America/Argentina/Buenos_Aires';
-    const hoyFifa=todayFifaDate();
-    const todayMatches=FIXTURE.filter(m=>fifaDateOf(m)===hoyFifa)
-      .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
-    if(!todayMatches.length) return '';
     const res=APP.results?.main||{};
     const myMain=APP.myPred?.main||{};
-    let rows='';
-    todayMatches.forEach(m=>{
-      const r=res[m.id]; const p=myMain[m.id]||{};
-      const kickoff=new Date(m.kickoff);
-      const hora=kickoff.toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
-      const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
-      const hasRes = r&&r.h!=null&&r.h!=='';
-      const resultStr = hasRes
-        ? `<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`
-        : `<span style="color:var(--muted)">${hora}hs</span>`;
-      const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
-      // acertaron si hay resultado
-      let acertaronStr='';
-      if(r&&r.h!=null&&r.h!==''){
-        const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
-        const exact=[],suman=[];
-        players.forEach(pl=>{
-          const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
-          const pred2=preds[m.id]; if(!pred2) return;
-          if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
-          const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
-          const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
-          if(rWin===pWin) suman.push(pl.display_name);
-        });
-        acertaronStr=`<div class="acertaron" style="margin-top:4px">
-          <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
-          <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+
+    function renderDayMatches(dia){
+      const matches=FIXTURE.filter(m=>fifaDateOf(m)===dia)
+        .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+      if(!matches.length) return '';
+      let rows='';
+      matches.forEach(m=>{
+        const r=res[m.id]; const p=myMain[m.id]||{};
+        const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
+        const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
+        const hasRes = r&&r.h!=null&&r.h!=='';
+        const resultStr = hasRes
+          ? `<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`
+          : `<span style="color:var(--muted)">${hora}</span>`;
+        const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
+        let acertaronStr='';
+        if(hasRes){
+          const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
+          const exact=[],suman=[];
+          players.forEach(pl=>{
+            const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
+            const pred2=preds[m.id]; if(!pred2) return;
+            if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
+            const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+            const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
+            if(rWin===pWin) suman.push(pl.display_name);
+          });
+          acertaronStr=`<div class="acertaron" style="margin-top:4px">
+            <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
+            <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
+          </div>`;
+        }
+        rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--aqua)">· Tu pred: ${predStr}</span>
+            <span style="margin-left:auto;font-size:13px">${resultStr}</span>
+          </div>${acertaronStr}
         </div>`;
-      }
-      rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:13px">${homeTeam?.f||''} ${homeTeam?.n||m.home} vs ${awayTeam?.n||m.away} ${awayTeam?.f||''}</span>
-          <span style="font-size:13px;font-weight:700;color:var(--aqua)">· Tu pred: ${predStr}</span>
-          <span style="margin-left:auto;font-size:13px">${resultStr}</span>
-        </div>${acertaronStr}
-      </div>`;
+      });
+      return rows;
+    }
+
+    // días con partidos, ordenados (más reciente primero)
+    const diasConPartidos=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort().reverse();
+    const hoyFifa=todayFifaDate();
+    const rowsHoy=renderDayMatches(hoyFifa);
+    // días anteriores que ya tienen al menos un resultado cargado o ya pasaron
+    const anteriores=diasConPartidos.filter(d=>d<hoyFifa);
+    let prevHtml='';
+    anteriores.forEach(d=>{
+      const r=renderDayMatches(d);
+      if(r) prevHtml+=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--aqua);margin-bottom:6px">📅 ${d}</div>${r}</div>`;
     });
-    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>${rows}</div>`;
+
+    if(!rowsHoy && !prevHtml) return '';
+    return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>
+      ${rowsHoy || '<p class="note">No hay partidos hoy.</p>'}
+      ${prevHtml ? `<details class="fold" style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:6px 0">📂 Fechas anteriores (${anteriores.length})<span class="arr">›</span></summary><div style="margin-top:8px">${prevHtml}</div></details>` : ''}
+    </div>`;
   })()}
   ${(()=>{
     // ── Sanguijuelas frente a frente: hoy abierto + fechas anteriores colapsadas ──
@@ -1350,7 +1368,7 @@ function renderAdmin(v){
     const ht=TEAMS[m.home];const at=TEAMS[m.away];
     const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:_tz,hour:'2-digit',minute:'2-digit'});
     const hasRes=r&&r.h!=null&&r.h!=='';
-    _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}hs</span>`}</span></div>`;
+    _rows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:13px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</span><span>${hasRes?`<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`:`<span style="color:var(--muted)">${hora}</span>`}</span></div>`;
   });
   const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy</div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
