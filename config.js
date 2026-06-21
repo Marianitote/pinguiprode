@@ -144,6 +144,34 @@ const KICKOFFS_GRUPOS={
 const KICKOFFS_ELIM={ r32:"2026-06-28T14:00:00-03:00", r16:"2026-07-04T14:00:00-03:00",
   qf:"2026-07-09T14:00:00-03:00", sf:"2026-07-14T16:00:00-03:00",
   tp:"2026-07-18T16:00:00-03:00", final:"2026-07-19T16:00:00-03:00" };
+/* ─────────────────────────────────────────────────────────────────────
+   FECHAS OFICIALES FIFA por partido (fuente única para "a qué día pertenece").
+   Independiente de la hora argentina del kickoff. Resuelve el desfase de
+   partidos que en ARG se ven de madrugada pero la FIFA fecha el día anterior.
+   ───────────────────────────────────────────────────────────────────── */
+const FIFA_DATES_GRUPOS = {
+  "A|1|MEX-RSA":"2026-06-11","A|1|CZE-KOR":"2026-06-11",
+  "B|1|BIH-CAN":"2026-06-12","D|1|PAR-USA":"2026-06-12",
+  "B|1|QAT-SUI":"2026-06-13","C|1|BRA-MAR":"2026-06-13","C|1|HAI-SCO":"2026-06-13","D|1|AUS-TUR":"2026-06-13",
+  "E|1|CUW-GER":"2026-06-14","F|1|JPN-NED":"2026-06-14","E|1|CIV-ECU":"2026-06-14","F|1|SWE-TUN":"2026-06-14",
+  "H|1|CPV-ESP":"2026-06-15","G|1|BEL-EGY":"2026-06-15","H|1|KSA-URU":"2026-06-15","G|1|IRN-NZL":"2026-06-15",
+  "I|1|FRA-SEN":"2026-06-16","I|1|IRQ-NOR":"2026-06-16","J|1|ALG-ARG":"2026-06-16","J|1|AUT-JOR":"2026-06-16",
+  "K|1|COD-POR":"2026-06-17","L|1|CRO-ENG":"2026-06-17","L|1|GHA-PAN":"2026-06-17","K|1|COL-UZB":"2026-06-17",
+  "A|2|CZE-RSA":"2026-06-18","B|2|BIH-SUI":"2026-06-18","B|2|CAN-QAT":"2026-06-18","A|2|KOR-MEX":"2026-06-18",
+  "D|2|AUS-USA":"2026-06-19","C|2|MAR-SCO":"2026-06-19","C|2|BRA-HAI":"2026-06-19","D|2|PAR-TUR":"2026-06-19",
+  "F|2|NED-SWE":"2026-06-20","E|2|CIV-GER":"2026-06-20","E|2|CUW-ECU":"2026-06-20","F|2|JPN-TUN":"2026-06-20",
+  "H|2|ESP-KSA":"2026-06-21","G|2|BEL-IRN":"2026-06-21","H|2|CPV-URU":"2026-06-21","G|2|EGY-NZL":"2026-06-21",
+  "J|2|ARG-AUT":"2026-06-22","I|2|FRA-IRQ":"2026-06-22","I|2|NOR-SEN":"2026-06-22","J|2|ALG-JOR":"2026-06-22",
+  "K|2|POR-UZB":"2026-06-23","L|2|ENG-GHA":"2026-06-23","L|2|CRO-PAN":"2026-06-23","K|2|COD-COL":"2026-06-23",
+  "B|3|CAN-SUI":"2026-06-24","B|3|BIH-QAT":"2026-06-24","C|3|BRA-SCO":"2026-06-24","C|3|HAI-MAR":"2026-06-24","A|3|CZE-MEX":"2026-06-24","A|3|KOR-RSA":"2026-06-24",
+  "E|3|CIV-CUW":"2026-06-25","E|3|ECU-GER":"2026-06-25","F|3|JPN-SWE":"2026-06-25","F|3|NED-TUN":"2026-06-25","D|3|TUR-USA":"2026-06-25","D|3|AUS-PAR":"2026-06-25",
+  "I|3|FRA-NOR":"2026-06-26","I|3|IRQ-SEN":"2026-06-26","H|3|CPV-KSA":"2026-06-26","H|3|ESP-URU":"2026-06-26","G|3|EGY-IRN":"2026-06-26","G|3|BEL-NZL":"2026-06-26",
+  "L|3|ENG-PAN":"2026-06-27","L|3|CRO-GHA":"2026-06-27","K|3|COL-POR":"2026-06-27","K|3|COD-UZB":"2026-06-27","J|3|ALG-AUT":"2026-06-27","J|3|ARG-JOR":"2026-06-27",
+};
+// Fechas FIFA de eliminatorias por fase (el día oficial de inicio de cada ronda)
+const FIFA_DATES_ELIM = {
+  r32:"2026-06-28", r16:"2026-07-04", qf:"2026-07-09", sf:"2026-07-14", tp:"2026-07-18", final:"2026-07-19"
+};
 function koKey(g,j,a,b){ return g+"|"+j+"|"+[a,b].sort().join("-"); }
 
 /* Construcción del fixture (72 grupos + 32 eliminatorias = 104) */
@@ -152,8 +180,10 @@ function buildFixture(){
   GROUPS.forEach(g=>{ const t=GROUP_TEAMS[g];
     [1,2,3].forEach(jor=> RR[jor-1].forEach(pair=>{
       const home=t[pair[0]], away=t[pair[1]];
+      const _kk=koKey(g,jor,home,away);
       M.push({id:id++,phase:"grupos",jor,grp:g,home,away,label:`Grupo ${g} · J${jor}`,
-        date:GROUP_DATES[jor], kickoff:KICKOFFS_GRUPOS[koKey(g,jor,home,away)]||null});
+        date:GROUP_DATES[jor], kickoff:KICKOFFS_GRUPOS[_kk]||null,
+        fifaDate:FIFA_DATES_GRUPOS[_kk]||null});
     }));
   });
   [["r32",16,"Ronda de 32","28 jun–3 jul",4],["r16",8,"Octavos","4–7 jul",5],
@@ -161,11 +191,20 @@ function buildFixture(){
    ["tp",1,"3er puesto","18 jul",8],["final",1,"FINAL","19 jul",8]
   ].forEach(([phase,n,label,date,jor])=>{
     for(let i=0;i<n;i++) M.push({id:id++,phase,jor,grp:null,home:null,away:null,ko:true,
-      label:label+(n>1?` · #${i+1}`:""),date, kickoff:KICKOFFS_ELIM[phase]||null});
+      label:label+(n>1?` · #${i+1}`:""),date, kickoff:KICKOFFS_ELIM[phase]||null,
+      fifaDate:FIFA_DATES_ELIM[phase]||null});
   });
   return M;
 }
 const FIXTURE=buildFixture();
+/* Fuente única: a qué día (calendario FIFA) pertenece un partido.
+   Si por algún motivo falta la fecha FIFA, cae al día calendario ARG del kickoff. */
+function fifaDateOf(m){
+  if(!m) return null;
+  if(m.fifaDate) return m.fifaDate;
+  if(m.kickoff) return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(new Date(m.kickoff));
+  return null;
+}
 const PHASES=[
   {key:"grupos",label:"Fase de grupos",jors:[1,2,3]},
   {key:"r32",label:"Ronda de 32"},{key:"r16",label:"Octavos"},
