@@ -545,7 +545,7 @@ function renderInicio(v){
       }
     }
     if(!html) return '';
-    return `<div class="card" style="margin-top:16px"><div class="sec-title">📊 Historial de comodines</div>${html}</div>`;
+    return `<div class="card" style="margin-top:16px"><div class="sec-title">📊 Historial de comodines · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(hoy+'T12:00:00'))}</span></div>${html}</div>`;
   })()}
   <div class="card"><div class="sec-title">Tabla de posiciones</div>
     ${(()=>{
