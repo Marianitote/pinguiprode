@@ -235,7 +235,7 @@ async function adminLoadEditLog(){
 
 /* ---------- COMODINES ---------- */
 async function requestComodin(type, targetUser){
-  const day = todayBlockKey();
+  const day = todayFifaDate();
   const phase = phaseOfDay(day);
   if(!phase) throw new Error("No hay partidos hoy.");
   const {error}=await sb.from('comodines').insert({
@@ -394,7 +394,7 @@ function teamsInStage(matches){
 function mainPointsByDay(pred, day){
   if(!pred||!day) return 0;
   let pts=0;
-  const matches = FIXTURE.filter(m=>m.kickoff && dayKey(m.kickoff)===day);
+  const matches = FIXTURE.filter(m=>fifaDateOf(m)===day);
   matches.forEach(mt=>{
     if(mt.phase==="grupos"){
       const m=pred.main||{}, res=APP.results.main||{};
@@ -757,10 +757,34 @@ function todayBlockKey(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
 }
 
+/* Día FIFA "actual": la fecha FIFA de los partidos cuyo kickoff cae en el bloque
+   argentino de hoy (8am-4am). Si no hay partidos hoy, usa la fecha ARG actual.
+   Esta es la fuente para "Partidos de hoy" y para los comodines. */
+function todayFifaDate(){
+  const block = todayBlockKey(); // día calendario ARG del bloque actual
+  // partidos cuyo kickoff cae en el bloque ARG de hoy
+  const tz='America/Argentina/Buenos_Aires';
+  function blockOfKickoff(k){
+    const d=new Date(k);
+    const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
+    if(h<4) d.setDate(d.getDate()-1);
+    return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+  }
+  const hoy = FIXTURE.filter(m=>m.kickoff && blockOfKickoff(m.kickoff)===block);
+  if(hoy.length){
+    // devolver la fecha FIFA más común entre los partidos de hoy
+    const counts={};
+    hoy.forEach(m=>{ const f=fifaDateOf(m); if(f) counts[f]=(counts[f]||0)+1; });
+    const best=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+    if(best) return best;
+  }
+  return block;
+}
+
 // ¿hay partidos hoy de la fase X?
 function phaseOfDay(day){
-  // miramos qué FIXTURE tiene kickoff en ese día calendario; devolvemos su fase (o null)
-  const m = FIXTURE.find(mt=>{ const k=mt.kickoff; return k && dayKey(k)===day; });
+  // miramos qué FIXTURE tiene fecha FIFA en ese día; devolvemos su fase (o null)
+  const m = FIXTURE.find(mt=>fifaDateOf(mt)===day);
   return m?m.phase:null;
 }
 
@@ -773,7 +797,7 @@ function windowOpenNow(){
 
 // ¿día de partidos? (al menos un partido en FIXTURE con ese día calendario)
 function dayHasMatches(day){
-  return FIXTURE.some(m=>m.kickoff && dayKey(m.kickoff)===day);
+  return FIXTURE.some(m=>fifaDateOf(m)===day);
 }
 
 function quotaLeft(uid,type){
@@ -797,7 +821,7 @@ function quotaLeft(uid,type){
 /* Validación de comodines en el modelo diario.
    No recibimos phase ni jor — se calculan del día actual. */
 function windowErrorToday(){
-  const day = todayDayKey();
+  const day = todayFifaDate();
   if(!dayHasMatches(day)) return "Hoy no hay partidos del Mundial. Los comodines solo se piden los días que se juega.";
   if(!windowOpenNow()) return "La ventana de comodines es de 6:00 a 12:00 (hora argentina). Está cerrada ahora.";
   return null;
@@ -805,22 +829,22 @@ function windowErrorToday(){
 
 // ¿el usuario fue retado en partido alguno de hoy?
 function wasChallengedToday(uid){
-  const day=todayBlockKey();
+  const day=todayFifaDate();
   return APP.comodines.find(c=>c.type==="sang"&&c.target_user===uid&&c.day===day);
 }
 function askedNitroToday(uid){
-  const day=todayBlockKey();
+  const day=todayFifaDate();
   return APP.comodines.find(c=>c.type==="nitro"&&c.by_user===uid&&c.day===day);
 }
 function askedSangToday(uid){
-  const day=todayBlockKey();
+  const day=todayFifaDate();
   return APP.comodines.find(c=>c.type==="sang"&&c.by_user===uid&&c.day===day);
 }
 
 function validateSang(by,target){
   if(by===target) return "No podés retarte a vos mismo.";
   const winErr=windowErrorToday(); if(winErr) return winErr;
-  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const day=todayFifaDate(); const phase=phaseOfDay(day);
   if(!phase) return "No hay partidos hoy.";
   const tb=standings(); const me=tb.find(r=>r.id===by), tg=tb.find(r=>r.id===target);
   if(!me||!tg) return "Jugador no encontrado.";
@@ -849,7 +873,7 @@ function validateSang(by,target){
 }
 function validateNitro(by){
   const winErr=windowErrorToday(); if(winErr) return winErr;
-  const day=todayDayKey(); const phase=phaseOfDay(day);
+  const day=todayFifaDate(); const phase=phaseOfDay(day);
   if(!phase) return "No hay partidos hoy.";
   const q=quotaLeft(by,"nitro");
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
