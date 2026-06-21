@@ -333,134 +333,138 @@ function renderInicio(v){
     return `<div class="card"><div class="sec-title">⚽ Partidos de hoy</div>${rows}</div>`;
   })()}
   ${(()=>{
-    // ── Sanguijuelas frente a frente (bloque actual) ──────────────────
-    const block = todayFifaDate();
-    const sangsHoy = APP.comodines.filter(c=>c.type==='sang'&&c.day===block);
-    if(!sangsHoy.length) return '';
+    // ── Sanguijuelas frente a frente: hoy abierto + fechas anteriores colapsadas ──
     const resMain = APP.results?.main||{};
     const preds = APP.allPreds||{};
-    const sangDay = sangsHoy[0].day;
 
-    // IMPORTANTE: filtrar los partidos EXACTAMENTE igual que mainPointsByDay (usa dayKey,
-    // el día calendario ARG). Así los partidos mostrados son los mismos que cuentan para
-    // los puntos de la sanguijuela — sin esto se desalinean (ver bug Türkiye-Paraguay).
-    const matchesHoy = FIXTURE.filter(m=>fifaDateOf(m)===sangDay)
-      .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
-    if(!matchesHoy.length) return '';
+    // Renderiza la tabla completa de un día (sangDay = fecha FIFA del bloque)
+    function renderFFTable(sangDay){
+      const sangs = APP.comodines.filter(c=>c.type==='sang'&&c.day===sangDay);
+      if(!sangs.length) return '';
+      const matches = FIXTURE.filter(m=>fifaDateOf(m)===sangDay)
+        .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+      if(!matches.length) return '';
 
-    // ── Construir columnas: una por jugador único, en orden de aparición ──
-    // Cada jugador puede ser retador 💉, retado 🩸, o ambos 💉🩸
-    const playerOrder = []; // UIDs en orden de aparición
-    const playerSangs = {}; // uid → [{sang, role: 'by'|'tg'}]
-    sangsHoy.forEach(c=>{
-      [c.by_user, c.target_user].forEach((uid,i)=>{
-        const role = i===0?'by':'tg';
-        if(!playerSangs[uid]){ playerSangs[uid]=[]; playerOrder.push(uid); }
-        playerSangs[uid].push({c, role});
+      // columnas: una por jugador único
+      const playerOrder=[]; const playerSangs={};
+      sangs.forEach(c=>{
+        [c.by_user,c.target_user].forEach((uid,i)=>{
+          const role=i===0?'by':'tg';
+          if(!playerSangs[uid]){ playerSangs[uid]=[]; playerOrder.push(uid); }
+          playerSangs[uid].push({c,role});
+        });
       });
-    });
 
-    // puntos por jugador (para fila de totales y colores)
-    const ptsByUid = {};
-    sangsHoy.forEach(c=>{
-      ptsByUid[c.by_user] = ptsByUid[c.by_user] ?? mainPointsByDay(preds[c.by_user]||{}, sangDay);
-      ptsByUid[c.target_user] = ptsByUid[c.target_user] ?? mainPointsByDay(preds[c.target_user]||{}, sangDay);
-    });
-
-    // color de fondo para (uid, sang): según resultado de ESA sang
-    function sangBg(sang, uid){
-      const pBy=ptsByUid[sang.by_user], pTg=ptsByUid[sang.target_user];
-      const isByUser = uid===sang.by_user;
-      // verde = ganó, rojo = perdió, azul = empate — desde la perspectiva del jugador
-      if(pBy===pTg) return 'rgba(100,149,237,0.18)';
-      const won = isByUser ? pBy>pTg : pTg>pBy;
-      return won ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)';
-    }
-
-    // ── Header ──
-    let thead=`<tr><th style="text-align:left;font-size:12px;min-width:100px;padding:4px 6px">Partido</th>`;
-    playerOrder.forEach(uid=>{
-      const name=APP.profiles.find(p=>p.id===uid)?.display_name||'?';
-      const roles=playerSangs[uid];
-      const isBy=roles.some(r=>r.role==='by');
-      const isTg=roles.some(r=>r.role==='tg');
-      const badge=(isBy&&isTg)?'💉🩸':isBy?'💉':'🩸';
-      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(name)} ${badge}</th>`;
-    });
-    thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">Resultado</th></tr>`;
-
-    // ── Filas por partido ──
-    let tbody='';
-    matchesHoy.forEach(m=>{
-      const ht=TEAMS[m.home],at=TEAMS[m.away];
-      const r=resMain[m.id];
-      const hasRes=r&&r.h!=null&&r.h!=='';
-      let rowHtml=`<td style="font-size:12px;padding:5px 6px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
-      playerOrder.forEach(uid=>{
-        const roles=playerSangs[uid];
-        const pred=(preds[uid]?.main||{})[m.id];
-        const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
-        const bgs=[...new Set(roles.map(rr=>sangBg(rr.c, uid)))];
-        if(bgs.length<=1){
-          // un solo color (un rol, o dos roles con mismo resultado) → celda única
-          rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bgs[0]||''};padding:5px 8px">${predStr}</td>`;
-        } else {
-          // dos roles con resultados distintos → celda dividida en franjas de color
-          const franjas=bgs.map((bg,i)=>`<div style="flex:1;padding:5px 4px;background:${bg};${i>0?'border-left:1px solid rgba(255,255,255,0.15)':''}">${predStr}</div>`).join('');
-          rowHtml+=`<td style="padding:0;text-align:center;font-size:13px;font-weight:600"><div style="display:flex;height:100%">${franjas}</div></td>`;
-        }
+      const ptsByUid={};
+      sangs.forEach(c=>{
+        ptsByUid[c.by_user]=ptsByUid[c.by_user]??mainPointsByDay(preds[c.by_user]||{},sangDay);
+        ptsByUid[c.target_user]=ptsByUid[c.target_user]??mainPointsByDay(preds[c.target_user]||{},sangDay);
       });
-      const resStr=hasRes?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">—</span>`;
-      rowHtml+=`<td style="text-align:center;font-size:13px;padding:5px 8px">${resStr}</td>`;
-      tbody+=`<tr style="border-bottom:1px solid rgba(127,29,29,0.2)">${rowHtml}</tr>`;
-    });
 
-    // ── Fila de totales ──
-    let tfoot=`<tr style="border-top:2px solid rgba(127,29,29,0.4)"><td style="font-size:11px;font-weight:700;color:var(--muted);padding:6px 6px">Pts generados</td>`;
-    playerOrder.forEach(uid=>{
-      const roles=playerSangs[uid];
-      const pts=ptsByUid[uid];
-      if(roles.length===1){
-        const sang=roles[0].c;
+      function sangBg(sang,uid){
         const pBy=ptsByUid[sang.by_user], pTg=ptsByUid[sang.target_user];
         const isByUser=uid===sang.by_user;
+        if(pBy===pTg) return 'rgba(100,149,237,0.18)';
         const won=isByUser?pBy>pTg:pTg>pBy;
-        const tied=pBy===pTg;
-        const col=tied?'cornflowerblue':won?'#22c55e':'#ef4444';
-        const rival=isByUser?sang.target_user:sang.by_user;
-        const rivalPts=ptsByUid[rival];
-        tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
-          <div style="font-weight:700">${pts} pts</div>
-          <div style="font-size:11px;color:${col}">${tied?'Empate':won?'Ganó 🏆':'Perdió'}</div>
-        </td>`;
-      } else {
-        // dos sangs: mostrar pts + resultado de cada una
-        const parts=roles.map(({c,role})=>{
-          const pBy=ptsByUid[c.by_user], pTg=ptsByUid[c.target_user];
-          const isByUser=uid===c.by_user;
+        return won?'rgba(34,197,94,0.2)':'rgba(239,68,68,0.2)';
+      }
+
+      let thead=`<tr><th style="text-align:left;font-size:12px;min-width:100px;padding:4px 6px">Partido</th>`;
+      playerOrder.forEach(uid=>{
+        const name=APP.profiles.find(p=>p.id===uid)?.display_name||'?';
+        const roles=playerSangs[uid];
+        const isBy=roles.some(r=>r.role==='by'), isTg=roles.some(r=>r.role==='tg');
+        const badge=(isBy&&isTg)?'💉🩸':isBy?'💉':'🩸';
+        thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">${esc(name)} ${badge}</th>`;
+      });
+      thead+=`<th style="font-size:11px;text-align:center;padding:4px 8px">Resultado</th></tr>`;
+
+      let tbody='';
+      matches.forEach(m=>{
+        const ht=TEAMS[m.home],at=TEAMS[m.away];
+        const r=resMain[m.id];
+        const hasRes=r&&r.h!=null&&r.h!=='';
+        let rowHtml=`<td style="font-size:12px;padding:5px 6px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
+        playerOrder.forEach(uid=>{
+          const roles=playerSangs[uid];
+          const pred=(preds[uid]?.main||{})[m.id];
+          const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
+          const bgs=[...new Set(roles.map(rr=>sangBg(rr.c,uid)))];
+          if(bgs.length<=1){
+            rowHtml+=`<td style="text-align:center;font-size:13px;font-weight:600;background:${bgs[0]||''};padding:5px 8px">${predStr}</td>`;
+          } else {
+            const franjas=bgs.map((bg,i)=>`<div style="flex:1;padding:5px 4px;background:${bg};${i>0?'border-left:1px solid rgba(255,255,255,0.15)':''}">${predStr}</div>`).join('');
+            rowHtml+=`<td style="padding:0;text-align:center;font-size:13px;font-weight:600"><div style="display:flex;height:100%">${franjas}</div></td>`;
+          }
+        });
+        const resStr=hasRes?`<b>${r.h}-${r.a}</b>`:`<span style="color:var(--muted)">—</span>`;
+        rowHtml+=`<td style="text-align:center;font-size:13px;padding:5px 8px">${resStr}</td>`;
+        tbody+=`<tr style="border-bottom:1px solid rgba(127,29,29,0.2)">${rowHtml}</tr>`;
+      });
+
+      let tfoot=`<tr style="border-top:2px solid rgba(127,29,29,0.4)"><td style="font-size:11px;font-weight:700;color:var(--muted);padding:6px 6px">Pts generados</td>`;
+      playerOrder.forEach(uid=>{
+        const roles=playerSangs[uid];
+        const pts=ptsByUid[uid];
+        if(roles.length===1){
+          const sang=roles[0].c;
+          const pBy=ptsByUid[sang.by_user], pTg=ptsByUid[sang.target_user];
+          const isByUser=uid===sang.by_user;
           const won=isByUser?pBy>pTg:pTg>pBy;
           const tied=pBy===pTg;
           const col=tied?'cornflowerblue':won?'#22c55e':'#ef4444';
-          const icon=isByUser?'💉':'🩸';
-          return `<span style="color:${col}">${icon}${tied?'=':won?'✓':'✗'}</span>`;
-        }).join(' ');
-        tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
-          <div style="font-weight:700">${pts} pts</div>
-          <div style="font-size:13px">${parts}</div>
-        </td>`;
-      }
-    });
-    tfoot+=`<td></td></tr>`;
+          tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
+            <div style="font-weight:700">${pts} pts</div>
+            <div style="font-size:11px;color:${col}">${tied?'Empate':won?'Ganó 🏆':'Perdió'}</div>
+          </td>`;
+        } else {
+          const parts=roles.map(({c,role})=>{
+            const pBy=ptsByUid[c.by_user], pTg=ptsByUid[c.target_user];
+            const isByUser=uid===c.by_user;
+            const won=isByUser?pBy>pTg:pTg>pBy;
+            const tied=pBy===pTg;
+            const col=tied?'cornflowerblue':won?'#22c55e':'#ef4444';
+            const icon=isByUser?'💉':'🩸';
+            return `<span style="color:${col}">${icon}${tied?'=':won?'✓':'✗'}</span>`;
+          }).join(' ');
+          tfoot+=`<td style="text-align:center;font-size:12px;padding:6px 8px">
+            <div style="font-weight:700">${pts} pts</div>
+            <div style="font-size:13px">${parts}</div>
+          </td>`;
+        }
+      });
+      tfoot+=`<td></td></tr>`;
 
-    return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
-      <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
-      <p class="note" style="margin-bottom:6px">Retos activos de hoy. <span style="color:#22c55e;font-weight:600">Verde = ganó</span> · <span style="color:#ef4444;font-weight:600">Rojo = perdió</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
-      <p class="note" style="margin-bottom:10px;font-size:11.5px">💉 Retador &nbsp;·&nbsp; 🩸 Retado</p>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
         <thead style="border-bottom:2px solid #7f1d1d">${thead}</thead>
         <tbody>${tbody}</tbody>
         <tfoot>${tfoot}</tfoot>
-      </table></div>
+      </table></div>`;
+    }
+
+    // todos los días con sanguijuelas
+    const diasConSang=[...new Set(APP.comodines.filter(c=>c.type==='sang').map(c=>c.day))].sort().reverse();
+    if(!diasConSang.length) return '';
+    const hoy=todayFifaDate();
+
+    // tabla de hoy
+    const tablaHoy=renderFFTable(hoy);
+    // tablas de días anteriores
+    const anteriores=diasConSang.filter(d=>d!==hoy);
+    let prevHtml='';
+    anteriores.forEach(d=>{
+      const t=renderFFTable(d);
+      if(t) prevHtml+=`<div style="margin-top:16px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">📅 ${d}</div>${t}</div>`;
+    });
+
+    if(!tablaHoy && !prevHtml) return '';
+
+    return `<div class="card" style="border-color:#7f1d1d;background:rgba(127,29,29,0.08)">
+      <div class="sec-title" style="color:#ef4444">🩸 Sanguijuelas · frente a frente</div>
+      <p class="note" style="margin-bottom:6px">Retos de hoy. <span style="color:#22c55e;font-weight:600">Verde = ganó</span> · <span style="color:#ef4444;font-weight:600">Rojo = perdió</span> · <span style="color:cornflowerblue;font-weight:600">Azul = empate</span>.</p>
+      <p class="note" style="margin-bottom:10px;font-size:11.5px">💉 Retador &nbsp;·&nbsp; 🩸 Retado</p>
+      ${tablaHoy || '<p class="note">No hay retos activos hoy.</p>'}
+      ${prevHtml ? `<details class="fold" style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:6px 0">📂 Fechas anteriores (${anteriores.length})<span class="arr">›</span></summary><div style="margin-top:8px">${prevHtml}</div></details>` : ''}
     </div>`;
   })()}
   ${(()=>{
