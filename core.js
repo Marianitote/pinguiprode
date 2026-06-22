@@ -65,7 +65,7 @@ async function loadAll(){
     APP.allPreds={};
     (allPRes.data||[]).forEach(p=>{ APP.allPreds[p.user_id]=p; });
   }
-  invalidateStandings();
+  invalidateStandings(); // siempre después de cargar bonuses para que grandTotal los incluya
   const withTimeout = (p, label) => Promise.race([
     p.catch(e => console.warn(label, e?.message||e)),
     new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
@@ -131,7 +131,11 @@ async function adminApplyPenalty(uid, pts, reason){
 }
 async function adminDeletePenalty(uid, penId){
   const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
-  const pens = (pred.data?.penalties||[]).filter(p=>String(p.id)!==String(penId));
+  // penId puede ser el id real o la fecha (fallback para penalizaciones viejas sin id)
+  const pens = (pred.data?.penalties||[]).filter(p=>{
+    if(p.id) return String(p.id)!==String(penId);
+    return String(p.date)!==String(penId); // fallback: comparar por fecha
+  });
   const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
   if(error) throw error;
   if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
@@ -622,12 +626,16 @@ function bonusTotal(uid){
 function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 async function adminApplyBonus(uid, pts, reason){
-  const {error}=await sb.from('bonuses').insert({user_id:uid, pts, reason, date:new Date().toISOString()});
-  if(error) throw error; await loadAll();
+  const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
+  if(error) throw error;
+  invalidateStandings();
+  await loadAll();
 }
 async function adminDeleteBonus(id){
   const {error}=await sb.from('bonuses').delete().eq('id',id);
-  if(error) throw error; await loadAll();
+  if(error) throw error;
+  invalidateStandings();
+  await loadAll();
 }
 function norm(s){ return String(s).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
 function matchesResult(playerAns, resultVal){
