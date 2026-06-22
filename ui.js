@@ -1228,9 +1228,11 @@ function standingsTableHTML(opts){
       ? `<span title="Usó ${nNitroUs} nitro${nNitroUs>1?'s':''} esta fase" style="margin-left:4px;font-size:11px;color:var(--gold);font-weight:700">🔥${nNitroUs}</span>`
       : "";
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
+    const bonTotal = bonusTotal(r.id);
+    const bonBadge = bonTotal>0 ? `<span title="Bonificación: +${bonTotal}pts" style="color:#22c55e;font-size:11px;font-weight:700;margin-left:4px">✨+${bonTotal}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
-      <td class="name">${esc(r.name)}${recvHoyBadge}${aplSangBadge}${aplNitroBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}</td>
+      <td class="name">${esc(r.name)}${recvHoyBadge}${aplSangBadge}${aplNitroBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}${bonBadge}</td>
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
@@ -1238,7 +1240,7 @@ function standingsTableHTML(opts){
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
-    <span style="color:#ef4444">🩸</span><i>N</i> = sanguijuelas aplicadas esta fase &nbsp;·&nbsp; 🔥<i>N</i> = nitros usados esta fase</div>`;
+    <span style="color:#ef4444">🩸</span><i>N</i> = sanguijuelas aplicadas esta fase &nbsp;·&nbsp; 🔥<i>N</i> = nitros usados esta fase &nbsp;·&nbsp; ⚡ = penalización &nbsp;·&nbsp; <span style="color:#22c55e">✨</span> = puntos extra</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
       <tr><th>#</th><th class="name">Jugador <span style="font-size:10px;font-weight:400;color:var(--muted)">(comodines usados)</span></th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
       ${out}
@@ -1434,14 +1436,13 @@ function admPenalizaciones(area){
     if(!pens.length) return;
     hayPenas = true;
     html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${esc(p.display_name||p.email)}</b>`;
-    pens.forEach(pen=>{
+    pens.forEach((pen,penIdx)=>{
       const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      const penId = pen.id||pen.date;
       html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
         <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
         <span style="flex:1;color:var(--muted)">${esc(pen.reason)}</span>
         <span style="color:var(--muted);font-size:11px">${fecha}</span>
-        <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeletePenalty('${p.id}',${JSON.stringify(penId)})">✕</button>
+        <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeletePenalty('${p.id}',${penIdx})">✕</button>
       </div>`;
     });
     html+=`</div>`;
