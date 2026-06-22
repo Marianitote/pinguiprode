@@ -602,21 +602,41 @@ function renderInicio(v){
   })()}
   ${(()=>{
     const myPens=(APP.myPred?.penalties||[]);
-    if(!myPens.length) return '';
-    const total=myPens.reduce((s,p)=>s+(+p.pts||0),0);
-    const rows=myPens.map(pen=>{
-      const fecha=new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px">
-        <span style="color:#ef4444;font-weight:700;flex-shrink:0">⚡ -${pen.pts}pts</span>
-        <span style="flex:1">${esc(pen.reason)}</span>
-        <span style="color:var(--muted);font-size:11px">${fecha}</span>
+    const myBonuses=(APP.bonuses||[]).filter(b=>b.user_id===APP.user?.id);
+    let html='';
+    if(myPens.length){
+      const total=myPens.reduce((s,p)=>s+(+p.pts||0),0);
+      const rows=myPens.map(pen=>{
+        const fecha=new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="color:#ef4444;font-weight:700;flex-shrink:0">⚡ -${pen.pts}pts</span>
+          <span style="flex:1">${esc(pen.reason)}</span>
+          <span style="color:var(--muted);font-size:11px">${fecha}</span>
+        </div>`;
+      }).join('');
+      html+=`<div class="card" style="border-color:#ef4444;background:rgba(239,68,68,.06)">
+        <div class="sec-title" style="color:#ef4444">⚡ Penalizaciones aplicadas</div>
+        <p class="note" style="margin-bottom:10px">El COMIPRO aplicó descuentos en tus puntos. Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
+        ${rows}
       </div>`;
-    }).join('');
-    return `<div class="card" style="border-color:#ef4444;background:rgba(239,68,68,.06)">
-      <div class="sec-title" style="color:#ef4444">⚡ Penalizaciones aplicadas</div>
-      <p class="note" style="margin-bottom:10px">El COMIPRO aplicó descuentos en tus puntos. Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
-      ${rows}
-    </div>`;
+    }
+    if(myBonuses.length){
+      const total=myBonuses.reduce((s,b)=>s+(+b.pts||0),0);
+      const rows=myBonuses.map(b=>{
+        const fecha=new Date(b.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="color:#22c55e;font-weight:700;flex-shrink:0">✨ +${b.pts}pts</span>
+          <span style="flex:1">${esc(b.reason)}</span>
+          <span style="color:var(--muted);font-size:11px">${fecha}</span>
+        </div>`;
+      }).join('');
+      html+=`<div class="card" style="border-color:#22c55e;background:rgba(34,197,94,.06);margin-top:12px">
+        <div class="sec-title" style="color:#22c55e">✨ Bonificaciones aplicadas</div>
+        <p class="note" style="margin-bottom:10px">El COMIPRO sumó puntos extra. Total bonificado: <b style="color:#22c55e">+${total}pts</b></p>
+        ${rows}
+      </div>`;
+    }
+    return html;
   })()}
   <div class="card flat"><div class="sec-title">Comodines · resumen</div>
     <p class="note" style="line-height:1.7"><b>🩸 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado en su día, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó; si empatan, no pasa nada.<br>
@@ -1384,7 +1404,7 @@ function renderAdmin(v){
   const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
-      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penalizaciones"],["historial","📊 Historial"],["export","📤 Exportar"]]
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penaliz. y Puntos"],["historial","📊 Historial"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
     </div></div>${_matchBlock}<div id="admArea"></div>`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
@@ -1392,15 +1412,14 @@ function renderAdmin(v){
 }
 function admPenalizaciones(area){
   const players = APP.profiles.filter(p=>!p.is_admin);
-  let html = `<div class="card"><div class="sec-title">⚡ Penalizaciones</div>
-    <p class="note" style="margin-bottom:14px">Descuentos manuales de puntos. Se restan del total general del jugador y son visibles para él.</p>
+  const playerOpts = players.map(p=>`<option value="${p.id}">${esc(p.display_name||p.email)}</option>`).join('');
+
+  let html = `
+  <div class="card"><div class="sec-title">⚡ Penalizaciones</div>
+    <p class="note" style="margin-bottom:14px">Descuentos manuales de puntos. Son visibles para el jugador.</p>
     <div class="grid2" style="gap:10px;margin-bottom:18px">
-      <div><label class="field">Jugador</label>
-        <select id="penPlayer">${players.map(p=>`<option value="${p.id}">${p.display_name||p.email}</option>`).join('')}</select>
-      </div>
-      <div><label class="field">Puntos a descontar</label>
-        <input id="penPts" type="number" min="1" placeholder="ej: 5" style="width:100%">
-      </div>
+      <div><label class="field">Jugador</label><select id="penPlayer">${playerOpts}</select></div>
+      <div><label class="field">Puntos a descontar</label><input id="penPts" type="number" min="1" placeholder="ej: 5" style="width:100%"></div>
     </div>
     <div style="margin-bottom:14px"><label class="field">Motivo (obligatorio)</label>
       <input id="penReason" placeholder="ej: Penalización por error en carga" style="width:100%">
@@ -1408,16 +1427,14 @@ function admPenalizaciones(area){
     <button class="btn gold" onclick="doApplyPenalty()">⚡ Aplicar descuento</button>
     <div style="margin-top:22px;border-top:1px solid var(--line);padding-top:14px">
       <div class="sec-title" style="font-size:13px;margin-bottom:10px">Historial de penalizaciones</div>`;
-
-  // listar todas las penalizaciones existentes
   let hayPenas = false;
   players.forEach(p=>{
     const pred = APP.preds?.find(pr=>pr.user_id===p.id);
     const pens = pred?.penalties||[];
     if(!pens.length) return;
     hayPenas = true;
-    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${p.display_name||p.email}</b>`;
-    pens.forEach((pen,i)=>{
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${esc(p.display_name||p.email)}</b>`;
+    pens.forEach(pen=>{
       const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
       html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
         <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
@@ -1429,19 +1446,69 @@ function admPenalizaciones(area){
   });
   if(!hayPenas) html+=`<p class="note">No hay penalizaciones aplicadas todavía.</p>`;
   html+=`</div></div>`;
+
+  // ── Bonificaciones ──────────────────────────────────────────────
+  html+=`<div class="card" style="margin-top:16px"><div class="sec-title">✨ Bonificaciones</div>
+    <p class="note" style="margin-bottom:14px">Suma de puntos manual. Se suman al total del jugador y son visibles para él.</p>
+    <div class="grid2" style="gap:10px;margin-bottom:18px">
+      <div><label class="field">Jugador</label><select id="bonPlayer">${playerOpts}</select></div>
+      <div><label class="field">Puntos a sumar</label><input id="bonPts" type="number" min="1" placeholder="ej: 5" style="width:100%"></div>
+    </div>
+    <div style="margin-bottom:14px"><label class="field">Motivo (obligatorio)</label>
+      <input id="bonReason" placeholder="ej: Bonus por acierto especial" style="width:100%">
+    </div>
+    <button class="btn primary" onclick="doApplyBonus()">✨ Sumar puntos</button>
+    <div style="margin-top:22px;border-top:1px solid var(--line);padding-top:14px">
+      <div class="sec-title" style="font-size:13px;margin-bottom:10px">Historial de bonificaciones</div>`;
+
+  const bonuses = APP.bonuses||[];
+  if(!bonuses.length){
+    html+=`<p class="note">No hay bonificaciones aplicadas todavía.</p>`;
+  } else {
+    // agrupar por jugador
+    const byPlayer={};
+    bonuses.forEach(b=>{ if(!byPlayer[b.user_id]) byPlayer[b.user_id]=[]; byPlayer[b.user_id].push(b); });
+    Object.keys(byPlayer).forEach(uid=>{
+      const pName=APP.profiles.find(p=>p.id===uid)?.display_name||'?';
+      html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${esc(pName)}</b>`;
+      byPlayer[uid].forEach(b=>{
+        const fecha=new Date(b.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+          <span style="color:#22c55e;font-weight:700">+${b.pts}pts</span>
+          <span style="flex:1;color:var(--muted)">${esc(b.reason)}</span>
+          <span style="color:var(--muted);font-size:11px">${fecha}</span>
+          <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeleteBonus('${b.id}')">✕</button>
+        </div>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  html+=`</div></div>`;
   area.innerHTML=html;
 }
+
 async function doApplyPenalty(){
   const uid=$("#penPlayer").value;
   const pts=+($("#penPts").value||0);
   const reason=$("#penReason").value.trim();
   if(!pts||pts<=0){ toast("Ingresá los puntos a descontar","err"); return; }
   if(!reason){ toast("El motivo es obligatorio","err"); return; }
-  try{
-    await adminApplyPenalty(uid,pts,reason);
-    toast("Penalización aplicada","ok");
-    admPenalizaciones($("#admArea"));
-  }catch(e){ toast(e.message,"err"); }
+  try{ await adminApplyPenalty(uid,pts,reason); toast("Penalización aplicada","ok"); admPenalizaciones($("#admArea")); }
+  catch(e){ toast(e.message,"err"); }
+}
+async function doApplyBonus(){
+  const uid=$("#bonPlayer").value;
+  const pts=+($("#bonPts").value||0);
+  const reason=$("#bonReason").value.trim();
+  if(!pts||pts<=0){ toast("Ingresá los puntos a sumar","err"); return; }
+  if(!reason){ toast("El motivo es obligatorio","err"); return; }
+  try{ await adminApplyBonus(uid,pts,reason); toast("Bonificación aplicada ✨","ok"); admPenalizaciones($("#admArea")); }
+  catch(e){ toast(e.message,"err"); }
+}
+async function doDeleteBonus(id){
+  if(!confirm("¿Eliminar esta bonificación?")) return;
+  try{ await adminDeleteBonus(id); toast("Bonificación eliminada","ok"); admPenalizaciones($("#admArea")); }
+  catch(e){ toast(e.message,"err"); }
 }
 async function syncESPN(){
   const btn = document.getElementById('espnSyncBtn');
