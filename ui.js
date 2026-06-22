@@ -1429,7 +1429,7 @@ function admPenalizaciones(area){
       <div class="sec-title" style="font-size:13px;margin-bottom:10px">Historial de penalizaciones</div>`;
   let hayPenas = false;
   players.forEach(p=>{
-    const pred = APP.preds?.find(pr=>pr.user_id===p.id);
+    const pred = APP.allPreds?.[p.id];
     const pens = pred?.penalties||[];
     if(!pens.length) return;
     hayPenas = true;
