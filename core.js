@@ -127,7 +127,7 @@ async function adminApplyPenalty(uid, pts, reason){
   const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
   if(error) throw error;
   // actualizar cache local
-  if(APP.preds) { const p=APP.preds.find(p=>p.user_id===uid); if(p) p.penalties=pens; }
+  if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
   await loadAll();
 }
 async function adminSaveResults(patch){
