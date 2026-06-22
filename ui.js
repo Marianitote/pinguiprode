@@ -226,7 +226,7 @@ function renderInicio(v){
       return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
     })()}
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
-      <p class="note">Vista en vivo de las posiciones (incluye flechas ▲▼ y zonas).</p>
+      <p class="note">Vista en vivo de las posiciones.</p>
       ${standingsTableHTML({inline:false})}
     </div>
     ${(()=>{
@@ -568,7 +568,7 @@ function renderInicio(v){
       const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
       return `<p class="note" style="margin-bottom:8px">🕐 Actualizado el ${fecha} a las ${hora}hs</p>`;
     })()}
-    <p class="note">Las flechas marcan cuánto subiste o bajaste desde la fecha anterior. Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
+    <p class="note">Desde acá podés tirar 🔥 nitro (en tu fila) o 🩸 sanguijuela a un rival reteable.</p>
     ${standingsTableHTML({inline:true})}
   ${(()=>{
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayFifaDate());
@@ -1193,10 +1193,7 @@ function standingsTableHTML(opts){
       out+=`<tr class="zone-sep"><td colspan="5"><span class="zone-band ${dz}"></span>${ZONE_LABELS[dz]}</td></tr>`;
       lastZone=dz;
     }
-    const arrow = r.move==null ? "" :
-      r.move>0 ? `<span class="move up">▲${r.move}</span>` :
-      r.move<0 ? `<span class="move down">▼${-r.move}</span>` :
-      `<span class="move same">=</span>`;
+    const arrow = "";
     // ── badges al lado del nombre ──────────────────────────────────────
     // 🩸 si el jugador aplicó sanguijuela esta fase
     const aplSang = sangAplicadas(r.id) > 0;
@@ -1216,7 +1213,6 @@ function standingsTableHTML(opts){
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
-    <span class="move up">▲</span> subió / <span class="move down">▼</span> bajó posiciones desde la fecha anterior &nbsp;·&nbsp;
     🩸 aplicó sanguijuela esta fase &nbsp;·&nbsp; 🔥 usó nitro esta fase &nbsp;·&nbsp;
     🩸 <i>N</i> = retos que puede recibir ese jugador &nbsp;·&nbsp; 🔥 <i>N</i> = nitros que le quedan</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
