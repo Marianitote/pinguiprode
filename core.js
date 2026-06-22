@@ -129,13 +129,10 @@ async function adminApplyPenalty(uid, pts, reason){
   if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
   await loadAll();
 }
-async function adminDeletePenalty(uid, penId){
+async function adminDeletePenalty(uid, penIdx){
+  // borrar por índice (más robusto que por id cuando hay duplicados sin id)
   const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
-  // penId puede ser el id real o la fecha (fallback para penalizaciones viejas sin id)
-  const pens = (pred.data?.penalties||[]).filter(p=>{
-    if(p.id) return String(p.id)!==String(penId);
-    return String(p.date)!==String(penId); // fallback: comparar por fecha
-  });
+  const pens = (pred.data?.penalties||[]).filter((_,i)=>i!==penIdx);
   const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
   if(error) throw error;
   if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
