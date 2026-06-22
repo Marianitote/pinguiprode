@@ -229,6 +229,17 @@ function renderInicio(v){
       <p class="note">Vista en vivo de las posiciones (incluye flechas ▲▼ y zonas).</p>
       ${standingsTableHTML({inline:false})}
     </div>
+    ${(()=>{
+      const _last=standings()[standings().length-1];
+      if(!_last) return '';
+      const _av=avatarUrl(_last.name);
+      return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06)">
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
+        ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px">`:''}
+        <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">${_last.total} pts · Puesto #${_last.pos}</div>
+      </div>`;
+    })()}
     <div class="card"><div class="sec-title">Accesos rápidos · gestión</div>
       <div class="row" style="flex-direction:column;gap:8px;margin-top:10px">
         <button class="btn sm primary full" onclick="TAB='admin';ADM='resultados';render()">⚽ Cargar resultados</button>
