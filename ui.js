@@ -1195,13 +1195,18 @@ function standingsTableHTML(opts){
     }
     const arrow = "";
     // ── badges al lado del nombre ──────────────────────────────────────
-    // 🩸 si el jugador aplicó sanguijuela esta fase
-    const aplSang = sangAplicadas(r.id) > 0;
-    const aplNitro = nitrosUsados(r.id) > 0;
-    const sangBy = quienSanguijuelo(r.id); // quién lo retó hoy (para el ícono "recibida hoy")
+    const sangBy = quienSanguijuelo(r.id);
     const recvHoyBadge = sangBy ? `<span title="Retado hoy por ${sangBy}" style="margin-left:3px">🩸</span>` : "";
-    const aplSangBadge = aplSang ? `<span title="Aplicó sanguijuela esta fase" style="margin-left:3px;filter:hue-rotate(180deg)">🩸</span>` : "";
-    const aplNitroBadge = aplNitro ? `<span title="Usó nitro esta fase" style="margin-left:3px">🔥</span>` : "";
+    // sanguijuelas: cuántas aplicó esta fase
+    const nSangApl = sangAplicadas(r.id);
+    const aplSangBadge = nSangApl > 0
+      ? `<span title="Aplicó ${nSangApl} sanguijuela${nSangApl>1?'s':''} esta fase" style="margin-left:4px;font-size:11px;color:#ef4444;font-weight:700">🩸${nSangApl}</span>`
+      : "";
+    // nitros: cuántos usó esta fase
+    const nNitroUs = nitrosUsados(r.id);
+    const aplNitroBadge = nNitroUs > 0
+      ? `<span title="Usó ${nNitroUs} nitro${nNitroUs>1?'s':''} esta fase" style="margin-left:4px;font-size:11px;color:var(--gold);font-weight:700">🔥${nNitroUs}</span>`
+      : "";
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
@@ -1213,8 +1218,7 @@ function standingsTableHTML(opts){
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
-    🩸 aplicó sanguijuela esta fase &nbsp;·&nbsp; 🔥 usó nitro esta fase &nbsp;·&nbsp;
-    🩸 <i>N</i> = retos que puede recibir ese jugador &nbsp;·&nbsp; 🔥 <i>N</i> = nitros que le quedan</div>`;
+    <span style="color:#ef4444">🩸</span><i>N</i> = sanguijuelas aplicadas esta fase &nbsp;·&nbsp; 🔥<i>N</i> = nitros usados esta fase</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
       <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
       ${out}
