@@ -123,10 +123,17 @@ function cardSent(cardKey){
 async function adminApplyPenalty(uid, pts, reason){
   const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
   const pens = pred.data?.penalties||[];
-  pens.push({pts:+pts, reason, date:new Date().toISOString(), by:'comipro'});
+  pens.push({id:Date.now().toString(), pts:+pts, reason, date:new Date().toISOString(), by:'comipro'});
   const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
   if(error) throw error;
-  // actualizar cache local
+  if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
+  await loadAll();
+}
+async function adminDeletePenalty(uid, penId){
+  const pred = await sb.from('predictions').select('penalties').eq('user_id',uid).maybeSingle();
+  const pens = (pred.data?.penalties||[]).filter(p=>String(p.id)!==String(penId));
+  const {error} = await sb.from('predictions').update({penalties:pens}).eq('user_id',uid);
+  if(error) throw error;
   if(APP.allPreds?.[uid]) APP.allPreds[uid].penalties=pens;
   await loadAll();
 }
