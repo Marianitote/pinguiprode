@@ -128,7 +128,7 @@ async function adminApplyPenalty(uid, pts, reason){
   if(error) throw error;
   // actualizar cache local
   if(APP.preds) { const p=APP.preds.find(p=>p.user_id===uid); if(p) p.penalties=pens; }
-  await loadApp();
+  await loadAll();
 }
 async function adminSaveResults(patch){
   clearApproxCache(); invalidateStandings();
