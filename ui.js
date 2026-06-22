@@ -1436,12 +1436,12 @@ function admPenalizaciones(area){
     html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${esc(p.display_name||p.email)}</b>`;
     pens.forEach(pen=>{
       const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      const penId = pen.id||pen.date; // usar id si existe, sino date como fallback
+      const penId = pen.id||pen.date;
       html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
         <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
         <span style="flex:1;color:var(--muted)">${esc(pen.reason)}</span>
         <span style="color:var(--muted);font-size:11px">${fecha}</span>
-        <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeletePenalty('${p.id}','${penId}')">✕</button>
+        <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeletePenalty('${p.id}',${JSON.stringify(penId)})">✕</button>
       </div>`;
     });
     html+=`</div>`;
