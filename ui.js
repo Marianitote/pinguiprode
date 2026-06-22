@@ -1214,13 +1214,13 @@ function standingsTableHTML(opts){
       <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
-  const headLast = opts.inline?'<th>Acción</th>':'';
+  const headLast = opts.inline?'<th style="font-size:10px;text-align:center">Comodines disponibles</th>':'';
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
     <span style="color:#ef4444">🩸</span><i>N</i> = sanguijuelas aplicadas esta fase &nbsp;·&nbsp; 🔥<i>N</i> = nitros usados esta fase</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
-      <tr><th>#</th><th class="name">Jugador</th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
+      <tr><th>#</th><th class="name">Jugador <span style="font-size:10px;font-weight:400;color:var(--muted)">(comodines usados)</span></th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
       ${out}
     </table></div>${glos}`;
 }
