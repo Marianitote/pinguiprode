@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 - NÚCLEO (Supabase + motor de puntajes)
+   PINGÜIPRODE · MUNDIAL 2026 — NÚCLEO (Supabase + motor de puntajes)
    ===================================================================== */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -45,17 +45,19 @@ async function createProfile(displayName){
 /* ---------- DATOS ---------- */
 async function loadAll(){
   // cargar todo en paralelo para mayor velocidad
-  const [profsRes, mpRes, rsRes, cmRes, allPRes] = await Promise.all([
+  const [profsRes, mpRes, rsRes, cmRes, allPRes, bonusRes] = await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
     sb.from('results').select('*').eq('id',1).maybeSingle(),
     sb.from('comodines').select('*').order('created_at'),
     sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
+    sb.from('bonuses').select('*').order('date'),
   ]);
   APP.profiles=profsRes.data||[];
   APP.myPred=mpRes.data||null;
   if(rsRes.data) APP.results=rsRes.data;
   APP.comodines=cmRes.data||[];
+  APP.bonuses=bonusRes.data||[];
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   // poblar APP.allPreds para los paneles de ui.js (comodines, "quién acertó", etc.)
   // el admin lo sobrescribe luego con datos completos vía adminLoadAllPreds()
@@ -607,7 +609,19 @@ function penaltyTotal(uid){
   const pens=pred.penalties||[];
   return pens.reduce((s,p)=>s+(+p.pts||0),0);
 }
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid); }
+function bonusTotal(uid){
+  return (APP.bonuses||[]).filter(b=>b.user_id===uid).reduce((s,b)=>s+(+b.pts||0),0);
+}
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+
+async function adminApplyBonus(uid, pts, reason){
+  const {error}=await sb.from('bonuses').insert({user_id:uid, pts, reason, date:new Date().toISOString()});
+  if(error) throw error; await loadAll();
+}
+async function adminDeleteBonus(id){
+  const {error}=await sb.from('bonuses').delete().eq('id',id);
+  if(error) throw error; await loadAll();
+}
 function norm(s){ return String(s).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
 function matchesResult(playerAns, resultVal){
   if(playerAns==null||playerAns==="") return false;
