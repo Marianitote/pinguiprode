@@ -1412,7 +1412,7 @@ function renderAdmin(v){
 }
 function admPenalizaciones(area){
   const players = APP.profiles.filter(p=>!p.is_admin);
-  const playerOpts = players.map(p=>`<option value="${p.id}">${esc(p.display_name||p.email)}</option>`).join('');
+  const playerOpts = `<option value="">— elegí un jugador —</option>`+players.map(p=>`<option value="${p.id}">${esc(p.display_name||p.email)}</option>`).join('');
 
   let html = `
   <div class="card"><div class="sec-title">⚡ Penalizaciones</div>
@@ -1436,10 +1436,12 @@ function admPenalizaciones(area){
     html+=`<div style="margin-bottom:10px"><b style="font-size:13px">${esc(p.display_name||p.email)}</b>`;
     pens.forEach(pen=>{
       const fecha = new Date(pen.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+      const penId = pen.id||pen.date; // usar id si existe, sino date como fallback
       html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
         <span style="color:#ef4444;font-weight:700">-${pen.pts}pts</span>
         <span style="flex:1;color:var(--muted)">${esc(pen.reason)}</span>
         <span style="color:var(--muted);font-size:11px">${fecha}</span>
+        <button class="btn sm danger" style="font-size:10px;padding:2px 6px" onclick="doDeletePenalty('${p.id}','${penId}')">✕</button>
       </div>`;
     });
     html+=`</div>`;
@@ -1491,6 +1493,7 @@ async function doApplyPenalty(){
   const uid=$("#penPlayer").value;
   const pts=+($("#penPts").value||0);
   const reason=$("#penReason").value.trim();
+  if(!uid){ toast("Elegí un jugador","err"); return; }
   if(!pts||pts<=0){ toast("Ingresá los puntos a descontar","err"); return; }
   if(!reason){ toast("El motivo es obligatorio","err"); return; }
   try{ await adminApplyPenalty(uid,pts,reason); toast("Penalización aplicada","ok"); admPenalizaciones($("#admArea")); }
@@ -1500,6 +1503,7 @@ async function doApplyBonus(){
   const uid=$("#bonPlayer").value;
   const pts=+($("#bonPts").value||0);
   const reason=$("#bonReason").value.trim();
+  if(!uid){ toast("Elegí un jugador","err"); return; }
   if(!pts||pts<=0){ toast("Ingresá los puntos a sumar","err"); return; }
   if(!reason){ toast("El motivo es obligatorio","err"); return; }
   try{ await adminApplyBonus(uid,pts,reason); toast("Bonificación aplicada ✨","ok"); admPenalizaciones($("#admArea")); }
@@ -2257,3 +2261,9 @@ ${sheet("Log Fechas",logRows)}
 
 /* ---------- ARRANQUE ---------- */
 boot();
+
+async function doDeletePenalty(uid, penId){
+  if(!confirm("¿Eliminar esta penalización?")) return;
+  try{ await adminDeletePenalty(uid, penId); toast("Penalización eliminada","ok"); admPenalizaciones($("#admArea")); }
+  catch(e){ toast(e.message,"err"); }
+}
