@@ -291,6 +291,34 @@ function matchPointsGrupos(pred,res){
      - 1 equipo coincide  → mitad de los puntos (redondeado hacia arriba)
      - 0 coinciden        → 0
 */
+/* Puntos para un partido de eliminatoria con fixture oficial (Opción B).
+   pred: {h, a, pen} del jugador. res: {h, a, pen} real.
+   Si los equipos no coinciden, 0. */
+function matchPointsElim(pred, res){
+  if(!pred||!res||res.h==null||res.h==="") return 0;
+  const ph=+pred.h, pa=+pred.a, rh=+res.h, ra=+res.a;
+  if(isNaN(ph)||isNaN(pa)||isNaN(rh)||isNaN(ra)) return 0;
+  // exacto
+  if(ph===rh && pa===ra){
+    // si hay penales, verificar también
+    if(rh===ra){ // empate en 90min
+      if(pred.pen===res.pen) return PTS.ko.exact; // exacto + avance correcto
+      return PTS.ko.result; // empate acertado pero avance incorrecto
+    }
+    return PTS.ko.exact;
+  }
+  // resultado correcto (quién gana en 90min)
+  const rWin = rh>ra?'h':ra>rh?'a':'x';
+  const pWin = ph>pa?'h':pa>ph?'a':'x';
+  if(rWin===pWin){
+    // si es empate, verificar quién avanza
+    if(rWin==='x' && pred.pen===res.pen) return PTS.ko.result + PTS.ko.advance;
+    if(rWin!=='x') return PTS.ko.result;
+    return PTS.ko.result; // empate acertado, avance incorrecto
+  }
+  return 0;
+}
+
 function matchPointsKO(pCruce, rCruce){
   if(!pCruce||!rCruce) return 0;
   if(pCruce.h==null||pCruce.h===""||rCruce.h==null||rCruce.h==="") return 0;
@@ -410,21 +438,19 @@ function mainPointsByDay(pred, day){
       const m=pred.main||{}, res=APP.results.main||{};
       pts+=matchPointsGrupos(m[mt.id],res[mt.id]);
     } else {
-      // eliminatoria: se evalúa cuando corresponde (al cierre del día con bracket cargado)
-      // por ahora no agregamos nada acá; la evaluación elim ya está en mainPointsByDate por fase
+      // eliminatoria: usar el nuevo sistema (pred propia del jugador vs resultado real)
+      const pElim = (pred.elim||{})[mt.slot];
+      const rElim = (APP.results.elim||{})[mt.slot];
+      pts += matchPointsElim(pElim, rElim);
     }
   });
-  // para eliminatorias, sumamos los puntos de la fase del día (proporcional al # de cruces de ese día)
+  // compatibilidad: código viejo de bracket (ya no se usa para puntos nuevos)
   const elimMatches = matches.filter(m=>m.phase!=="grupos");
-  if(elimMatches.length){
+  if(false && elimMatches.length){
     const phase = elimMatches[0].phase;
-    // por simplicidad: si hoy hay partidos elim de "phase", sumamos los puntos de TODOS los cruces de "phase"
-    // que coincidan con el día (1 cruce por día típicamente). Buscamos en el bracket del jugador
-    // los cruces cuya posición en el orden del array coincida con la posición del FIXTURE elimMatch.
     const pBracket = pred.bracket||{};
     const rBracket = APP.results.bracket||{};
     elimMatches.forEach((em,idx)=>{
-      // matchear por índice dentro del FIXTURE elim de esa fase
       const fxAll = FIXTURE.filter(m=>m.phase===phase);
       const myIdx = fxAll.findIndex(m=>m.id===em.id);
       if(phase==="tp" && pBracket.tp && rBracket.tp) pts += matchPointsKO(pBracket.tp, rBracket.tp);
@@ -1541,19 +1567,61 @@ const STAGE_LABEL = {
   grupos:"Fase de Grupos", r32:"Ronda de 32", r16:"Octavos de Final",
   qf:"Cuartos de Final", sf:"Semifinales", tpfinal:"3er Puesto y Final"
 };
+const ELIM_STAGES = ["r32","r16","qf","sf","tpfinal"];
+
 function stageSent(stage){
   return !!(APP.myPred?.sent_at||{})[stage];
 }
 // la etapa actualmente "activa" (la que se puede cargar)
 function currentStage(){
-  for(const s of STAGES){ if(!stageSent(s)) return s; }
-  return null; // todas enviadas
+  for(const s of STAGES){ if(!stageSent(s) && canEnterStage(s)) return s; }
+  return null;
 }
-// ¿la etapa anterior está enviada? (para habilitar la actual)
+// ¿la etapa está habilitada para carga?
+// Para grupos: siempre. Para eliminatorias: el COMIPRO debe haberla abierto.
 function canEnterStage(stage){
+  if(stage==="grupos") return true;
+  // la fase anterior debe estar enviada
   const i = STAGES.indexOf(stage);
-  if(i<=0) return true;
-  return stageSent(STAGES[i-1]);
+  if(i>0 && !stageSent(STAGES[i-1])) return false;
+  // verificar que el COMIPRO haya abierto esta fase elim
+  const open = APP.results?.elim_phase_open;
+  if(!open) return false;
+  // "r32" habilita r32, "r16" habilita hasta r16, etc.
+  const openIdx = ELIM_STAGES.indexOf(open);
+  const stageIdx = ELIM_STAGES.indexOf(stage);
+  return stageIdx <= openIdx;
+}
+// ¿Todos los grupos están cargados? (para apertura automática de R32)
+function allGroupsComplete(){
+  const res = APP.results?.main||{};
+  const groups = FIXTURE.filter(m=>m.phase==="grupos");
+  return groups.every(m=>{ const r=res[m.id]; return r&&r.h!=null&&r.h!==""&&r.a!=null&&r.a!==""; });
+}
+// Admin: abrir una fase elim
+async function adminOpenElimPhase(phase){
+  await adminSaveResults({elim_phase_open: phase});
+}
+// Guardar predicción de un partido elim
+async function saveElimPred(slot, h, a, pen){
+  const elim = {...(APP.myPred?.elim||{})};
+  elim[slot] = {h, a, pen:pen||""};
+  const {data,error} = await sb.from('predictions').update({elim}).eq('user_id',APP.user.id).select().maybeSingle();
+  if(error) throw error;
+  APP.myPred = data;
+}
+// Confirmar envío de fase elim
+async function sendStageElimNew(stage){
+  if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
+  if(!canEnterStage(stage)) throw new Error("Esta fase no está abierta todavía.");
+  const sent_at = {...(APP.myPred?.sent_at||{}), [stage]: new Date().toISOString()};
+  let patch = {sent_at};
+  if(stage==="tpfinal"){
+    patch.sent_at.main = new Date().toISOString();
+    if(sent_at.wasabi) patch.locked = true;
+  }
+  const {data,error} = await sb.from('predictions').update(patch).eq('user_id',APP.user.id).select().maybeSingle();
+  if(error) throw error; APP.myPred=data; return data;
 }
 
 /* Al confirmar GRUPOS: calcular bracket inicial (R32) y guardarlo. */
