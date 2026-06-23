@@ -1568,15 +1568,25 @@ function renderReglamento(v){
       <div class="reg-item">⚽ <b>Balón de Plata</b> (2° mejor jugador) → <b>+2 pts</b></div>
       <div class="reg-item">⚽ <b>Balón de Bronce</b> (3° mejor jugador) → <b>+1 pt</b></div>
     </div></details>
-    <details class="fold"><summary>📊 Resumen de máximos<span class="arr">›</span></summary><div class="body">
-      <table style="width:100%;font-size:13px;border-collapse:collapse">
+    ${isAdmin() ? `<details class="fold"><summary>📊 Resumen de máximos<span class="arr">›</span></summary><div class="body">
+      <p style="margin-bottom:10px;font-size:13px;font-weight:700">🃏 Tarjeta Principal</p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
         <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Grupos (72 partidos exactos + posiciones)</td><td style="text-align:right;font-weight:700">408 pts</td></tr>
         <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Eliminatorias (partidos + clasificados)</td><td style="text-align:right;font-weight:700">220 pts</td></tr>
         <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Cuadro de Honor</td><td style="text-align:right;font-weight:700">22 pts</td></tr>
-        <tr><td style="padding:5px 0;font-weight:700">TOTAL MÁXIMO</td><td style="text-align:right;font-weight:700;color:var(--gold)">650 pts</td></tr>
+        <tr style="font-weight:700;border-top:2px solid var(--line)"><td style="padding:5px 0">TOTAL Principal</td><td style="text-align:right;color:var(--aqua)">650 pts</td></tr>
       </table>
-      <p class="note" style="margin-top:8px">El puntaje máximo teórico si se acierta absolutamente todo.</p>
-    </div></details>`;
+      <p style="margin-bottom:10px;font-size:13px;font-weight:700">🌶️ Tarjeta Wasabi</p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
+        <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Preguntas respondibles (${APP.wasabiQs.filter(q=>q.type!=='bonus').length} preguntas)</td><td style="text-align:right;font-weight:700">${APP.wasabiQs.filter(q=>q.type!=='bonus').reduce((s,q)=>s+q.pts,0)} pts</td></tr>
+        <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Preguntas bonus (asignadas por el COMIPRO)</td><td style="text-align:right;font-weight:700">${APP.wasabiQs.filter(q=>q.type==='bonus').reduce((s,q)=>s+q.pts,0)} pts</td></tr>
+        <tr style="font-weight:700;border-top:2px solid var(--line)"><td style="padding:5px 0">TOTAL Wasabi</td><td style="text-align:right;color:var(--aqua)">${APP.wasabiQs.reduce((s,q)=>s+q.pts,0)} pts</td></tr>
+      </table>
+      <table style="width:100%;font-size:14px;border-collapse:collapse">
+        <tr style="font-weight:700;border-top:2px solid var(--gold)"><td style="padding:8px 0">TOTAL PRODE (máximo teórico)</td><td style="text-align:right;color:var(--gold)">${650 + APP.wasabiQs.reduce((s,q)=>s+q.pts,0)} pts</td></tr>
+      </table>
+      <p class="note" style="margin-top:8px">El puntaje máximo si se acierta absolutamente todo.</p>
+    </div></details>` : ''}`;
 }
 
 /* =====================================================================
