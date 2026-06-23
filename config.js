@@ -1,5 +1,5 @@
 /* =====================================================================
-   PINGÜIPRODE · MUNDIAL 2026 - CONFIGURACIÓN
+   PINGÜIPRODE · MUNDIAL 2026 — CONFIGURACIÓN
    ---------------------------------------------------------------------
    👉 PEGÁ ACÁ TUS DOS CLAVES DE SUPABASE (ver la guía, paso 3).
       Las encontrás en: Supabase → Project Settings → API
@@ -186,13 +186,63 @@ function buildFixture(){
         fifaDate:FIFA_DATES_GRUPOS[_kk]||null});
     }));
   });
-  [["r32",16,"Ronda de 32","28 jun–3 jul",4],["r16",8,"Octavos","4–7 jul",5],
-   ["qf",4,"Cuartos","9–11 jul",6],["sf",2,"Semifinales","14–15 jul",7],
-   ["tp",1,"3er puesto","18 jul",8],["final",1,"FINAL","19 jul",8]
-  ].forEach(([phase,n,label,date,jor])=>{
-    for(let i=0;i<n;i++) M.push({id:id++,phase,jor,grp:null,home:null,away:null,ko:true,
-      label:label+(n>1?` · #${i+1}`:""),date, kickoff:KICKOFFS_ELIM[phase]||null,
-      fifaDate:FIFA_DATES_ELIM[phase]||null});
+  // ── Eliminatorias: cada partido con su posición oficial FIFA ──────
+  // home/away = null hasta que el COMIPRO los cargue desde results.elim_fixture
+  // slot = número de partido FIFA (P73-P104)
+  const R32_MATCHES = [
+    {slot:73,label:"P73 · 2°A vs 2°B",        date:"28 jun", kickoff:"2026-06-28T19:00:00-03:00", fifaDate:"2026-06-28"},
+    {slot:74,label:"P74 · 1°E vs 3°(A/B/C/D/F)",date:"29 jun",kickoff:"2026-06-29T15:00:00-03:00", fifaDate:"2026-06-29"},
+    {slot:75,label:"P75 · 1°F vs 2°C",          date:"29 jun",kickoff:"2026-06-29T18:00:00-03:00", fifaDate:"2026-06-29"},
+    {slot:76,label:"P76 · 1°C vs 2°F",          date:"29 jun",kickoff:"2026-06-29T21:00:00-03:00", fifaDate:"2026-06-29"},
+    {slot:77,label:"P77 · 1°I vs 3°(C/D/F/G/H)",date:"30 jun",kickoff:"2026-06-30T16:00:00-03:00", fifaDate:"2026-06-30"},
+    {slot:78,label:"P78 · 2°E vs 2°I",          date:"30 jun",kickoff:"2026-06-30T19:00:00-03:00", fifaDate:"2026-06-30"},
+    {slot:79,label:"P79 · 1°A vs 3°(C/E/F/H/I)",date:"30 jun",kickoff:"2026-06-30T22:00:00-03:00", fifaDate:"2026-06-30"},
+    {slot:80,label:"P80 · 1°L vs 3°(E/H/I/J/K)",date:"1 jul", kickoff:"2026-07-01T15:00:00-03:00", fifaDate:"2026-07-01"},
+    {slot:81,label:"P81 · 1°D vs 3°(B/E/F/I/J)",date:"1 jul", kickoff:"2026-07-01T18:00:00-03:00", fifaDate:"2026-07-01"},
+    {slot:82,label:"P82 · 1°G vs 3°(A/E/H/I/J)",date:"1 jul", kickoff:"2026-07-01T21:00:00-03:00", fifaDate:"2026-07-01"},
+    {slot:83,label:"P83 · 2°K vs 2°L",          date:"2 jul", kickoff:"2026-07-02T18:00:00-03:00", fifaDate:"2026-07-02"},
+    {slot:84,label:"P84 · 1°H vs 2°J",          date:"2 jul", kickoff:"2026-07-02T19:00:00-03:00", fifaDate:"2026-07-02"},
+    {slot:85,label:"P85 · 1°B vs 3°(E/F/G/I/J)",date:"2 jul", kickoff:"2026-07-02T22:00:00-03:00", fifaDate:"2026-07-02"},
+    {slot:86,label:"P86 · 1°J vs 2°H",          date:"3 jul", kickoff:"2026-07-03T15:00:00-03:00", fifaDate:"2026-07-03"},
+    {slot:87,label:"P87 · 1°K vs 3°(D/E/I/J/L)",date:"3 jul", kickoff:"2026-07-03T18:00:00-03:00", fifaDate:"2026-07-03"},
+    {slot:88,label:"P88 · 2°D vs 2°G",          date:"3 jul", kickoff:"2026-07-03T21:00:00-03:00", fifaDate:"2026-07-03"},
+  ];
+  const R16_MATCHES = [
+    {slot:89,label:"P89 · G74 vs G77",date:"4 jul", kickoff:"2026-07-04T16:00:00-03:00", fifaDate:"2026-07-04"},
+    {slot:90,label:"P90 · G73 vs G75",date:"4 jul", kickoff:"2026-07-04T20:00:00-03:00", fifaDate:"2026-07-04"},
+    {slot:91,label:"P91 · G76 vs G78",date:"5 jul", kickoff:"2026-07-05T16:00:00-03:00", fifaDate:"2026-07-05"},
+    {slot:92,label:"P92 · G79 vs G80",date:"5 jul", kickoff:"2026-07-05T20:00:00-03:00", fifaDate:"2026-07-05"},
+    {slot:93,label:"P93 · G83 vs G84",date:"6 jul", kickoff:"2026-07-06T16:00:00-03:00", fifaDate:"2026-07-06"},
+    {slot:94,label:"P94 · G81 vs G82",date:"6 jul", kickoff:"2026-07-06T20:00:00-03:00", fifaDate:"2026-07-06"},
+    {slot:95,label:"P95 · G86 vs G88",date:"7 jul", kickoff:"2026-07-07T16:00:00-03:00", fifaDate:"2026-07-07"},
+    {slot:96,label:"P96 · G85 vs G87",date:"7 jul", kickoff:"2026-07-07T20:00:00-03:00", fifaDate:"2026-07-07"},
+  ];
+  const QF_MATCHES = [
+    {slot:97, label:"P97 · G89 vs G90", date:"9 jul", kickoff:"2026-07-09T20:00:00-03:00", fifaDate:"2026-07-09"},
+    {slot:98, label:"P98 · G93 vs G94", date:"10 jul",kickoff:"2026-07-10T20:00:00-03:00", fifaDate:"2026-07-10"},
+    {slot:99, label:"P99 · G91 vs G92", date:"11 jul",kickoff:"2026-07-11T16:00:00-03:00", fifaDate:"2026-07-11"},
+    {slot:100,label:"P100 · G95 vs G96",date:"11 jul",kickoff:"2026-07-11T20:00:00-03:00", fifaDate:"2026-07-11"},
+  ];
+  const SF_MATCHES = [
+    {slot:101,label:"P101 · G97 vs G98", date:"14 jul",kickoff:"2026-07-14T20:00:00-03:00", fifaDate:"2026-07-14"},
+    {slot:102,label:"P102 · G99 vs G100",date:"15 jul",kickoff:"2026-07-15T20:00:00-03:00", fifaDate:"2026-07-15"},
+  ];
+  // los equipos reales se cargan desde APP.results.elim_fixture (JSON) por el COMIPRO
+  function elimHome(slot){ return APP?.results?.elim_fixture?.[slot]?.home||null; }
+  function elimAway(slot){ return APP?.results?.elim_fixture?.[slot]?.away||null; }
+  [...R32_MATCHES,...R16_MATCHES,...QF_MATCHES,...SF_MATCHES].forEach(m=>{
+    M.push({id:id++,phase:m.slot<=88?"r32":m.slot<=96?"r16":m.slot<=100?"qf":"sf",
+      jor:m.slot<=88?4:m.slot<=96?5:m.slot<=100?6:7,
+      grp:null,ko:true,slot:m.slot,label:m.label,date:m.date,
+      kickoff:m.kickoff,fifaDate:m.fifaDate,
+      home:elimHome(m.slot),away:elimAway(m.slot)});
+  });
+  // 3er puesto y final
+  [{slot:103,phase:"tp", jor:8,label:"3er puesto",  date:"18 jul",kickoff:"2026-07-18T20:00:00-03:00",fifaDate:"2026-07-18"},
+   {slot:104,phase:"final",jor:8,label:"FINAL",      date:"19 jul",kickoff:"2026-07-19T20:00:00-03:00",fifaDate:"2026-07-19"}
+  ].forEach(m=>{
+    M.push({id:id++,phase:m.phase,jor:m.jor,grp:null,ko:true,slot:m.slot,label:m.label,date:m.date,
+      kickoff:m.kickoff,fifaDate:m.fifaDate,home:elimHome(m.slot),away:elimAway(m.slot)});
   });
   return M;
 }
