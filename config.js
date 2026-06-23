@@ -227,22 +227,20 @@ function buildFixture(){
     {slot:101,label:"P101 · G97 vs G98", date:"14 jul",kickoff:"2026-07-14T20:00:00-03:00", fifaDate:"2026-07-14"},
     {slot:102,label:"P102 · G99 vs G100",date:"15 jul",kickoff:"2026-07-15T20:00:00-03:00", fifaDate:"2026-07-15"},
   ];
-  // los equipos reales se cargan desde APP.results.elim_fixture (JSON) por el COMIPRO
-  function elimHome(slot){ return APP?.results?.elim_fixture?.[slot]?.home||null; }
-  function elimAway(slot){ return APP?.results?.elim_fixture?.[slot]?.away||null; }
+  // los equipos reales se asignan después de loadAll via refreshElimFixture()
   [...R32_MATCHES,...R16_MATCHES,...QF_MATCHES,...SF_MATCHES].forEach(m=>{
     M.push({id:id++,phase:m.slot<=88?"r32":m.slot<=96?"r16":m.slot<=100?"qf":"sf",
       jor:m.slot<=88?4:m.slot<=96?5:m.slot<=100?6:7,
       grp:null,ko:true,slot:m.slot,label:m.label,date:m.date,
       kickoff:m.kickoff,fifaDate:m.fifaDate,
-      home:elimHome(m.slot),away:elimAway(m.slot)});
+      home:null,away:null});
   });
   // 3er puesto y final
   [{slot:103,phase:"tp", jor:8,label:"3er puesto",  date:"18 jul",kickoff:"2026-07-18T20:00:00-03:00",fifaDate:"2026-07-18"},
    {slot:104,phase:"final",jor:8,label:"FINAL",      date:"19 jul",kickoff:"2026-07-19T20:00:00-03:00",fifaDate:"2026-07-19"}
   ].forEach(m=>{
     M.push({id:id++,phase:m.phase,jor:m.jor,grp:null,ko:true,slot:m.slot,label:m.label,date:m.date,
-      kickoff:m.kickoff,fifaDate:m.fifaDate,home:elimHome(m.slot),away:elimAway(m.slot)});
+      kickoff:m.kickoff,fifaDate:m.fifaDate,home:null,away:null});
   });
   return M;
 }
