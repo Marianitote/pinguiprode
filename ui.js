@@ -1005,12 +1005,13 @@ function extrasBlock(locked){
       <div><label class="field">🏆 Campeón (+4)</label>${tsel('champion')}</div>
       <div><label class="field">🥈 Subcampeón (+3)</label>${tsel('runnerup')}</div>
       <div><label class="field">🥉 3er puesto (+2)</label>${tsel('third')}</div>
-      <div><label class="field">👟 Bota de oro (+3)</label>${isel('boot_gold','Goleador')}</div>
-      <div><label class="field">👟 Bota de plata (+2)</label>${isel('boot_silver','2º goleador')}</div>
-      <div><label class="field">👟 Bota de bronce (+1)</label>${isel('boot_bronze','3º goleador')}</div>
-      <div><label class="field">⚽ Balón de oro (+3)</label>${isel('ball_gold','Mejor jugador')}</div>
-      <div><label class="field">⚽ Balón de plata (+2)</label>${isel('ball_silver','2º mejor')}</div>
-      <div><label class="field">⚽ Balón de bronce (+1)</label>${isel('ball_bronze','3º mejor')}</div>
+      <div><label class="field">4° puesto</label>${tsel('fourth')}</div>
+      <div><label class="field">👟 Bota de Oro (+3) <span class="note">máximo goleador</span></label>${isel('boot_gold','Nombre del jugador')}</div>
+      <div><label class="field">👟 Bota de Plata (+2) <span class="note">2º máximo goleador</span></label>${isel('boot_silver','Nombre del jugador')}</div>
+      <div><label class="field">👟 Bota de Bronce (+1) <span class="note">3º máximo goleador</span></label>${isel('boot_bronze','Nombre del jugador')}</div>
+      <div><label class="field">⚽ Balón de Oro (+3) <span class="note">mejor jugador</span></label>${isel('ball_gold','Nombre del jugador')}</div>
+      <div><label class="field">⚽ Balón de Plata (+2) <span class="note">2º mejor jugador</span></label>${isel('ball_silver','Nombre del jugador')}</div>
+      <div><label class="field">⚽ Balón de Bronce (+1) <span class="note">3º mejor jugador</span></label>${isel('ball_bronze','Nombre del jugador')}</div>
     </div></div>`;
 }
 
@@ -1739,10 +1740,13 @@ function admResultados(area){
   const isel=(id)=>`<input value="${esc(ex[id]||'')}" onchange="setResExtra('${id}',this.value)">`;
   $("#exReal").innerHTML=`
     <div><label class="field">🏆 Campeón</label>${tsel('champion')}</div><div><label class="field">🥈 Subcampeón</label>${tsel('runnerup')}</div>
-    <div><label class="field">🥉 3ro</label>${tsel('third')}</div><div><label class="field">👟 Bota oro</label>${isel('boot_gold')}</div>
-    <div><label class="field">👟 Bota plata</label>${isel('boot_silver')}</div><div><label class="field">👟 Bota bronce</label>${isel('boot_bronze')}</div>
-    <div><label class="field">⚽ Balón oro</label>${isel('ball_gold')}</div><div><label class="field">⚽ Balón plata</label>${isel('ball_silver')}</div>
-    <div><label class="field">⚽ Balón bronce</label>${isel('ball_bronze')}</div>`;
+    <div><label class="field">🥉 3er puesto</label>${tsel('third')}</div><div><label class="field">4° puesto</label>${tsel('fourth')}</div>
+    <div><label class="field">👟 Bota de Oro <span class="note">máx. goleador</span></label>${isel('boot_gold')}</div>
+    <div><label class="field">👟 Bota de Plata <span class="note">2º goleador</span></label>${isel('boot_silver')}</div>
+    <div><label class="field">👟 Bota de Bronce <span class="note">3º goleador</span></label>${isel('boot_bronze')}</div>
+    <div><label class="field">⚽ Balón de Oro <span class="note">mejor jugador</span></label>${isel('ball_gold')}</div>
+    <div><label class="field">⚽ Balón de Plata <span class="note">2º mejor</span></label>${isel('ball_silver')}</div>
+    <div><label class="field">⚽ Balón de Bronce <span class="note">3º mejor</span></label>${isel('ball_bronze')}</div>`;
 }
 function acertaronMatch(m, r){
   if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
