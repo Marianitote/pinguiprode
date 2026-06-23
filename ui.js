@@ -1380,7 +1380,19 @@ function renderReglamento(v){
       ${R.tarjetas.map(t=>`<div style="margin-bottom:12px"><b>${t.n}${t.pts?` · ${t.pts} pts`:''}</b><div class="note">${esc(t.desc)}</div></div>`).join("")}</div>
     <details class="fold" open><summary>🃏 Sanguijuelas<span class="arr">›</span></summary><div class="body">${list(R.sanguijuela)}</div></details>
     <details class="fold" open><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
-    <details class="fold" open><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>`;
+    <details class="fold" open><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>
+    <details class="fold" open><summary>⚽ Puntos · Fase de Grupos<span class="arr">›</span></summary><div class="body">
+      <p style="margin-bottom:12px;font-size:13px">🎯 <b>Por cada partido:</b></p>
+      <div class="reg-item">✅ <b>Resultado exacto</b> (mismo marcador) → <b>+5 pts</b><br><span class="note">Ej: predijiste 2-1 y salió 2-1</span></div>
+      <div class="reg-item">✅ <b>Acertás el ganador + la diferencia de goles</b> → <b>+4 pts</b><br><span class="note">Ej: predijiste 2-0 y salió 3-1 (gana local, +2 de diferencia en ambos)</span></div>
+      <div class="reg-item">✅ <b>Acertás solo el ganador</b> (o el empate) → <b>+3 pts</b><br><span class="note">Ej: predijiste 1-0 y salió 3-0 · predijiste 1-1 y salió 0-0 (empate)</span></div>
+      <div class="reg-item">❌ <b>No acertás el ganador</b> → <b>0 pts</b><br><span class="note">Aunque hayas acertado la diferencia de goles. Si predijiste que ganaba uno y ganó el otro, no suma nada.</span></div>
+      <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(255,206,71,0.08);border-left:3px solid var(--gold);font-size:12.5px;line-height:1.7">
+        ⚠️ <b>Importante:</b><br>
+        • En los <b>empates</b> nunca se suma el +1 extra de diferencia de gol. Acertar un empate siempre vale +3.<br>
+        • El +1 de diferencia <b>solo se suma si además acertaste quién gana</b>.
+      </div>
+    </div></details>`;
 }
 
 /* =====================================================================
