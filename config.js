@@ -263,7 +263,7 @@ const PHASES=[
 /* Puntajes Tarjeta Principal */
 const PTS={ grupos:{exact:5,result:3,gd:1}, ko:{exact:7,result:4,advance:3},
   // Cuadro de honor (planilla COMIPRO): Campeón +4, Sub +3, 3° +2, Botas +3/+2/+1, Balones +3/+2/+1
-  extra:{champion:4,runnerup:3,third:2, boot_gold:3,boot_silver:2,boot_bronze:1, ball_gold:3,ball_silver:2,ball_bronze:1},
+  extra:{champion:4,runnerup:3,third:2,fourth:1, boot_gold:3,boot_silver:2,boot_bronze:1, ball_gold:3,ball_silver:2,ball_bronze:1},
   // Puntos extra del cuadro autocompletado (Punto 30)
   cuadro:{ pos_grupo:1, clas_r32:1, clas_r16:1, clas_qf:2, clas_sf:3, clas_finals:4 } };
 
