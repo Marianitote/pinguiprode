@@ -66,6 +66,7 @@ async function loadAll(){
     (allPRes.data||[]).forEach(p=>{ APP.allPreds[p.user_id]=p; });
   }
   invalidateStandings(); // siempre después de cargar bonuses para que grandTotal los incluya
+  refreshElimFixture(); // poblar equipos del fixture de eliminatorias desde results
   const withTimeout = (p, label) => Promise.race([
     p.catch(e => console.warn(label, e?.message||e)),
     new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
@@ -291,6 +292,19 @@ function matchPointsGrupos(pred,res){
      - 1 equipo coincide  → mitad de los puntos (redondeado hacia arriba)
      - 0 coinciden        → 0
 */
+/* Poblar los equipos del fixture de eliminatorias desde results.elim_fixture.
+   Se llama después de cada loadAll para que FIXTURE tenga home/away actualizados. */
+function refreshElimFixture(){
+  const fix = APP.results?.elim_fixture||{};
+  FIXTURE.forEach(m=>{
+    if(m.slot && (fix[m.slot]||fix[String(m.slot)])){
+      const f = fix[m.slot]||fix[String(m.slot)];
+      m.home = f.home||null;
+      m.away = f.away||null;
+    }
+  });
+}
+
 /* Puntos para un partido de eliminatoria con fixture oficial (Opción B).
    pred: {h, a, pen} del jugador. res: {h, a, pen} real.
    Si los equipos no coinciden, 0. */
@@ -440,7 +454,7 @@ function mainPointsByDay(pred, day){
     } else {
       // eliminatoria: usar el nuevo sistema (pred propia del jugador vs resultado real)
       const pElim = (pred.elim||{})[mt.slot];
-      const rElim = (APP.results.elim||{})[mt.slot];
+      const rElim = (APP.results?.elim||{})[mt.slot];
       pts += matchPointsElim(pElim, rElim);
     }
   });
