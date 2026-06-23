@@ -1525,16 +1525,57 @@ function renderReglamento(v){
     <details class="fold" open><summary>🔥 Nitros<span class="arr">›</span></summary><div class="body">${list(R.nitro)}</div></details>
     <details class="fold" open><summary>⚖️ Reglas de interacción<span class="arr">›</span></summary><div class="body">${list(R.interaccion)}</div></details>
     <details class="fold" open><summary>⚽ Puntos · Fase de Grupos<span class="arr">›</span></summary><div class="body">
-      <p style="margin-bottom:12px;font-size:13px">🎯 <b>Por cada partido:</b></p>
+      <p style="margin-bottom:12px;font-size:13px">🎯 <b>Por cada partido (72 en total):</b></p>
       <div class="reg-item">✅ <b>Resultado exacto</b> (mismo marcador) → <b>+5 pts</b><br><span class="note">Ej: predijiste 2-1 y salió 2-1</span></div>
       <div class="reg-item">✅ <b>Acertás el ganador + la diferencia de goles</b> → <b>+4 pts</b><br><span class="note">Ej: predijiste 2-0 y salió 3-1 (gana local, +2 de diferencia en ambos)</span></div>
       <div class="reg-item">✅ <b>Acertás solo el ganador</b> (o el empate) → <b>+3 pts</b><br><span class="note">Ej: predijiste 1-0 y salió 3-0 · predijiste 1-1 y salió 0-0 (empate)</span></div>
       <div class="reg-item">❌ <b>No acertás el ganador</b> → <b>0 pts</b><br><span class="note">Aunque hayas acertado la diferencia de goles. Si predijiste que ganaba uno y ganó el otro, no suma nada.</span></div>
+      <p style="margin-top:14px;margin-bottom:8px;font-size:13px">📊 <b>Posición exacta en el grupo:</b></p>
+      <div class="reg-item">🥇🥈 Acertás el 1° o 2° del grupo → <b>+1 pt</b> c/u</div>
+      <div class="reg-item">🥉4️⃣ Acertás el 3° o 4° del grupo → <b>+1 pt</b> c/u <span class="note">(más difícil de adivinar)</span></div>
       <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(255,206,71,0.08);border-left:3px solid var(--gold);font-size:12.5px;line-height:1.7">
         ⚠️ <b>Importante:</b><br>
         • En los <b>empates</b> nunca se suma el +1 extra de diferencia de gol. Acertar un empate siempre vale +3.<br>
         • El +1 de diferencia <b>solo se suma si además acertaste quién gana</b>.
       </div>
+    </div></details>
+    <details class="fold" open><summary>🏆 Puntos · Eliminatorias<span class="arr">›</span></summary><div class="body">
+      <p style="margin-bottom:10px;font-size:13px">Los puntos por partido aplican a todas las fases eliminatorias (R32, Octavos, Cuartos, Semis, 3° Puesto y Final).</p>
+      <p style="margin-bottom:8px;font-size:13px">🎯 <b>Por cada partido:</b></p>
+      <div class="reg-item">✅ <b>Resultado exacto</b> → <b>+2 pts</b></div>
+      <div class="reg-item">✅ <b>Acertás el ganador + la diferencia de goles</b> → <b>+3 pts</b> (2+1)</div>
+      <div class="reg-item">✅ <b>Acertás solo el ganador</b> (o quién avanza) → <b>+2 pts</b></div>
+      <div class="reg-item">❌ <b>No acertás</b> → <b>0 pts</b></div>
+      <p style="margin-top:14px;margin-bottom:8px;font-size:13px">🚀 <b>Puntos por equipo clasificado a cada ronda:</b></p>
+      <div class="reg-item">Equipo clasificado a <b>Octavos (R16)</b> → <b>+1 pt</b> <span class="note">× 16 equipos</span></div>
+      <div class="reg-item">Equipo clasificado a <b>Cuartos</b> → <b>+3 pts</b> <span class="note">× 8 equipos</span></div>
+      <div class="reg-item">Equipo clasificado a <b>Semifinales</b> → <b>+2 pts</b> <span class="note">× 4 equipos</span></div>
+      <div class="reg-item">Equipo clasificado a <b>3°/4° Puesto o Final</b> → <b>+3 pts</b> <span class="note">× 4 equipos</span></div>
+      <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(255,206,71,0.08);border-left:3px solid var(--gold);font-size:12.5px;line-height:1.7">
+        ⚠️ Los puntos por clasificados se calculan sobre los equipos reales que pasen cada ronda según el torneo oficial.
+      </div>
+    </div></details>
+    <details class="fold" open><summary>🎖️ Puntos · Cuadro de Honor<span class="arr">›</span></summary><div class="body">
+      <p style="margin-bottom:10px;font-size:13px">Se carga al inicio de la fase eliminatoria. Puntos por aciertos al final del torneo.</p>
+      <div class="reg-item">🏆 <b>Campeón</b> → <b>+4 pts</b></div>
+      <div class="reg-item">🥈 <b>Subcampeón</b> → <b>+3 pts</b></div>
+      <div class="reg-item">🥉 <b>3° Clasificado</b> → <b>+2 pts</b></div>
+      <div class="reg-item">4️⃣ <b>4° Clasificado</b> → <b>+1 pt</b></div>
+      <div class="reg-item">👟 <b>Bota de Oro</b> (máximo goleador) → <b>+3 pts</b></div>
+      <div class="reg-item">👟 <b>Bota de Plata</b> (2° máx. goleador) → <b>+2 pts</b></div>
+      <div class="reg-item">👟 <b>Bota de Bronce</b> (3° máx. goleador) → <b>+1 pt</b></div>
+      <div class="reg-item">⚽ <b>Balón de Oro</b> (mejor jugador) → <b>+3 pts</b></div>
+      <div class="reg-item">⚽ <b>Balón de Plata</b> (2° mejor jugador) → <b>+2 pts</b></div>
+      <div class="reg-item">⚽ <b>Balón de Bronce</b> (3° mejor jugador) → <b>+1 pt</b></div>
+    </div></details>
+    <details class="fold"><summary>📊 Resumen de máximos<span class="arr">›</span></summary><div class="body">
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Grupos (72 partidos exactos + posiciones)</td><td style="text-align:right;font-weight:700">408 pts</td></tr>
+        <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Eliminatorias (partidos + clasificados)</td><td style="text-align:right;font-weight:700">220 pts</td></tr>
+        <tr style="border-bottom:1px solid var(--line)"><td style="padding:5px 0">Cuadro de Honor</td><td style="text-align:right;font-weight:700">22 pts</td></tr>
+        <tr><td style="padding:5px 0;font-weight:700">TOTAL MÁXIMO</td><td style="text-align:right;font-weight:700;color:var(--gold)">650 pts</td></tr>
+      </table>
+      <p class="note" style="margin-top:8px">El puntaje máximo teórico si se acierta absolutamente todo.</p>
     </div></details>`;
 }
 
