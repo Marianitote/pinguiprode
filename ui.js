@@ -721,35 +721,32 @@ async function ensureDefaults(){
 
 function renderPrincipal(v){
   if(isAdmin()){ v.innerHTML=adminHint("⚽","Los resultados reales de los partidos se cargan en <b>⚙ Admin → Resultados</b>."); return; }
-  const main=APP.myPred?.main||{};
-  const bracket=APP.myPred?.bracket||{};
   // header con barra de etapas
   let header=`<div class="card" style="margin-top:18px">
-    <div class="sec-title">Tarjeta Principal · Cuadro autocompletado</div>
-    <p class="note">Cargás los grupos, la app calcula qué equipos pasan según tus predicciones, y armás el cuadro etapa por etapa. Si un equipo que pusiste no clasifica, no suma puntos en las siguientes etapas — por eso es importante la Wasabi.</p>
-    <p class="note" style="font-style:italic;font-size:12px">💡 Tip: todos los partidos arrancan en <b>0-0</b>. Solo cambiá los marcadores que querés predecir distinto.</p>
+    <div class="sec-title">Tarjeta Principal</div>
+    <p class="note">Cargás los grupos y las eliminatorias por etapa a medida que avanza el torneo. Cada fase se habilita cuando el COMIPRO abre la ventana de carga.</p>
+    <p class="note" style="font-style:italic;font-size:12px">💡 Tip: los partidos de grupos arrancan en <b>0-0</b>. Solo cambiá los que querés predecir distinto.</p>
     <div class="stages-bar">${STAGES.map((s,i)=>{
       const done=stageSent(s);
-      const active=!done&&canEnterStage(s);
-      const cls=done?"done":active?"active":"pending";
+      const open=canEnterStage(s);
+      const cls=done?"done":open?"active":"pending";
       const num=i+1;
-      return `<button class="${cls}" data-stage="${s}" ${done||active?'':'disabled'}><span class="num">${done?'✓':num}</span><span class="lbl">${STAGE_LABEL[s].replace('Fase de ','').replace(' de Final','').replace('3er Puesto y ','3°+')}</span></button>`;
+      return `<button class="${cls}" data-stage="${s}" ${done||open?'':'disabled'}><span class="num">${done?'✓':num}</span><span class="lbl">${STAGE_LABEL[s].replace('Fase de ','').replace(' de Final','').replace('3er Puesto y ','3°+')}</span></button>`;
     }).join("")}</div>
   </div>`;
   v.innerHTML = header + `<div id="prArea"></div>`;
   document.querySelectorAll(".stages-bar button").forEach(b=>{
     b.onclick = ()=>{ PR_PHASE=b.dataset.stage; renderPrincipal(v); };
   });
-  if(!PR_PHASE || !STAGES.includes(PR_PHASE)) PR_PHASE = currentStage() || "tpfinal";
-  // pre-poblar defaults antes de renderizar (solo la primera vez)
+  if(!PR_PHASE || !STAGES.includes(PR_PHASE)) PR_PHASE = currentStage() || "grupos";
   ensureDefaults().then(()=>prStageArea());
 }
 
 /* Render del área activa según la etapa seleccionada */
 function prStageArea(){
   const area=$("#prArea"); if(!area) return;
-  if(PR_PHASE==="grupos"){ return prAreaGrupos(area); }
-  return prAreaElim(area, PR_PHASE);
+  if(PR_PHASE==="grupos") return prAreaGrupos(area);
+  return prAreaElimNew(area, PR_PHASE);
 }
 
 /* ETAPA GRUPOS: 12 grupos siempre visibles (no colapsan) — se pintan de verde al completarse */
@@ -781,6 +778,151 @@ function prAreaGrupos(area){
     </div>`;
   }
   area.innerHTML=`<div class="card">${html}</div>${footer}`;
+}
+
+/* ── NUEVA área de eliminatorias (Opción B: fixture oficial FIFA) ───── */
+function prAreaElimNew(area, stage){
+  if(!canEnterStage(stage)){
+    const open = APP.results?.elim_phase_open;
+    if(!open){
+      area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
+        <p>Esta fase todavía no está habilitada.</p>
+        <p class="note">El COMIPRO la abrirá cuando terminen los grupos.</p>
+      </div></div>`;
+    } else {
+      area.innerHTML=`<div class="card"><p class="note">Primero confirmá la etapa anterior.</p></div>`;
+    }
+    return;
+  }
+  const sent = stageSent(stage);
+  const myElim = APP.myPred?.elim||{};
+  // partidos de esta fase del fixture oficial
+  const matches = FIXTURE.filter(m=>m.phase===(stage==="tpfinal"?"tp":stage)||
+    (stage==="tpfinal"&&m.phase==="final")).sort((a,b)=>a.slot-b.slot);
+  // para tpfinal: tp + final + cuadro de honor
+  const isTpFinal = stage==="tpfinal";
+  if(isTpFinal) matches.push(...FIXTURE.filter(m=>m.phase==="final"));
+
+  // verificar que los equipos estén cargados
+  const allHaveTeams = matches.every(m=>m.home&&m.away);
+  if(!allHaveTeams){
+    area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
+      <p>El COMIPRO está cargando los equipos clasificados.</p>
+      <p class="note">Volvé en unos minutos.</p>
+    </div></div>`;
+    return;
+  }
+
+  let html="";
+  // cuadro de honor VA PRIMERO en r32
+  if(stage==="r32") html += extrasBlock(stageSent("tpfinal"));
+
+  html+=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]||stage}</div>
+    <p class="note">Estos son los cruces reales del Mundial. Cargá tu predicción para cada partido. Si hay empate, elegí quién avanza por penales.</p>`;
+
+  // agrupar por fecha FIFA
+  const byDay={};
+  matches.forEach(m=>{
+    const d=m.fifaDate||m.date||"?";
+    if(!byDay[d]) byDay[d]=[];
+    byDay[d].push(m);
+  });
+  Object.keys(byDay).sort().forEach(day=>{
+    const tz='America/Argentina/Buenos_Aires';
+    const dayLabel = new Intl.DateTimeFormat('es-AR',{timeZone:tz,weekday:'long',day:'numeric',month:'long'}).format(new Date(day+'T12:00:00'));
+    html+=`<div class="meta" style="margin-top:14px;text-transform:capitalize">${dayLabel}</div>`;
+    byDay[day].forEach(m=>{
+      const pred = myElim[m.slot]||{};
+      html += elimMatchRow(m, pred, sent, stage);
+    });
+  });
+  html+=`</div>`;
+
+  // footer confirmar
+  const allDone = matches.every(m=>{
+    const p=myElim[m.slot]||{};
+    if(p.h==null||p.h===""||p.a==null||p.a==="") return false;
+    if(+p.h===+p.a) return p.pen==="0"||p.pen==="1";
+    return true;
+  });
+  let footer="";
+  if(sent){
+    footer=`<div class="lock-banner" style="margin-top:18px">🔒 ${STAGE_LABEL[stage]||stage} enviada.${stage==="tpfinal"?' ¡Terminaste la Principal! 🎉':' Cuando el COMIPRO habilite la siguiente fase, podrás cargarla.'}</div>`;
+  } else {
+    footer=`<div class="card" style="margin-top:18px;text-align:center">
+      <p class="note" style="margin-bottom:12px">${allDone?'✓ Listo. Podés confirmar.':'Cargá todos los marcadores.'}</p>
+      <button class="btn gold sm" ${allDone?'':'disabled'} onclick="confirmSendElimStage('${stage}')">✉️ Confirmar ${STAGE_LABEL[stage]||stage}</button>
+    </div>`;
+  }
+  area.innerHTML = html+footer;
+}
+
+function elimMatchRow(m, pred, sent, stage){
+  const dis = sent?"disabled":"";
+  const ht=TEAMS[m.home], at=TEAMS[m.away];
+  const hora = m.kickoff ? new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hour:'2-digit',minute:'2-digit'}) : "";
+  const tie = pred.h!=null&&pred.a!=null&&pred.h!==""&&pred.a!==""&&(+pred.h===+pred.a);
+  const answered = pred.h!=null&&pred.h!==""&&pred.a!=null&&pred.a!==""&&(!tie||pred.pen==="0"||pred.pen==="1");
+  const res = (APP.results?.elim||{})[m.slot];
+  const hasRes = res&&res.h!=null&&res.h!=="";
+  // acertaron
+  let acertaronStr="";
+  if(hasRes){
+    const pts=matchPointsElim(pred,res);
+    acertaronStr=`<div class="acertaron" style="margin-top:4px">
+      <span style="color:${pts>0?'var(--aqua)':'var(--muted)'}">Pts: <b>${pts>0?'+'+pts:'0'}</b></span>
+      ${hasRes?`<span style="color:var(--muted)"> · Real: ${res.h}-${res.a}${+res.h===+res.a?(res.pen==='1'?' (av: local)':' (av: visita)'):''}
+      </span>`:''}
+    </div>`;
+  }
+  return `<div class="match ${answered?'match-answered':''}" style="flex-wrap:wrap">
+    <div class="teams">
+      <div class="t">${ht?`<span class="flag">${ht.f}</span><span class="nm">${ht.n}</span>`:`<span class="nm">${esc(m.home)}</span>`}</div>
+      <div class="t">${at?`<span class="flag">${at.f}</span><span class="nm">${at.n}</span>`:`<span class="nm">${esc(m.away)}</span>`}</div>
+    </div>
+    <input class="score-in" type="number" min="0" value="${pred.h??''}" ${dis} onchange="setElimScore(${m.slot},'h',this.value)">
+    <span class="vs">–</span>
+    <input class="score-in" type="number" min="0" value="${pred.a??''}" ${dis} onchange="setElimScore(${m.slot},'a',this.value)">
+    ${!sent&&hora?`<span style="font-size:11px;color:var(--muted);margin-left:6px">${hora}</span>`:''}
+    ${tie?`<div class="pen" style="width:100%">⚽ Avanza: <select ${dis} style="width:auto;display:inline-block" onchange="setElimScore(${m.slot},'pen',this.value)">
+      <option value="">—</option>
+      <option ${pred.pen==='1'?'selected':''} value="1">${ht?.n||m.home}</option>
+      <option ${pred.pen==='0'?'selected':''} value="0">${at?.n||m.away}</option>
+    </select></div>`:''}
+  </div>${acertaronStr}`;
+}
+
+async function setElimScore(slot, key, val){
+  const myElim = {...(APP.myPred?.elim||{})};
+  myElim[slot] = {...(myElim[slot]||{}), [key]:val};
+  // si cambia h o a y ya no es empate, limpiar pen
+  if((key==='h'||key==='a')){
+    const p=myElim[slot];
+    if(p.h!=null&&p.a!=null&&+p.h!==+p.a) p.pen="";
+  }
+  try{
+    await saveElimPred(slot, myElim[slot].h, myElim[slot].a, myElim[slot].pen||"");
+    // re-render solo el área activa
+    prAreaElimNew($("#prArea"), PR_PHASE);
+  }catch(e){ toast(e.message,"err"); }
+}
+
+function confirmSendElimStage(stage){
+  modal(`<h3>✉️ Confirmar ${STAGE_LABEL[stage]||stage}</h3>
+    <p class="lead">Una vez confirmada, no vas a poder cambiar los marcadores de esta fase. ¿Seguro?</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn gold full" onclick="doSendElimStage('${stage}')">Sí, confirmar</button>
+      <button class="btn ghost full" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+async function doSendElimStage(stage){
+  try{
+    await sendStageElimNew(stage);
+    closeModal();
+    PR_PHASE = currentStage()||stage;
+    render();
+    toast(`${STAGE_LABEL[stage]||stage} enviada 🔒`,"ok");
+  }catch(e){ closeModal(); toast(e.message,"err"); }
 }
 
 /* ETAPA ELIMINATORIA (r32, r16, qf, sf, tpfinal) */
@@ -1418,11 +1560,11 @@ function renderAdmin(v){
   const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
-      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penaliz. y Puntos"],["historial","📊 Historial"],["export","📤 Exportar"]]
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["elim","🏆 Eliminatorias"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penaliz. y Puntos"],["historial","📊 Historial"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
     </div></div>${_matchBlock}<div id="admArea"></div>`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
-  ({resultados:admResultados,wasabi:admWasabi,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
+  ({resultados:admResultados,wasabi:admWasabi,elim:admElim,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
 }
 function admPenalizaciones(area){
   const players = APP.profiles.filter(p=>!p.is_admin);
@@ -2127,6 +2269,97 @@ async function admHistorial(area){
   });
   html+=`</div>`;
   area.innerHTML=html;
+}
+
+function admElim(area){
+  const open = APP.results?.elim_phase_open||null;
+  const elimFix = APP.results?.elim_fixture||{};
+  const PHASES_ELIM = [
+    {key:"r32",label:"Ronda de 32",slots:Array.from({length:16},(_,i)=>73+i)},
+    {key:"r16",label:"Octavos de Final",slots:Array.from({length:8},(_,i)=>89+i)},
+    {key:"qf", label:"Cuartos de Final",slots:Array.from({length:4},(_,i)=>97+i)},
+    {key:"sf", label:"Semifinales",slots:[101,102]},
+    {key:"tpfinal",label:"3° Puesto y Final",slots:[103,104]},
+  ];
+
+  let html=`<div class="card"><div class="sec-title">🏆 Gestión de Eliminatorias</div>
+    <p class="note">Desde acá abrís cada fase, cargás los equipos clasificados y cargás los resultados reales.</p>
+    <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--card2)">
+      <b>Fase actualmente abierta:</b> <span style="color:var(--aqua);font-weight:700">${open?STAGE_LABEL[open]||open:"Ninguna (solo grupos)"}</span>
+    </div>
+  </div>`;
+
+  PHASES_ELIM.forEach(({key,label,slots})=>{
+    const isOpen = open===key;
+    const matches = FIXTURE.filter(m=>slots.includes(m.slot));
+    const resElim = APP.results?.elim||{};
+    html+=`<div class="card" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="sec-title" style="margin:0;flex:1">${label}</div>
+        ${isOpen
+          ?`<span style="color:var(--aqua);font-size:12px;font-weight:700">✅ Abierta</span>`
+          :`<button class="btn sm primary" onclick="admOpenPhase('${key}')">Abrir fase</button>`}
+      </div>`;
+
+    // tabla de equipos + resultados por partido
+    html+=`<table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="color:var(--muted);font-size:11px"><th style="text-align:left;padding:3px 4px">Partido</th><th>Local</th><th>Visitante</th><th>Resultado real</th></tr>`;
+    slots.forEach(slot=>{
+      const fx = elimFix[slot]||{};
+      const res = resElim[slot]||{};
+      const m = matches.find(x=>x.slot===slot);
+      const hasRes = res.h!=null&&res.h!=="";
+      html+=`<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:4px;color:var(--muted);font-size:11px">${m?.label||'P'+slot}</td>
+        <td style="padding:4px"><input style="width:90px;font-size:11px" value="${esc(fx.home||'')}" placeholder="Local" onchange="admSetElimTeam(${slot},'home',this.value)"></td>
+        <td style="padding:4px"><input style="width:90px;font-size:11px" value="${esc(fx.away||'')}" placeholder="Visitante" onchange="admSetElimTeam(${slot},'away',this.value)"></td>
+        <td style="padding:4px;display:flex;gap:4px;align-items:center">
+          <input type="number" style="width:40px;font-size:11px" value="${res.h??''}" placeholder="L" onchange="admSetElimRes(${slot},'h',this.value)">
+          <span>-</span>
+          <input type="number" style="width:40px;font-size:11px" value="${res.a??''}" placeholder="V" onchange="admSetElimRes(${slot},'a',this.value)">
+          ${hasRes&&+res.h===+res.a?`<select style="font-size:11px" onchange="admSetElimRes(${slot},'pen',this.value)">
+            <option value="">Pen?</option>
+            <option ${res.pen==='1'?'selected':''} value="1">Local</option>
+            <option ${res.pen==='0'?'selected':''} value="0">Visita</option>
+          </select>`:''}
+        </td>
+      </tr>`;
+    });
+    html+=`</table></div>`;
+  });
+
+  area.innerHTML=html;
+}
+
+async function admOpenPhase(phase){
+  try{
+    await adminOpenElimPhase(phase);
+    toast(`✅ ${STAGE_LABEL[phase]||phase} abierta para los jugadores`,"ok");
+    admElim($("#admArea"));
+    render();
+  }catch(e){ toast(e.message,"err"); }
+}
+
+async function admSetElimTeam(slot, side, val){
+  const fix = {...(APP.results?.elim_fixture||{})};
+  fix[slot] = {...(fix[slot]||{}), [side]:val.trim()};
+  try{
+    await adminSaveResults({elim_fixture:fix});
+    // actualizar fixture en memoria para que los jugadores vean los equipos
+    const m=FIXTURE.find(x=>x.slot===slot);
+    if(m){ if(side==='home') m.home=val.trim(); else m.away=val.trim(); }
+    toast("Guardado","ok");
+  }catch(e){ toast(e.message,"err"); }
+}
+
+async function admSetElimRes(slot, key, val){
+  const elim = {...(APP.results?.elim||{})};
+  elim[slot] = {...(elim[slot]||{}), [key]:val};
+  try{
+    await adminSaveResults({elim});
+    invalidateStandings();
+    toast("Resultado guardado","ok");
+  }catch(e){ toast(e.message,"err"); }
 }
 
 function admExport(area){
