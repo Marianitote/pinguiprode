@@ -309,28 +309,99 @@ function refreshElimFixture(){
    pred: {h, a, pen} del jugador. res: {h, a, pen} real.
    Si los equipos no coinciden, 0. */
 function matchPointsElim(pred, res){
+  // Sistema nuevo para Opción B (fixture oficial FIFA)
+  // exacto=2, ganador=2, +gd=1 adicional si acertás ganador+diferencia
   if(!pred||!res||res.h==null||res.h==="") return 0;
   const ph=+pred.h, pa=+pred.a, rh=+res.h, ra=+res.a;
   if(isNaN(ph)||isNaN(pa)||isNaN(rh)||isNaN(ra)) return 0;
-  // exacto
-  if(ph===rh && pa===ra){
-    // si hay penales, verificar también
-    if(rh===ra){ // empate en 90min
-      if(pred.pen===res.pen) return PTS.ko.exact; // exacto + avance correcto
-      return PTS.ko.result; // empate acertado pero avance incorrecto
-    }
-    return PTS.ko.exact;
-  }
-  // resultado correcto (quién gana en 90min)
   const rWin = rh>ra?'h':ra>rh?'a':'x';
   const pWin = ph>pa?'h':pa>ph?'a':'x';
+  const exact = ph===rh && pa===ra;
+  const gdMatch = (rh-ra)===(ph-pa);
+  // exacto: acertás marcador exacto en 90min
+  // si hay penales (empate 90min), además hay que acertar quién avanza
+  if(exact){
+    if(rWin==='x'){
+      // empate: verificar avance por penales
+      if(pred.pen===res.pen) return PTS.elim.exact + PTS.elim.gd; // exacto + gd bonus (mismo marcador = misma dif)
+      return PTS.elim.result; // acertaste el marcador pero no el avance
+    }
+    return PTS.elim.exact + PTS.elim.gd; // exacto y misma diferencia
+  }
+  // ganador correcto
   if(rWin===pWin){
-    // si es empate, verificar quién avanza
-    if(rWin==='x' && pred.pen===res.pen) return PTS.ko.result + PTS.ko.advance;
-    if(rWin!=='x') return PTS.ko.result;
-    return PTS.ko.result; // empate acertado, avance incorrecto
+    if(rWin==='x'){
+      // empate: acertaste signo pero no marcador
+      if(pred.pen===res.pen) return PTS.elim.result + PTS.elim.gd; // empate + avance + gd si diferencia igual
+      return PTS.elim.result;
+    }
+    // ganó local o visitante
+    if(gdMatch) return PTS.elim.result + PTS.elim.gd; // ganador + diferencia
+    return PTS.elim.result; // solo ganador
   }
   return 0;
+}
+
+// Puntos por equipos clasificados a cada ronda (nuevo sistema elim)
+// Se calcula comparando los equipos reales clasificados con los que predijo el jugador
+function elimClasPoints(uid){
+  const fix = APP.results?.elim_fixture||{};
+  const myElim = (APP.allPreds?.[uid]||APP.myPred||{}).elim||{};
+  let pts = 0;
+  // Para cada ronda, los slots que definen qué equipos clasificaron
+  // R32 → R16: los ganadores de P73-P88 (slots 73-88, equipo que ganó)
+  // R16 → QF: ganadores P89-P96
+  // QF → SF: ganadores P97-P100
+  // SF → Final/3°: ganadores P101-P102
+  // La forma más simple: comparar home/away de cada slot con la pred del jugador
+  // Si el equipo que avanzó (real) coincide con alguno que el jugador puso avanzando
+  // Por ahora implementamos comparación directa de resultados:
+  // Si el jugador predijo correctamente quién gana cada partido de una ronda,
+  // implícitamente predijo el clasificado
+  // Usamos los resultados reales (APP.results?.elim)
+  const resElim = APP.results?.elim||{};
+  // R16: ganadores de R32 (slots 73-88)
+  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].forEach(slot=>{
+    const res = resElim[slot]; const pred = myElim[slot];
+    if(!res||res.h==null||res.h===""||!pred) return;
+    const rh=+res.h,ra=+res.a,ph=+pred.h,pa=+pred.a;
+    const rWin=rh>ra?'h':ra>rh?'a':'x';
+    const pWin=ph>pa?'h':pa>ph?'a':'x';
+    // acertó quién avanza (ganador en 90min, o avance en penales si empate)
+    const advOk = rWin===pWin && (rWin!=='x' || pred.pen===res.pen);
+    if(advOk) pts+=PTS.elim.clas_r16;
+  });
+  // QF: ganadores de R16 (slots 89-96)
+  [89,90,91,92,93,94,95,96].forEach(slot=>{
+    const res = resElim[slot]; const pred = myElim[slot];
+    if(!res||res.h==null||res.h===""||!pred) return;
+    const rh=+res.h,ra=+res.a,ph=+pred.h,pa=+pred.a;
+    const rWin=rh>ra?'h':ra>rh?'a':'x';
+    const pWin=ph>pa?'h':pa>ph?'a':'x';
+    const advOk = rWin===pWin && (rWin!=='x' || pred.pen===res.pen);
+    if(advOk) pts+=PTS.elim.clas_qf;
+  });
+  // SF: ganadores de QF (slots 97-100)
+  [97,98,99,100].forEach(slot=>{
+    const res = resElim[slot]; const pred = myElim[slot];
+    if(!res||res.h==null||res.h===""||!pred) return;
+    const rh=+res.h,ra=+res.a,ph=+pred.h,pa=+pred.a;
+    const rWin=rh>ra?'h':ra>rh?'a':'x';
+    const pWin=ph>pa?'h':pa>ph?'a':'x';
+    const advOk = rWin===pWin && (rWin!=='x' || pred.pen===res.pen);
+    if(advOk) pts+=PTS.elim.clas_sf;
+  });
+  // Final/3°: ganadores de SF (slots 101-102)
+  [101,102].forEach(slot=>{
+    const res = resElim[slot]; const pred = myElim[slot];
+    if(!res||res.h==null||res.h===""||!pred) return;
+    const rh=+res.h,ra=+res.a,ph=+pred.h,pa=+pred.a;
+    const rWin=rh>ra?'h':ra>rh?'a':'x';
+    const pWin=ph>pa?'h':pa>ph?'a':'x';
+    const advOk = rWin===pWin && (rWin!=='x' || pred.pen===res.pen);
+    if(advOk) pts+=PTS.elim.clas_fin;
+  });
+  return pts;
 }
 
 function matchPointsKO(pCruce, rCruce){
@@ -660,7 +731,7 @@ function penaltyTotal(uid){
 function bonusTotal(uid){
   return (APP.bonuses||[]).filter(b=>b.user_id===uid).reduce((s,b)=>s+(+b.pts||0),0);
 }
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+wasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+elimClasPoints(uid)+wasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 async function adminApplyBonus(uid, pts, reason){
   const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
