@@ -650,11 +650,16 @@ function renderInicio(v){
         const totalPen=pens.reduce((s,x)=>s+(+x.pts||0),0);
         const totalBon=bons.reduce((s,x)=>s+(+x.pts||0),0);
         const net=totalBon-totalPen;
-        resRows+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px">
-          <span style="flex:1;font-weight:600">${esc(p.display_name)}${p.id===APP.user?.id?' <span class="note">(vos)</span>':''}</span>
-          ${totalPen>0?`<span style="color:#ef4444;font-size:12px">⚡ -${totalPen}pts</span>`:''}
-          ${totalBon>0?`<span style="color:#22c55e;font-size:12px">✨ +${totalBon}pts</span>`:''}
-          <span style="font-weight:700;color:${net>=0?'#22c55e':'#ef4444'};font-size:12px">${net>=0?'+'+net:net} neto</span>
+        const penDetail=pens.map(pen=>`<div style="font-size:11px;color:var(--muted);padding:2px 0 2px 12px;border-left:2px solid rgba(239,68,68,0.3)">⚡ -${pen.pts}pts · ${esc(pen.reason)}</div>`).join('');
+        const bonDetail=bons.map(b=>`<div style="font-size:11px;color:var(--muted);padding:2px 0 2px 12px;border-left:2px solid rgba(34,197,94,0.3)">✨ +${b.pts}pts · ${esc(b.reason)}</div>`).join('');
+        resRows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:${penDetail||bonDetail?'6px':'0'}">
+            <span style="flex:1;font-weight:600">${esc(p.display_name)}${p.id===APP.user?.id?' <span class="note">(vos)</span>':''}</span>
+            ${totalPen>0?`<span style="color:#ef4444;font-size:12px">⚡ -${totalPen}pts</span>`:''}
+            ${totalBon>0?`<span style="color:#22c55e;font-size:12px">✨ +${totalBon}pts</span>`:''}
+            <span style="font-weight:700;color:${net>=0?'#22c55e':'#ef4444'};font-size:12px">${net>=0?'+'+net:net} neto</span>
+          </div>
+          ${penDetail}${bonDetail}
         </div>`;
       });
       html+=`<div class="card" style="margin-top:12px">
