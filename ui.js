@@ -604,6 +604,7 @@ function renderInicio(v){
     const myPens=(APP.myPred?.penalties||[]);
     const myBonuses=(APP.bonuses||[]).filter(b=>b.user_id===APP.user?.id);
     let html='';
+    // ── Tus penalizaciones ──────────────────────────────────────────
     if(myPens.length){
       const total=myPens.reduce((s,p)=>s+(+p.pts||0),0);
       const rows=myPens.map(pen=>{
@@ -615,11 +616,12 @@ function renderInicio(v){
         </div>`;
       }).join('');
       html+=`<div class="card" style="border-color:#ef4444;background:rgba(239,68,68,.06)">
-        <div class="sec-title" style="color:#ef4444">⚡ Penalizaciones aplicadas</div>
-        <p class="note" style="margin-bottom:10px">El COMIPRO aplicó descuentos en tus puntos. Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
+        <div class="sec-title" style="color:#ef4444">⚡ Tus penalizaciones</div>
+        <p class="note" style="margin-bottom:10px">Total descontado: <b style="color:#ef4444">-${total}pts</b></p>
         ${rows}
       </div>`;
     }
+    // ── Tus bonificaciones ──────────────────────────────────────────
     if(myBonuses.length){
       const total=myBonuses.reduce((s,b)=>s+(+b.pts||0),0);
       const rows=myBonuses.map(b=>{
@@ -631,9 +633,34 @@ function renderInicio(v){
         </div>`;
       }).join('');
       html+=`<div class="card" style="border-color:#22c55e;background:rgba(34,197,94,.06);margin-top:12px">
-        <div class="sec-title" style="color:#22c55e">✨ Bonificaciones aplicadas</div>
-        <p class="note" style="margin-bottom:10px">El COMIPRO sumó puntos extra. Total bonificado: <b style="color:#22c55e">+${total}pts</b></p>
+        <div class="sec-title" style="color:#22c55e">✨ Tus bonificaciones</div>
+        <p class="note" style="margin-bottom:10px">Total bonificado: <b style="color:#22c55e">+${total}pts</b></p>
         ${rows}
+      </div>`;
+    }
+    // ── Resumen de penalizaciones y bonificaciones de todos ─────────
+    const players = APP.profiles.filter(p=>!p.is_admin);
+    const allPens = players.filter(p=>(APP.allPreds?.[p.id]?.penalties||[]).length>0 || (APP.bonuses||[]).some(b=>b.user_id===p.id));
+    if(allPens.length){
+      let resRows='';
+      players.forEach(p=>{
+        const pens=(APP.allPreds?.[p.id]?.penalties||[]);
+        const bons=(APP.bonuses||[]).filter(b=>b.user_id===p.id);
+        if(!pens.length && !bons.length) return;
+        const totalPen=pens.reduce((s,x)=>s+(+x.pts||0),0);
+        const totalBon=bons.reduce((s,x)=>s+(+x.pts||0),0);
+        const net=totalBon-totalPen;
+        resRows+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="flex:1;font-weight:600">${esc(p.display_name)}${p.id===APP.user?.id?' <span class="note">(vos)</span>':''}</span>
+          ${totalPen>0?`<span style="color:#ef4444;font-size:12px">⚡ -${totalPen}pts</span>`:''}
+          ${totalBon>0?`<span style="color:#22c55e;font-size:12px">✨ +${totalBon}pts</span>`:''}
+          <span style="font-weight:700;color:${net>=0?'#22c55e':'#ef4444'};font-size:12px">${net>=0?'+'+net:net} neto</span>
+        </div>`;
+      });
+      html+=`<div class="card" style="margin-top:12px">
+        <div class="sec-title">📊 Penalizaciones y bonificaciones</div>
+        <p class="note" style="margin-bottom:10px">Resumen de descuentos y puntos extra aplicados por el COMIPRO.</p>
+        ${resRows}
       </div>`;
     }
     return html;
