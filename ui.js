@@ -652,10 +652,13 @@ function renderInicio(v){
         const net=totalBon-totalPen;
         // Mezclar penalizaciones y bonificaciones, ordenar por fecha desc (más reciente primero)
         const allItems = [
-          ...pens.map(x=>({type:'pen', pts:x.pts, reason:x.reason, date:x.date})),
-          ...bons.map(x=>({type:'bon', pts:x.pts, reason:x.reason, date:x.date}))
-        ].sort((a,b)=>new Date(b.date)-new Date(a.date));
-        const penDetail=''; const bonDetail='';
+          ...pens.map(x=>({type:'pen', pts:x.pts, reason:x.reason, date:x.date||''})),
+          ...bons.map(x=>({type:'bon', pts:x.pts, reason:x.reason, date:x.date||''}))
+        ].sort((a,b)=>{
+          const da = a.date ? new Date(a.date) : new Date(0);
+          const db = b.date ? new Date(b.date) : new Date(0);
+          return db - da; // más reciente primero
+        });
         const allDetail=allItems.map(x=>{
           const fecha=new Date(x.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
           const isPen=x.type==='pen';
@@ -666,7 +669,7 @@ function renderInicio(v){
           </div>`;
         }).join('');
         resRows+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-          <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:${penDetail||bonDetail?'6px':'0'}">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:${allItems.length?'6px':'0'}">
             <span style="flex:1;font-weight:600">${esc(p.display_name)}${p.id===APP.user?.id?' <span class="note">(vos)</span>':''}</span>
             ${totalPen>0?`<span style="color:#ef4444;font-size:12px">⚡ -${totalPen}pts</span>`:''}
             ${totalBon>0?`<span style="color:#22c55e;font-size:12px">✨ +${totalBon}pts</span>`:''}
