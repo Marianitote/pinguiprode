@@ -651,16 +651,18 @@ function renderInicio(v){
         const totalBon=bons.reduce((s,x)=>s+(+x.pts||0),0);
         const net=totalBon-totalPen;
         // Mezclar penalizaciones y bonificaciones, ordenar por fecha desc (más reciente primero)
+        // Normalizar fechas: las penalizaciones pueden tener date como ISO o como string raro
+        function parseDate(d){
+          if(!d) return new Date(0);
+          const t = new Date(d);
+          return isNaN(t.getTime()) ? new Date(0) : t;
+        }
         const allItems = [
-          ...pens.map(x=>({type:'pen', pts:x.pts, reason:x.reason, date:x.date||''})),
-          ...bons.map(x=>({type:'bon', pts:x.pts, reason:x.reason, date:x.date||''}))
-        ].sort((a,b)=>{
-          const da = a.date ? new Date(a.date) : new Date(0);
-          const db = b.date ? new Date(b.date) : new Date(0);
-          return db - da; // más reciente primero
-        });
+          ...pens.map(x=>({type:'pen', pts:x.pts, reason:x.reason, date:x.date||'', ts:parseDate(x.date)})),
+          ...bons.map(x=>({type:'bon', pts:x.pts, reason:x.reason, date:x.date||'', ts:parseDate(x.date)}))
+        ].sort((a,b)=> b.ts - a.ts); // más reciente primero
         const allDetail=allItems.map(x=>{
-          const fecha=new Date(x.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+          const fecha=x.ts>new Date(0)?x.ts.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}):'—';
           const isPen=x.type==='pen';
           return `<div style="font-size:11px;color:var(--muted);padding:3px 0 3px 12px;border-left:2px solid rgba(${isPen?'239,68,68':'34,197,94'},0.3);display:flex;gap:6px;align-items:baseline">
             <span style="color:${isPen?'#ef4444':'#22c55e'};font-weight:600;flex-shrink:0">${isPen?'⚡ -':'✨ +'}${x.pts}pts</span>
