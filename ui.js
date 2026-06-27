@@ -1271,6 +1271,9 @@ function renderRewasabi(v){
           <option value="">— Fase —</option>
           ${FASES_ELIM_RW.map(f=>`<option value="${f}" ${ansFase===f?'selected':''}>${f}</option>`).join('')}
         </select>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        ✅ País + Fase: <b style="color:white">20pts</b> &nbsp;·&nbsp; ✅ Solo País: <b style="color:white">10pts</b> &nbsp;·&nbsp; ❌ Resto: 0pts
       </div>`;
       if(resPais){
         const pts = (paisOk?(q.ptsPais||10):0)+(paisOk&&faseOk?(q.ptsFase||10):0);
@@ -2069,7 +2072,7 @@ function admRewasabi(area){
   const players=(APP.profiles||[]).filter(p=>!p.is_admin);
 
   let html=`<div class="card"><div class="sec-title">🎲 Respuestas reales · Re-Wasabi</div>
-    <p class="note">Cargá la respuesta correcta de cada pregunta. Para "country_phase" cargá país y fase por separado.</p>
+    <p class="note">Cargá la respuesta correcta de cada pregunta. Para las preguntas de País y Fase, completá ambos campos.</p>
   </div>`;
 
   rqs.forEach((q,qi)=>{
