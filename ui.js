@@ -255,22 +255,30 @@ function renderInicio(v){
   // ---- VISTA DEL JUGADOR ----
   const meRow=tb.find(r=>r.id===APP.user.id);
   const myPred=APP.myPred||{};
-  // estados de cada tarjeta (punto 17: cierre por tarjeta) — usa cardSent() de core
+  // estados de cada tarjeta
   const wasabiSent = cardSent('wasabi');
   const principalSent = cardSent('main');
-  // contador Wasabi: NO cuenta las bonus (punto 19)
+  const rewasabiSent = !!(myPred.sent_at||{}).rewasabi;
+  // contador Wasabi
   const wasabiNonBonus = APP.wasabiQs.filter(q=>q.type!=="bonus");
   const wa = wasabiNonBonus.filter(q=>{const v=(myPred.wasabi||{})[q.id]; return v!=null && v!=="";}).length;
   const waTotal = wasabiNonBonus.length;
-  // progreso de Principal: por etapas
+  // progreso de Principal
   const stagesDone = STAGES.filter(s=>stageSent(s)).length;
   const principalProgress = principalSent
     ? "✓ Todas las etapas enviadas"
     : `Etapa ${stagesDone+1}/${STAGES.length}: ${STAGE_LABEL[currentStage()]||"—"}`;
-  // status helper
-  const statusBadge = sent => sent
+  // ventana R32 abierta?
+  const r32WindowOpen = canEnterStage("r32");
+  const elimStageOpen = ELIM_STAGES.find(s=>canEnterStage(s));
+  // Re-Wasabi ventana abierta (misma que R32)
+  const rwWindowOpen = r32WindowOpen;
+  // status badge
+  const statusBadge = (sent, pending) => sent
     ? `<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>`
-    : `<span style="color:var(--muted)">(Sin enviar)</span>`;
+    : pending
+      ? `<span style="color:#ef4444;font-weight:700">⚠️ Pendiente</span>`
+      : `<span style="color:var(--muted)">(Sin enviar)</span>`;
   v.innerHTML=`
   <div class="hero" style="padding-top:22px">
     <div class="pill">⚽ 48 selecciones · 104 partidos · 11 jun – 19 jul</div>
@@ -284,17 +292,65 @@ function renderInicio(v){
   </div>
   <div class="card">
     <div class="sec-title">Tus tarjetas</div>
-    <table>
-      <tr><td class="name">⚽ Principal</td><td style="text-align:right">${principalProgress}</td><td style="text-align:right;min-width:110px">${statusBadge(principalSent)}</td></tr>
-      <tr><td class="name">🌶️ Wasabi</td><td style="text-align:right">${wa}/${waTotal}</td><td style="text-align:right">${statusBadge(wasabiSent)}</td></tr>
+    <table style="width:100%">
+      <tr>
+        <td class="name">⚽ Principal</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted)">${principalProgress}</td>
+        <td style="text-align:right;min-width:110px">${statusBadge(principalSent, elimStageOpen&&!stageSent(elimStageOpen))}</td>
+      </tr>
+      <tr>
+        <td class="name">🌶️ Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted)">${wa}/${waTotal}</td>
+        <td style="text-align:right">${statusBadge(wasabiSent, false)}</td>
+      </tr>
+      ${rwWindowOpen||rewasabiSent ? `<tr>
+        <td class="name">🎲 Re-Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted)">${rwWindowOpen&&!rewasabiSent?'Ventana abierta':rewasabiSent?'Completada':''}</td>
+        <td style="text-align:right">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
+      </tr>` : ''}
     </table>
     <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
-      ${!principalSent?'<button class="btn primary sm" onclick="TAB=\'principal\';render()">⚽ Ir a Principal</button>':''}
-      ${!wasabiSent?'<button class="btn primary sm" onclick="TAB=\'wasabi\';render()">🌶️ Ir a Wasabi</button>':''}
-      ${(wasabiSent&&principalSent)?'<span class="note">Las dos tarjetas están enviadas. Ahora seguí la tabla y usá tus comodines.</span>':''}
+      ${elimStageOpen&&!stageSent(elimStageOpen)?`<button class="btn danger sm" onclick="TAB='principal';PR_PHASE='${elimStageOpen}';render()">⚽ Cargar ${STAGE_LABEL[elimStageOpen]||elimStageOpen}</button>`:''}
+      ${rwWindowOpen&&!rewasabiSent?`<button class="btn danger sm" onclick="TAB='rewasabi';render()">🎲 Cargar Re-Wasabi</button>`:''}
+      ${!principalSent&&!elimStageOpen?`<button class="btn primary sm" onclick="TAB='principal';render()">⚽ Ir a Principal</button>`:''}
+      ${!wasabiSent?`<button class="btn primary sm" onclick="TAB='wasabi';render()">🌶️ Ir a Wasabi</button>`:''}
+      ${(wasabiSent&&principalSent&&(!rwWindowOpen||rewasabiSent))?'<span class="note">Todo al día ✓ Seguí la tabla y usá tus comodines.</span>':''}
     </div>
-    ${(!wasabiSent||!principalSent)?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo con una, andá adentro y tocá <b>Confirmar y enviar</b> — se cierra esa tarjeta sola.</p>':''}
+    ${(elimStageOpen&&!stageSent(elimStageOpen))||(rwWindowOpen&&!rewasabiSent)?'<p class="note" style="margin-top:10px">⏰ Hay tarjetas pendientes con ventana abierta. ¡No te olvides de confirmarlas antes de que cierren!</p>':''}
+    ${(!wasabiSent||(!principalSent&&!elimStageOpen))?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo, tocá <b>Confirmar y enviar</b>.</p>':''}
   </div>
+  ${(()=>{
+    // Splash de pendientes — solo si hay ventana abierta y algo sin enviar
+    const pendingElim = elimStageOpen && !stageSent(elimStageOpen);
+    const pendingRw = rwWindowOpen && !rewasabiSent;
+    if(!pendingElim && !pendingRw) return '';
+    // Solo mostrar una vez por sesión
+    const splashKey = 'splash_'+Date.now().toString().slice(0,-5); // cada 10min como máximo
+    const sessionKey = 'splashSeen_'+(elimStageOpen||'rw');
+    if(sessionStorage.getItem(sessionKey)) return '';
+    sessionStorage.setItem(sessionKey,'1');
+    const items = [];
+    if(pendingElim) items.push(`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <span style="font-size:24px">⚽</span>
+      <div style="flex:1"><div style="font-weight:700">Principal · ${esc(STAGE_LABEL[elimStageOpen]||elimStageOpen)}</div><div style="font-size:12px;color:var(--muted)">La ventana de carga está abierta. Confirmá antes de que cierre.</div></div>
+      <button class="btn danger sm" onclick="closeModal();TAB='principal';PR_PHASE='${elimStageOpen}';render()">Cargar</button>
+    </div>`);
+    if(pendingRw) items.push(`<div style="display:flex;align-items:center;gap:10px;padding:10px 0">
+      <span style="font-size:24px">🎲</span>
+      <div style="flex:1"><div style="font-weight:700">Re-Wasabi</div><div style="font-size:12px;color:var(--muted)">La ventana de carga está abierta. Completá tus respuestas.</div></div>
+      <button class="btn danger sm" onclick="closeModal();TAB='rewasabi';render()">Cargar</button>
+    </div>`);
+    setTimeout(()=>modal(`
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:36px">⚠️</div>
+        <div style="font-size:18px;font-weight:700;margin-top:8px">¡Tarjetas pendientes!</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">Tenés tarjetas sin enviar con ventana abierta</div>
+      </div>
+      ${items.join('')}
+      <button class="btn ghost full" style="margin-top:16px" onclick="closeModal()">Cerrar, lo hago después</button>
+    `), 800);
+    return '';
+  })()}
   ${(()=>{
     // Partidos por día FIFA (hoy abierto + fechas anteriores colapsadas)
     const tz='America/Argentina/Buenos_Aires';
