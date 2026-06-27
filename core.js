@@ -8,7 +8,7 @@ const APP = {
   user:null, profile:null,
   myPred:null,
   profiles:[], results:{main:{},extra:{},wasabi:{}},
-  comodines:[], wasabiQs:[...SEED_WASABI],
+  comodines:[], wasabiQs:[...SEED_WASABI], rewasabiQs:[...SEED_REWASABI],
 };
 
 /* ---------- AUTH ---------- */
@@ -50,7 +50,7 @@ async function loadAll(){
     sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
     sb.from('results').select('*').eq('id',1).maybeSingle(),
     sb.from('comodines').select('*').order('created_at'),
-    sb.from('predictions').select('user_id,main,wasabi,extra,bracket,penalties'),
+    sb.from('predictions').select('user_id,main,wasabi,rewasabi,extra,bracket,penalties'),
     sb.from('bonuses').select('*').order('date'),
   ]);
   APP.profiles=profsRes.data||[];
@@ -735,7 +735,45 @@ function penaltyTotal(uid){
 function bonusTotal(uid){
   return (APP.bonuses||[]).filter(b=>b.user_id===uid).reduce((s,b)=>s+(+b.pts||0),0);
 }
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+elimClasPoints(uid)+wasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+
+// Scoring RE-WASABI
+function rewasabiTotal(uid){
+  const rw=(predFor(uid).rewasabi)||{};
+  const res=APP.results.rewasabi||{};
+  let pts=0;
+  (APP.rewasabiQs||[...SEED_REWASABI]).forEach(q=>{
+    // bonus: lo carga el COMIPRO como user_id del ganador
+    if(q.type==="bonus"){
+      if(res["bonus_"+q.id]===uid) pts+=q.pts;
+      return;
+    }
+    // approx: resultado más cercano
+    if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts+=approxPts(uid, q.id, rw, res);
+      return;
+    }
+    // country_phase: pais + fase — 10+10
+    if(q.type==="country_phase"){
+      const resPais = res[q.id+"_pais"];
+      const resFase = res[q.id+"_fase"];
+      const predPais = rw[q.id+"_pais"];
+      const predFase = rw[q.id+"_fase"];
+      if(!resPais||!predPais) return;
+      const paisOk = norm(predPais)===norm(resPais);
+      const faseOk = resFase&&predFase&&norm(predFase)===norm(resFase);
+      if(paisOk) pts+=(q.ptsPais||10);
+      if(paisOk&&faseOk) pts+=(q.ptsFase||10);
+      return;
+    }
+    // player / participant / text / yesno
+    if(res[q.id]==null||res[q.id]==="") return;
+    if(matchesResult(rw[q.id],res[q.id])) pts+=q.pts;
+  });
+  return pts;
+}
+
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+elimClasPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 async function adminApplyBonus(uid, pts, reason){
   const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
