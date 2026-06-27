@@ -67,6 +67,10 @@ async function loadAll(){
   }
   invalidateStandings(); // siempre después de cargar bonuses para que grandTotal los incluya
   refreshElimFixture(); // poblar equipos del fixture de eliminatorias desde results
+  // Reset automático de comodines por fase: se almacena qué fase se usó por última vez
+  // El reset efectivo lo maneja el servidor al verificar phase en cada comodín
+  // Aquí solo aseguramos que APP.comodinPhase esté actualizado
+  APP.comodinPhase = currentComodinPhase();
   const withTimeout = (p, label) => Promise.race([
     p.catch(e => console.warn(label, e?.message||e)),
     new Promise(res => setTimeout(() => { console.warn(label, 'timeout'); res(); }, 12000))
@@ -1657,36 +1661,99 @@ const ELIM_STAGES = ["r32","r16","qf","sf","tpfinal"];
 function stageSent(stage){
   return !!(APP.myPred?.sent_at||{})[stage];
 }
-// la etapa actualmente "activa" (la que se puede cargar)
-function currentStage(){
-  for(const s of STAGES){ if(!stageSent(s) && canEnterStage(s)) return s; }
-  return null;
+
+// ¿La ventana automática de una fase elim está abierta ahora?
+function isElimWindowOpen(stage){
+  const w = ELIM_WINDOWS[stage];
+  if(!w) return false;
+  const now = Date.now();
+  return now >= new Date(w.open).getTime() && now <= new Date(w.close).getTime();
 }
-// ¿la etapa está habilitada para carga?
-// Para grupos: siempre. Para eliminatorias: el COMIPRO debe haberla abierto.
+
+// ¿La ventana ya cerró? (para mostrar mensaje adecuado)
+function isElimWindowClosed(stage){
+  const w = ELIM_WINDOWS[stage];
+  if(!w) return false;
+  return Date.now() > new Date(w.close).getTime();
+}
+
+// Override manual del COMIPRO: "open" = forzar abierto, "closed" = forzar cerrado, null = automático
+function elimOverride(stage){
+  return (APP.results?.elim_overrides||{})[stage]||null;
+}
+
+// ¿La fase está habilitada para carga?
 function canEnterStage(stage){
   if(stage==="grupos") return true;
-  // la fase anterior debe estar enviada
   const i = STAGES.indexOf(stage);
   if(i>0 && !stageSent(STAGES[i-1])) return false;
-  // verificar que el COMIPRO haya abierto esta fase elim
-  const open = APP.results?.elim_phase_open;
-  if(!open) return false;
-  // "r32" habilita r32, "r16" habilita hasta r16, etc.
-  const openIdx = ELIM_STAGES.indexOf(open);
-  const stageIdx = ELIM_STAGES.indexOf(stage);
-  return stageIdx <= openIdx;
+  // Verificar override manual del COMIPRO
+  const ov = elimOverride(stage);
+  if(ov==="open") return true;
+  if(ov==="closed") return false;
+  // Si no hay override: usar ventana automática
+  return isElimWindowOpen(stage);
 }
-// ¿Todos los grupos están cargados? (para apertura automática de R32)
+
+// Fase elim actualmente activa (ventana abierta o override)
+function currentElimPhase(){
+  for(const s of ELIM_STAGES){
+    if(canEnterStage(s) && !stageSent(s)) return s;
+  }
+  return null;
+}
+
+// la etapa actualmente "activa" (la que se puede cargar)
+function currentStage(){
+  if(!stageSent("grupos")) return "grupos";
+  const elim = currentElimPhase();
+  return elim||null;
+}
+
+// ¿Todos los grupos están cargados?
 function allGroupsComplete(){
   const res = APP.results?.main||{};
   const groups = FIXTURE.filter(m=>m.phase==="grupos");
   return groups.every(m=>{ const r=res[m.id]; return r&&r.h!=null&&r.h!==""&&r.a!=null&&r.a!==""; });
 }
-// Admin: abrir una fase elim
-async function adminOpenElimPhase(phase){
-  await adminSaveResults({elim_phase_open: phase});
+
+// ¿En qué fase elim estamos según la hora?
+function currentElimPhaseByTime(){
+  const now = Date.now();
+  for(const s of ELIM_STAGES){
+    const w = ELIM_WINDOWS[s];
+    if(!w) continue;
+    if(now >= new Date(w.open).getTime() && now <= new Date(w.close).getTime()) return s;
+  }
+  return null;
 }
+
+// Reset automático de comodines al cambiar de fase
+// Se llama en loadAll — detecta si la fase actual es distinta a la de los comodines activos
+function currentComodinPhase(){
+  // La fase de comodines es la fase elim activa, o "grupos" si aún no empezaron
+  const elimPhase = currentElimPhaseByTime();
+  // Si ninguna ventana elim está abierta pero ya pasó la R32, usar la última que cerró
+  if(!elimPhase){
+    const now = Date.now();
+    for(let i=ELIM_STAGES.length-1;i>=0;i--){
+      const w = ELIM_WINDOWS[ELIM_STAGES[i]];
+      if(w && now > new Date(w.open).getTime()) return ELIM_STAGES[i];
+    }
+    return "grupos";
+  }
+  return elimPhase;
+}
+
+// Admin: override manual de fase elim
+async function adminSetElimOverride(stage, value){
+  // value: "open" | "closed" | null
+  const overrides = {...(APP.results?.elim_overrides||{})};
+  if(value===null) delete overrides[stage];
+  else overrides[stage] = value;
+  await adminSaveResults({elim_overrides: overrides});
+}
+
 // Guardar predicción de un partido elim
 async function saveElimPred(slot, h, a, pen){
   const elim = {...(APP.myPred?.elim||{})};
@@ -1695,6 +1762,7 @@ async function saveElimPred(slot, h, a, pen){
   if(error) throw error;
   APP.myPred = data;
 }
+
 // Confirmar envío de fase elim
 async function sendStageElimNew(stage){
   if(stageSent(stage)) throw new Error("Esta etapa ya fue enviada.");
