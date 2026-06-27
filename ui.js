@@ -150,7 +150,7 @@ function render(){
   app.innerHTML=topbar()+tabsBar()+`<div class="wrap" id="view"></div>`;
   document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;render();window.scrollTo(0,0);});
   const v=$("#view");
-  ({inicio:renderInicio,principal:renderPrincipal,wasabi:renderWasabi,
+  ({inicio:renderInicio,principal:renderPrincipal,wasabi:renderWasabi,rewasabi:renderRewasabi,
     comodines:renderComodines,tabla:renderTabla,reglamento:renderReglamento,admin:renderAdmin}[TAB]||renderInicio)(v);
 }
 function topbar(){
@@ -161,7 +161,7 @@ function topbar(){
   </div></div>`;
 }
 function tabsBar(){
-  const tabs=[["inicio","Inicio"],["principal","Principal"],["wasabi","Wasabi"],
+  const tabs=[["inicio","Inicio"],["principal","Principal"],["wasabi","Wasabi"],["rewasabi","Re-Wasabi"],
     ["comodines","Comodines"],["tabla","Tabla"],["reglamento","Reglamento"]];
   if(isAdmin()) tabs.push(["admin","⚙ Admin"]);
   return `<div class="tabs">`+tabs.map(([k,l])=>`<button class="tab ${TAB===k?'active':''}" data-tab="${k}">${l}</button>`).join("")+`</div>`;
@@ -1205,6 +1205,156 @@ async function doSendStage(stage){
 /* =====================================================================
    PESTAÑA · WASABI
    ===================================================================== */
+/* ══════════════════════════════════════════════════════
+   RE-WASABI
+   ══════════════════════════════════════════════════════ */
+function renderRewasabi(v){
+  if(isAdmin()){ v.innerHTML=adminHint("🎲","Los resultados de la RE-WASABI se cargan en <b>⚙ Admin → Result. Wasabi</b>."); return; }
+
+  // Verificar ventana — misma que R32
+  const w = ELIM_WINDOWS["r32"];
+  const ov = (APP.results?.elim_overrides||{})["r32"]||null;
+  const now = Date.now();
+  const windowOpen = ov==="open" || (!ov && w && now>=new Date(w.open).getTime() && now<=new Date(w.close).getTime());
+  const windowClosed = ov==="closed" || (!ov && w && now>new Date(w.close).getTime());
+
+  if(!windowOpen && !windowClosed){
+    // Aún no abrió
+    const abre = w ? new Date(w.open) : null;
+    const diff = abre ? abre-now : 0;
+    const hh=Math.floor(diff/3600000), mm=Math.floor((diff%3600000)/60000);
+    const apertura = abre ? abre.toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}) : '—';
+    v.innerHTML=`<div class="card" style="margin-top:18px"><div class="empty"><div class="big">⏳</div>
+      <p style="font-weight:700">Re-Wasabi todavía no está disponible</p>
+      <p class="note" style="margin-top:8px">Abre el <b>${apertura}</b></p>
+      ${diff>0?`<p class="note">Faltan ${hh>0?hh+'h ':''} ${mm}min</p>`:''}
+    </div></div>`;
+    return;
+  }
+
+  const rqs = APP.rewasabiQs||[...SEED_REWASABI];
+  const sent = !!(APP.myPred?.sent_at||{})["rewasabi"];
+  const rw = APP.myPred?.rewasabi||{};
+  const resRw = APP.results?.rewasabi||{};
+  const dis = sent||windowClosed ? "disabled" : "";
+
+  // Equipos clasificados a R32 (del fixture)
+  const r32Teams = FIXTURE.filter(m=>m.phase==="r32"&&m.home&&m.away)
+    .flatMap(m=>[m.home,m.away])
+    .filter((v,i,a)=>a.indexOf(v)===i).sort();
+
+  let html=`<div class="card" style="margin-top:18px">
+    <div class="sec-title">🎲 Re-Wasabi</div>
+    <p class="note">Preguntas especiales de la fase eliminatoria. No computan para comodines.</p>
+    ${sent||windowClosed?'<div class="lock-banner" style="margin-top:10px">🔒 Re-Wasabi enviada o ventana cerrada.</div>':''}
+  </div>`;
+
+  rqs.forEach((q,qi)=>{
+    const ans = rw[q.id]||"";
+    const res = resRw[q.id];
+    const answered = q.type==="bonus" || (q.type==="country_phase" ? !!(rw[q.id+"_pais"]) : !!ans);
+    let inputHtml="";
+
+    if(q.type==="country_phase"){
+      const ansPais=rw[q.id+"_pais"]||"";
+      const ansFase=rw[q.id+"_fase"]||"";
+      const resPais=resRw[q.id+"_pais"];
+      const resFase=resRw[q.id+"_fase"];
+      const paisOk=resPais&&norm(ansPais)===norm(resPais);
+      const faseOk=resFase&&norm(ansFase)===norm(resFase);
+      inputHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <select style="flex:1;min-width:140px" ${dis} onchange="setRewasabi('${q.id}_pais',this.value)">
+          <option value="">— País —</option>
+          ${r32Teams.map(t=>{ const td=TEAMS[t]; return `<option value="${t}" ${ansPais===t?'selected':''}>${td?td.f+' '+td.n:t}</option>`; }).join('')}
+        </select>
+        <select style="flex:1;min-width:140px" ${dis} onchange="setRewasabi('${q.id}_fase',this.value)">
+          <option value="">— Fase —</option>
+          ${FASES_ELIM_RW.map(f=>`<option value="${f}" ${ansFase===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+      </div>`;
+      if(resPais){
+        const pts = (paisOk?(q.ptsPais||10):0)+(paisOk&&faseOk?(q.ptsFase||10):0);
+        inputHtml+=`<div class="acertaron" style="margin-top:6px">
+          <div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${resPais}${resFase?' · '+resFase:''}</b></div>
+          <span style="color:${pts>0?'var(--aqua)':'var(--muted)'}">Pts: <b>${pts>0?'+'+pts:0}</b></span>
+        </div>`;
+      }
+    } else if(q.type==="bonus"){
+      const winner = resRw["bonus_"+q.id];
+      const winnerName = winner ? (APP.profiles?.find(p=>p.id===winner)?.display_name||winner) : null;
+      inputHtml=`<p class="note" style="margin-top:6px;font-style:italic">${q.ac}</p>`;
+      if(winnerName) inputHtml+=`<div class="acertaron" style="margin-top:6px"><span style="color:${winner===APP.user?.id?'var(--aqua)':'var(--muted)'}">🏆 Ganador: <b>${esc(winnerName)}</b>${winner===APP.user?.id?' (+'+q.pts+'pts)':''}</span></div>`;
+    } else if(q.type==="player"){
+      inputHtml=`<select style="width:100%;margin-top:8px" ${dis} onchange="setRewasabi('${q.id}',this.value)">
+        <option value="">— elegir jugador —</option>
+        ${sortByName(PLANTEL_ARG).map(p=>`<option value="${p}" ${ans===p?'selected':''}>${esc(p)}</option>`).join('')}
+      </select>`;
+      if(res) inputHtml+=`<div class="acertaron" style="margin-top:6px"><div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${esc(res)}</b></div><span style="color:${matchesResult(ans,res)?'var(--aqua)':'var(--muted)'}">${matchesResult(ans,res)?'✅ +'+q.pts+'pts':'—'}</span></div>`;
+    } else if(q.type==="participant"){
+      const players = (APP.profiles||[]).filter(p=>!p.is_admin);
+      inputHtml=`<select style="width:100%;margin-top:8px" ${dis} onchange="setRewasabi('${q.id}',this.value)">
+        <option value="">— elegir participante —</option>
+        ${players.map(p=>`<option value="${p.display_name}" ${ans===p.display_name?'selected':''}>${esc(p.display_name)}</option>`).join('')}
+      </select>`;
+      if(res) inputHtml+=`<div class="acertaron" style="margin-top:6px"><div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${esc(res)}</b></div><span style="color:${matchesResult(ans,res)?'var(--aqua)':'var(--muted)'}">${matchesResult(ans,res)?'✅ +'+q.pts+'pts':'—'}</span></div>`;
+    } else if(q.type==="approx"){
+      inputHtml=`<input type="number" min="0" style="width:120px;margin-top:8px" ${dis} value="${ans}" onchange="setRewasabi('${q.id}',this.value)" placeholder="Minutos">`;
+      if(res!=null&&res!=="") inputHtml+=`<div class="acertaron" style="margin-top:6px"><div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${res} min</b></div></div>`;
+    } else {
+      inputHtml=`<input type="text" style="width:100%;margin-top:8px" ${dis} value="${esc(ans)}" onchange="setRewasabi('${q.id}',this.value)">`;
+    }
+
+    html+=`<div class="card" style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">${qi+1}. ${esc(q.t)}</div>
+          ${q.ac?`<div class="note">${esc(q.ac)}</div>`:''}
+        </div>
+        <span style="color:var(--gold);font-size:12px;font-weight:700;flex-shrink:0">+${q.pts}pts</span>
+      </div>
+      ${inputHtml}
+    </div>`;
+  });
+
+  // Botón confirmar
+  if(!sent && !windowClosed){
+    html+=`<div class="card" style="margin-top:14px;text-align:center">
+      <button class="btn gold sm" onclick="confirmSendRewasabi()">✉️ Confirmar Re-Wasabi</button>
+    </div>`;
+  }
+
+  v.innerHTML=html;
+}
+
+async function setRewasabi(key, val){
+  const rewasabi={...(APP.myPred?.rewasabi||{}), [key]:val};
+  const {data,error}=await sb.from('predictions').update({rewasabi}).eq('user_id',APP.user.id).select().maybeSingle();
+  if(error){ toast(error.message,"err"); return; }
+  APP.myPred=data;
+  renderRewasabi($("#view"));
+}
+
+function confirmSendRewasabi(){
+  modal(`<h3>✉️ Confirmar Re-Wasabi</h3>
+    <p class="lead">Una vez confirmada no vas a poder cambiar tus respuestas. ¿Seguro?</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn gold full" onclick="doSendRewasabi()">Sí, confirmar</button>
+      <button class="btn ghost full" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+
+async function doSendRewasabi(){
+  try{
+    const sent_at={...(APP.myPred?.sent_at||{}), rewasabi:new Date().toISOString()};
+    const {data,error}=await sb.from('predictions').update({sent_at}).eq('user_id',APP.user.id).select().maybeSingle();
+    if(error) throw error;
+    APP.myPred=data;
+    closeModal();
+    toast("Re-Wasabi enviada 🔒","ok");
+    renderRewasabi($("#view"));
+  }catch(e){ closeModal(); toast(e.message,"err"); }
+}
+
 function renderWasabi(v){
   if(isAdmin()){ v.innerHTML=adminHint("🌶️","Las preguntas Wasabi y sus respuestas se gestionan en <b>⚙ Admin → Preguntas / Resultados</b>."); return; }
   const sent = cardSent('wasabi');
@@ -1689,11 +1839,11 @@ function renderAdmin(v){
   const _matchBlock=_todayM.length?`<div class="card" style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button id="espnSyncBtn" class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`:'';
   v.innerHTML=`<div class="card" style="margin-top:18px"><div class="sec-title">Panel del COMIPRO</div>
     <div class="seg" style="margin-top:10px" id="admSeg">
-      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["elim","🏆 Eliminatorias"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penaliz. y Puntos"],["historial","📊 Historial"],["export","📤 Exportar"]]
+      ${[["resultados","⚽ Resultados"],["wasabi","🌶️ Result. Wasabi"],["rewasabi","🎲 Re-Wasabi"],["elim","🏆 Eliminatorias"],["tarjetas","🔎 Ver tarjetas"],["mails","📧 Mails"],["jugadores","👥 Jugadores"],["penalizaciones","⚡ Penaliz. y Puntos"],["historial","📊 Historial"],["export","📤 Exportar"]]
         .map(([k,l])=>`<button class="${ADM===k?'on':''}" data-a="${k}">${l}</button>`).join("")}
     </div></div>${_matchBlock}<div id="admArea"></div>`;
   document.querySelectorAll("#admSeg button").forEach(b=>b.onclick=()=>{ADM=b.dataset.a;renderAdmin(v);});
-  ({resultados:admResultados,wasabi:admWasabi,elim:admElim,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
+  ({resultados:admResultados,wasabi:admWasabi,rewasabi:admRewasabi,elim:admElim,tarjetas:admTarjetas,mails:admMails,jugadores:admJugadores,penalizaciones:admPenalizaciones,historial:admHistorial,export:admExport}[ADM])($("#admArea"));
 }
 function admPenalizaciones(area){
   const players = APP.profiles.filter(p=>!p.is_admin);
@@ -1910,6 +2060,69 @@ async function setRes(id,k,val){
   try{ await adminSaveResults({main}); toast("Resultado guardado","ok"); if(k!=="pen"&&ADM_PHASE!=="grupos") admResultados($("#admArea")); }catch(e){ toast(e.message,"err"); }
 }
 async function setResExtra(k,val){ const extra={...(APP.results.extra||{})}; extra[k]=val; try{ await adminSaveResults({extra}); toast("Guardado","ok"); }catch(e){ toast(e.message,"err"); } }
+
+function admRewasabi(area){
+  const res=APP.results?.rewasabi||{};
+  const rqs=APP.rewasabiQs||[...SEED_REWASABI];
+  const r32Teams=FIXTURE.filter(m=>m.phase==="r32"&&m.home&&m.away)
+    .flatMap(m=>[m.home,m.away]).filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const players=(APP.profiles||[]).filter(p=>!p.is_admin);
+
+  let html=`<div class="card"><div class="sec-title">🎲 Respuestas reales · Re-Wasabi</div>
+    <p class="note">Cargá la respuesta correcta de cada pregunta. Para "country_phase" cargá país y fase por separado.</p>
+  </div>`;
+
+  rqs.forEach((q,qi)=>{
+    let inputHtml="";
+    if(q.type==="country_phase"){
+      const vp=res[q.id+"_pais"]||"", vf=res[q.id+"_fase"]||"";
+      inputHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <select style="flex:1;min-width:140px" onchange="admSetRewasabi('${q.id}_pais',this.value)">
+          <option value="">— País —</option>
+          ${r32Teams.map(t=>{ const td=TEAMS[t]; return `<option value="${t}" ${vp===t?'selected':''}>${td?td.f+' '+td.n:t}</option>`; }).join('')}
+        </select>
+        <select style="flex:1;min-width:140px" onchange="admSetRewasabi('${q.id}_fase',this.value)">
+          <option value="">— Fase —</option>
+          ${FASES_ELIM_RW.map(f=>`<option value="${f}" ${vf===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+      </div>`;
+    } else if(q.type==="bonus"){
+      inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('bonus_${q.id}',this.value)">
+        <option value="">— Ganador —</option>
+        ${players.map(p=>`<option value="${p.id}" ${res["bonus_"+q.id]===p.id?'selected':''}>${esc(p.display_name)}</option>`).join('')}
+      </select>`;
+    } else if(q.type==="player"){
+      inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('${q.id}',this.value)">
+        <option value="">— elegir —</option>
+        ${sortByName(PLANTEL_ARG).map(p=>`<option value="${p}" ${res[q.id]===p?'selected':''}>${esc(p)}</option>`).join('')}
+      </select>`;
+    } else if(q.type==="participant"){
+      inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('${q.id}',this.value)">
+        <option value="">— elegir —</option>
+        ${players.map(p=>`<option value="${p.display_name}" ${res[q.id]===p.display_name?'selected':''}>${esc(p.display_name)}</option>`).join('')}
+      </select>`;
+    } else {
+      inputHtml=`<input type="${q.type==='approx'?'number':'text'}" style="width:100%;margin-top:8px" value="${esc(res[q.id]||'')}" onchange="admSetRewasabi('${q.id}',this.value)">`;
+    }
+    html+=`<div class="card" style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;font-size:13px;font-weight:600">${qi+1}. ${esc(q.t)}</div>
+        <span style="color:var(--gold);font-size:12px;font-weight:700">+${q.pts}pts</span>
+      </div>
+      ${inputHtml}
+    </div>`;
+  });
+  area.innerHTML=html;
+}
+
+async function admSetRewasabi(key, val){
+  const rewasabi={...(APP.results?.rewasabi||{}), [key]:val};
+  try{
+    await adminSaveResults({rewasabi});
+    invalidateStandings();
+    toast("Guardado","ok");
+  }catch(e){ toast(e.message,"err"); }
+}
 
 function admWasabi(area){
   const res=APP.results.wasabi||{};
