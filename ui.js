@@ -833,14 +833,40 @@ function prAreaGrupos(area){
 /* ── NUEVA área de eliminatorias (Opción B: fixture oficial FIFA) ───── */
 function prAreaElimNew(area, stage){
   if(!canEnterStage(stage)){
-    const open = APP.results?.elim_phase_open;
-    if(!open){
+    const w = ELIM_WINDOWS[stage];
+    const ov = (APP.results?.elim_overrides||{})[stage]||null;
+    const now = Date.now();
+    const i = STAGES.indexOf(stage);
+    const prevSent = i>0 ? stageSent(STAGES[i-1]) : true;
+    if(!prevSent){
       area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
-        <p>Esta fase todavía no está habilitada.</p>
-        <p class="note">El COMIPRO la abrirá cuando terminen los grupos.</p>
+        <p>Primero confirmá la etapa anterior.</p>
+      </div></div>`;
+    } else if(ov==="closed"){
+      area.innerHTML=`<div class="card"><div class="empty"><div class="big">🔒</div>
+        <p>Esta fase está cerrada por el COMIPRO.</p>
+      </div></div>`;
+    } else if(w && now < new Date(w.open).getTime()){
+      // Aún no abrió — mostrar countdown
+      const abre = new Date(w.open);
+      const diff = abre - now;
+      const hh = Math.floor(diff/3600000);
+      const mm = Math.floor((diff%3600000)/60000);
+      const apertura = abre.toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+      area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
+        <p style="font-weight:700;font-size:15px">Ventana de carga aún no abierta</p>
+        <p class="note" style="margin-top:8px">Abre el <b>${apertura}</b></p>
+        <p class="note" style="margin-top:4px">Faltan ${hh>0?hh+'h ':''} ${mm}min</p>
+      </div></div>`;
+    } else if(w && now > new Date(w.close).getTime()){
+      area.innerHTML=`<div class="card"><div class="empty"><div class="big">🔒</div>
+        <p>La ventana de carga para esta fase ya cerró.</p>
+        <p class="note">Los pronósticos fueron bloqueados automáticamente.</p>
       </div></div>`;
     } else {
-      area.innerHTML=`<div class="card"><p class="note">Primero confirmá la etapa anterior.</p></div>`;
+      area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
+        <p>Esta fase todavía no está habilitada.</p>
+      </div></div>`;
     }
     return;
   }
@@ -2396,15 +2422,25 @@ function admElim(area){
   </div>`;
 
   PHASES_ELIM.forEach(({key,label,slots})=>{
-    const isOpen = open===key;
     const matches = FIXTURE.filter(m=>slots.includes(m.slot));
     const resElim = APP.results?.elim||{};
+    const w = ELIM_WINDOWS[key];
+    const now = Date.now();
+    const autoOpen = w && now>=new Date(w.open).getTime() && now<=new Date(w.close).getTime();
+    const autoClosed = w && now>new Date(w.close).getTime();
+    const ov = (APP.results?.elim_overrides||{})[key]||null;
+    const effectiveOpen = ov==="open" || (!ov && autoOpen);
+    const openLabel = w ? `${new Date(w.open).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})} ${new Date(w.open).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} → ${new Date(w.close).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})} ${new Date(w.close).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}` : '—';
     html+=`<div class="card" style="margin-top:12px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
         <div class="sec-title" style="margin:0;flex:1">${label}</div>
-        ${isOpen
-          ?`<span style="color:var(--aqua);font-size:12px;font-weight:700">✅ Abierta</span>`
-          :`<button class="btn sm primary" onclick="admOpenPhase('${key}')">Abrir fase</button>`}
+        <span style="font-size:11px;color:${effectiveOpen?'var(--aqua)':autoClosed?'var(--muted)':'rgba(255,255,255,0.3)'}">${effectiveOpen?'✅ ABIERTA':autoClosed?'🔒 Cerrada':'⏳ No iniciada'}${ov?` (override: ${ov})`:' (auto)'}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">🕐 Ventana automática: ${openLabel}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn sm primary" onclick="admOpenPhase('${key}')">Forzar abrir</button>
+        <button class="btn sm danger" onclick="admClosePhase('${key}')">Forzar cerrar</button>
+        ${ov?`<button class="btn sm ghost" onclick="admResetPhaseOverride('${key}')">Modo automático</button>`:''}
       </div>`;
 
     // tabla de equipos + resultados por partido
@@ -2439,8 +2475,24 @@ function admElim(area){
 
 async function admOpenPhase(phase){
   try{
-    await adminOpenElimPhase(phase);
-    toast(`✅ ${STAGE_LABEL[phase]||phase} abierta para los jugadores`,"ok");
+    await adminSetElimOverride(phase, "open");
+    toast(`✅ ${STAGE_LABEL[phase]||phase} forzada ABIERTA`,"ok");
+    admElim($("#admArea"));
+    render();
+  }catch(e){ toast(e.message,"err"); }
+}
+async function admClosePhase(phase){
+  try{
+    await adminSetElimOverride(phase, "closed");
+    toast(`🔒 ${STAGE_LABEL[phase]||phase} forzada CERRADA`,"ok");
+    admElim($("#admArea"));
+    render();
+  }catch(e){ toast(e.message,"err"); }
+}
+async function admResetPhaseOverride(phase){
+  try{
+    await adminSetElimOverride(phase, null);
+    toast(`🔄 ${STAGE_LABEL[phase]||phase} volvió a modo automático`,"ok");
     admElim($("#admArea"));
     render();
   }catch(e){ toast(e.message,"err"); }
