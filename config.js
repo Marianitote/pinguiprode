@@ -354,3 +354,33 @@ const SEED_WASABI = [
   {id:"w59", t:"¿Algún jugador se saca la camiseta para festejar y se come amarilla? (Sí/No)", pts:10, type:"yesno"},
   {id:"w60", t:"¿Qué jugador del PingüiProde pierde más puntos por sanciones del COMIPRO?", pts:6, type:"participant"},
 ];
+
+// ── RE-WASABI ────────────────────────────────────────────────────────────────
+// Se habilita junto con R32. Sus puntos van dentro de Wasabi (no computan para comodines).
+const FASES_ELIM_RW = ["R32 (Dieciseisavos)","Octavos de Final","Cuartos de Final","Semifinales","3er Puesto","Final"];
+
+const SEED_REWASABI = [
+  {id:"rw1", t:"¿Qué selección FUERA del Top 20 del ranking FIFA llega más lejos?",
+   pts:20, type:"country_phase",
+   ac:"10pts por acertar el país + 10pts por acertar la fase. Ranking FIFA vigente al inicio de R32.",
+   noComo:true,
+   ptsPais:10, ptsFase:10},
+  {id:"rw2", t:"¿Qué selección del TOP 10 del ranking FIFA queda eliminada antes?",
+   pts:20, type:"country_phase",
+   ac:"10pts por acertar el país + 10pts por acertar la fase. Ranking FIFA vigente al inicio de R32.",
+   noComo:true,
+   ptsPais:10, ptsFase:10},
+  {id:"rw3", t:"¿Qué jugador argentino realiza el primer saque lateral del segundo tiempo en el primer partido de Argentina en R32?",
+   pts:10, type:"player",
+   ac:"Menú con todos los jugadores de la selección argentina."},
+  {id:"rw4", t:"¿Quién es el primer participante en alertar en el grupo de WhatsApp sobre quién realiza ese primer lateral?",
+   pts:12, type:"participant",
+   ac:"Elegí un jugador del PingüiProde."},
+  {id:"rw5", t:"Primer participante en alertar sobre el primer lateral argentino del segundo tiempo en R32",
+   pts:12, type:"bonus",
+   ac:"Son puntos adicionales — no hay que contestar nada. El COMIPRO carga el ganador manualmente."},
+  {id:"rw6", t:"¿Cuántos minutos agrega el árbitro al segundo tiempo de la Final del Mundial 2026?",
+   pts:10, type:"approx",
+   ac:"El resultado más cercano gana. Se evalúa al finalizar la Final.",
+   noComo:true},
+];
