@@ -1081,6 +1081,7 @@ function acertaronPublic(m){
     if(rWin===pWin) suman.push(p.display_name);
   });
   return `<div class="acertaron">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Resultado final: <b style="color:white">${r.h} – ${r.a}</b></div>
     <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
     <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
   </div>`;
