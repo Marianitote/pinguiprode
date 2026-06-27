@@ -2088,6 +2088,9 @@ function admRewasabi(area){
           <option value="">— Fase —</option>
           ${FASES_ELIM_RW.map(f=>`<option value="${f}" ${vf===f?'selected':''}>${f}</option>`).join('')}
         </select>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        ✅ País + Fase: <b style="color:white">20pts</b> &nbsp;·&nbsp; ✅ Solo País: <b style="color:white">10pts</b> &nbsp;·&nbsp; ❌ Resto: 0pts
       </div>`;
     } else if(q.type==="bonus"){
       inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('bonus_${q.id}',this.value)">
