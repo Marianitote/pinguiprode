@@ -144,6 +144,15 @@ const KICKOFFS_GRUPOS={
 const KICKOFFS_ELIM={ r32:"2026-06-28T14:00:00-03:00", r16:"2026-07-04T14:00:00-03:00",
   qf:"2026-07-09T14:00:00-03:00", sf:"2026-07-14T16:00:00-03:00",
   tp:"2026-07-18T16:00:00-03:00", final:"2026-07-19T16:00:00-03:00" };
+
+// Ventanas de carga de predicciones por fase eliminatoria (hora ARG = UTC-3)
+const ELIM_WINDOWS = {
+  r32:     { open:"2026-06-28T01:00:00-03:00", close:"2026-06-28T15:00:00-03:00" },
+  r16:     { open:"2026-07-04T01:30:00-03:00", close:"2026-07-04T13:00:00-03:00" },
+  qf:      { open:"2026-07-07T20:00:00-03:00", close:"2026-07-09T16:00:00-03:00" },
+  sf:      { open:"2026-07-12T01:00:00-03:00", close:"2026-07-14T15:00:00-03:00" },
+  tpfinal: { open:"2026-07-15T19:00:00-03:00", close:"2026-07-18T17:00:00-03:00" },
+};
 /* ─────────────────────────────────────────────────────────────────────
    FECHAS OFICIALES FIFA por partido (fuente única para "a qué día pertenece").
    Independiente de la hora argentina del kickoff. Resuelve el desfase de
