@@ -355,9 +355,7 @@ function renderInicio(v){
     // Partidos por día FIFA (hoy abierto + fechas anteriores colapsadas)
     const tz='America/Argentina/Buenos_Aires';
     const res=APP.results?.main||{};
-    const resElim=APP.results?.elim||{};
     const myMain=APP.myPred?.main||{};
-    const myElim=APP.myPred?.elim||{};
 
     function renderDayMatches(dia){
       const matches=FIXTURE.filter(m=>fifaDateOf(m)===dia)
@@ -365,9 +363,7 @@ function renderInicio(v){
       if(!matches.length) return '';
       let rows='';
       matches.forEach(m=>{
-        const isElim = m.phase!=='grupos';
-        const r = isElim ? resElim[m.slot] : res[m.id];
-        const p = isElim ? (myElim[m.slot]||{}) : (myMain[m.id]||{});
+        const r=res[m.id]; const p=myMain[m.id]||{};
         const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
         const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
         const hasRes = r&&r.h!=null&&r.h!=='';
@@ -380,11 +376,8 @@ function renderInicio(v){
           const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
           const exact=[],suman=[];
           players.forEach(pl=>{
-            const preds = isElim
-              ? (APP.allPreds?.[pl.id]?.elim||(pl.id===APP.user?.id?APP.myPred?.elim:null)||{})
-              : (APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{});
-            const pred2 = isElim ? preds[m.slot] : preds[m.id];
-            if(!pred2) return;
+            const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
+            const pred2=preds[m.id]; if(!pred2) return;
             if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
             const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
             const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
@@ -954,7 +947,7 @@ function prAreaElimNew(area, stage){
 
   let html="";
   // cuadro de honor VA PRIMERO en r32
-  if(stage==="r32") html += extrasBlock(isElimWindowClosed("r32") || stageSent("r32")); // bloquear si ventana cerrada O fase enviada
+  if(stage==="r32") html += extrasBlock(stageSent("tpfinal"));
 
   html+=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]||stage}</div>
     <p class="note">Estos son los cruces reales del Mundial. Cargá tu predicción para cada partido. Si hay empate, elegí quién avanza por penales.</p>`;
@@ -1138,7 +1131,7 @@ function extrasBlock(locked){
   const ex=APP.myPred?.extra||{}; const dis=locked?"disabled":"";
   const tsel=(id)=>`<select ${dis} onchange="setExtra('${id}',this.value)"><option value="">—</option>${sortByName(Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f})),'n').map(t=>`<option ${ex[id]===t.c?'selected':''} value="${t.c}">${t.f} ${t.n}</option>`).join("")}</select>`;
   const isel=(id,ph)=>`<input ${dis} value="${esc(ex[id]||'')}" placeholder="${ph}" onchange="setExtra('${id}',this.value)">`;
-  return `<div class="card" id="honorBlock"><div class="sec-title">Cuadro de honor</div>
+  return `<div class="card"><div class="sec-title">Cuadro de honor</div>
     <p class="note">Bonus por aciertos finales. Las botas y balones son texto libre — escribí el nombre del jugador.</p>
     <div class="grid2" style="margin-top:10px">
       <div><label class="field">🏆 Campeón (+4)</label>${tsel('champion')}</div>
@@ -1348,7 +1341,7 @@ function renderRewasabi(v){
     } else if(q.type==="bonus"){
       const winner = resRw["bonus_"+q.id];
       const winnerName = winner ? (APP.profiles?.find(p=>p.id===winner)?.display_name||winner) : null;
-      inputHtml=``;
+      inputHtml=`<p class="note" style="margin-top:6px;font-style:italic">${q.ac}</p>`;
       if(winnerName) inputHtml+=`<div class="acertaron" style="margin-top:6px"><span style="color:${winner===APP.user?.id?'var(--aqua)':'var(--muted)'}">🏆 Ganador: <b>${esc(winnerName)}</b>${winner===APP.user?.id?' (+'+q.pts+'pts)':''}</span></div>`;
     } else if(q.type==="player"){
       inputHtml=`<select style="width:100%;margin-top:8px" ${dis} onchange="setRewasabi('${q.id}',this.value)">
@@ -1390,17 +1383,6 @@ function renderRewasabi(v){
   }
 
   v.innerHTML=html;
-}
-
-async function setExtra(key, val){
-  const extra={...(APP.myPred?.extra||{}), [key]:val};
-  const {data,error}=await sb.from('predictions').update({extra}).eq('user_id',APP.user.id).select().maybeSingle();
-  if(error){ toast(error.message,"err"); return; }
-  APP.myPred=data;
-  if(APP.allPreds?.[APP.user.id]) APP.allPreds[APP.user.id].extra = data.extra;
-  // re-renderizar solo el bloque del cuadro de honor
-  const honor = $("#honorBlock");
-  if(honor) honor.outerHTML = extrasBlock(false);
 }
 
 async function setRewasabi(key, val){
@@ -1561,7 +1543,7 @@ function standingsTableHTML(opts){
   const tb=standings();
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
-  const day=todayFifaDate(); const phase=APP.comodinPhase||currentComodinPhase()||phaseOfDay(day)||"grupos";
+  const day=todayFifaDate(); const phase=phaseOfDay(day)||"grupos";
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
 
   // helpers por fase
@@ -2323,71 +2305,19 @@ function admTarjetas(area){
   const sa2 = pred.sent_at||{};
   const wasabiLocked = !!(ss.wasabi || sa2.wasabi || pred.locked);
   const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
-  const rewasabiLocked = !!(sa2.rewasabi);
-  // Estado de tarjetas
-  const allElimStages = ELIM_STAGES.map(s=>({
-    key:s, label:STAGE_LABEL[s]||s,
-    sent:!!(sa2[s]),
-    total: FIXTURE.filter(m=>(m.phase===s||(s==="tpfinal"&&(m.phase==="tp"||m.phase==="final")))&&m.home&&m.away).length,
-    done: Object.keys(pred.elim||{}).filter(k=>{
-      const v=(pred.elim||{})[k]; if(!v||v.h==null||v.h==="") return false;
-      const slot=+k; const ph=s==="tpfinal"?["tp","final"]:[s];
-      return ph.some(p=>FIXTURE.find(m=>m.slot===slot&&m.phase===p));
-    }).length
-  }));
-  const wasabiDone = Object.keys(pred.wasabi||{}).filter(k=>(pred.wasabi||{})[k]!=null&&(pred.wasabi||{})[k]!=="").length;
-  const rwDone = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>{
-    if(q.type==="bonus") return false;
-    if(q.type==="country_phase") return !!(pred.rewasabi?.[q.id+"_pais"]);
-    return !!(pred.rewasabi?.[q.id]);
-  }).length;
-  const rwTotal2 = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>q.type!=="bonus").length;
-  const honorDone = ["champion","runnerup","third","fourth","boot_gold","boot_silver","boot_bronze","ball_gold","ball_silver","ball_bronze"].filter(k=>(pred.extra||{})[k]).length;
-  const mainDone = Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
-
-  function mkRow(emoji, label, locked, done, total, stage){
-    const lockTxt = locked ? "🔒 Cerrada" : "🔓 Abierta";
-    const lockCol = locked ? "var(--gold)" : "var(--aqua)";
-    const compTxt = total>0 ? (done+"\/"+total+(done>=total?" ✅":" ⏳")) : (done>0?"✅":"⏳ Sin completar");
-    const compCol = (total>0?done>=total:done>0) ? "#22c55e" : "#f59e0b";
-    const btnHtml = locked
-      ? "<button class=\"btn sm\" onclick=\"admUnlockStage(\'"+ADM_VIEWUID+"\',\'"+stage+"\')\">🔓 Habilitar</button>"
-      : "<button class=\"btn sm\" style=\"background:var(--gold);color:#000\" onclick=\"admLockStage(\'"+ADM_VIEWUID+"\',\'"+stage+"\')\">🔒 Cerrar</button>";
-    return "<div style=\"display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);flex-wrap:wrap\">"
-      +"<span style=\"font-size:13px;min-width:190px\">"+emoji+" "+label+"</span>"
-      +"<span style=\"font-size:12px;font-weight:600;color:"+lockCol+"\">"+lockTxt+"</span>"
-      +"<span style=\"font-size:12px;color:"+compCol+"\">"+compTxt+"</span>"
-      +"<span style=\"margin-left:auto\">"+btnHtml+"</span>"
-      +"</div>";
-  }
-
-  let html="<div class=\"card\"><div class=\"sec-title\">Ver / corregir tarjetas</div>"
-    +"<p class=\"note\">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>"
-    +"<label class=\"field\" style=\"margin-top:10px\">Jugador</label>"+sel
-    +"<div style=\"margin-top:12px\">"
-    +mkRow("🌶️","Wasabi",wasabiLocked,wasabiDone,55,"wasabi")
-    +mkRow("🎲","Re-Wasabi",rewasabiLocked,rwDone,rwTotal2,"rewasabi")
-    +mkRow("⚽","Grupos",gruposLocked,mainDone,72,"grupos")
-    +mkRow("🎖️","Cuadro de Honor",gruposLocked||isElimWindowClosed("r32")||(!!sa2.r32),honorDone,10,"r32")
-    +allElimStages.map(s=>mkRow("🏆",s.label+(s.total>0?" ("+s.done+"/"+s.total+")":""),s.sent,s.done,s.total,s.key)).join("")
-    +"</div></div>";
-
-
-  // REWASABI resumen
-  const rws = APP.rewasabiQs||[...SEED_REWASABI];
-  const rwAnswered = rws.filter(q=>{
-    if(q.type==='bonus') return false;
-    if(q.type==='country_phase') return !!(pred.rewasabi?.[q.id+'_pais']);
-    return !!(pred.rewasabi?.[q.id]);
-  }).length;
-  const rwTotal = rws.filter(q=>q.type!=='bonus').length;
-  if(rewasabiLocked||rwAnswered>0){
-    html+=`<div class="card flat"><div class="sec-title">🎲 Re-Wasabi</div>
-      <p class="note">${rwAnswered}/${rwTotal} respondidas${rewasabiLocked?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
-      <button class="btn sm" style="margin-top:10px" onclick="admVerRewasabi('${ADM_VIEWUID}',this)">👁 Ver Re-Wasabi</button>
-      <div id="admRewasabiArea"></div>
-    </div>`;
-  }
+  const stateTag = (locked) => locked
+    ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
+    : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
+  const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
+  const lockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px;background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar ${label}</button>`;
+  let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
+    <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
+    <label class="field" style="margin-top:10px">Jugador</label>${sel}
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):lockBtn('wasabi','Wasabi')}</div>
+      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
+    </div>
+  </div>`;
   // WASABI resumen con botón Ver
   const wasabiCount=Object.keys(pred.wasabi||{}).filter(k=>pred.wasabi[k]!=null&&pred.wasabi[k]!=="").length;
   const sentWasabi=!!(pred.sent_at?.wasabi);
@@ -2398,18 +2328,8 @@ function admTarjetas(area){
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
   const sentGroups=!!(pred.sent_at?.grupos);
-  const elimPhasesHtml = elimStages.filter(s=>s.sent||canEnterStage(s.key)).map(s=>{
-    const elimCount = Object.keys(pred.elim||{}).filter(k=>{
-      const slot=+k; return FIXTURE.find(m=>m.slot===slot&&m.phase===s.key);
-    }).length;
-    const total = FIXTURE.filter(m=>m.phase===s.key).length;
-    return `<div style="margin-top:6px;font-size:12px;color:var(--muted)">
-      🏆 ${s.label}: ${elimCount}/${total} cargados${s.sent?' · <b style="color:var(--aqua)">✅ Enviada</b>':''}
-    </div>`;
-  }).join('');
   html+=`<div class="card flat"><div class="sec-title">⚽ Principal</div>
-    <p class="note">${mainCount}/${FIXTURE.filter(m=>m.phase==='grupos').length} partidos grupos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
-    ${elimPhasesHtml}
+    <p class="note">${mainCount}/${FIXTURE.length} partidos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
     <button class="btn sm" style="margin-top:10px" onclick="admVerGrupos('${ADM_VIEWUID}',this)">👁 Ver fase de grupos</button>
     <div id="admGruposArea"></div></div>`;
   // BITÁCORA
@@ -2467,129 +2387,28 @@ function admVerWasabi(uid, btn){
   });
   area.innerHTML=html;
 }
-function admVerRewasabi(uid, btn){
-  const area=$("#admRewasabiArea");
-  if(!area) return;
-  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver Re-Wasabi'; return; }
-  btn.textContent='▲ Ocultar';
-  const pred=APP.allPreds?.[uid]||{};
-  const rw=pred.rewasabi||{};
-  const rqs=APP.rewasabiQs||[...SEED_REWASABI];
-  const r32Teams=FIXTURE.filter(m=>m.phase==="r32"&&m.home&&m.away)
-    .flatMap(m=>[m.home,m.away]).filter((v,i,a)=>a.indexOf(v)===i).sort();
-  const players=(APP.profiles||[]).filter(p=>!p.is_admin);
-  let html='';
-  rqs.forEach((q,qi)=>{
-    let valStr='—';
-    if(q.type==='country_phase'){
-      const p=rw[q.id+'_pais']||'', f=rw[q.id+'_fase']||'';
-      const td=TEAMS[p];
-      valStr = p ? `${td?td.f+' '+td.n:p}${f?' · '+f:''}` : '—';
-    } else if(q.type==='bonus'){
-      valStr='(automático)';
-    } else {
-      valStr = rw[q.id] ? esc(rw[q.id]) : '—';
-    }
-    html+=`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
-      <span style="color:var(--muted)">${qi+1}. ${esc(q.t.slice(0,60))}…</span><br>
-      <span style="font-weight:600">${valStr}</span>
-    </div>`;
-  });
-  area.innerHTML=`<div style="margin-top:10px">${html}</div>`;
-}
 function admVerGrupos(uid, btn){
   const area = document.getElementById('admGruposArea');
   if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver fase de grupos'; return; }
   btn.textContent='▲ Ocultar';
   const pred = APP.allPreds?.[uid]||{};
   const main = pred.main||{};
-  const elim = pred.elim||{};
-  const ex = pred.extra||{};
-
-  // Helper para armar tabla de partidos colapsable
-  function collapseSection(title, tableHtml, open=false){
-    return `<details style="margin-bottom:8px" ${open?'open':''}>
-      <summary style="cursor:pointer;font-size:13px;font-weight:700;padding:6px 0;list-style:none;display:flex;justify-content:space-between">
-        ${title} <span style="color:var(--muted);font-size:11px">›</span>
-      </summary>
-      <div style="margin-top:4px">${tableHtml}</div>
-    </details>`;
-  }
-  function matchTable(rows){
-    return `<table style="width:100%;font-size:12px;border-collapse:collapse">${rows}</table>`;
-  }
-  function matchRow(home, score, away){
-    return `<tr style="border-bottom:1px solid var(--line)">
-      <td style="padding:3px 4px;text-align:right;font-size:11px">${home}</td>
-      <td style="padding:3px 8px;text-align:center">${score}</td>
-      <td style="padding:3px 4px;font-size:11px">${away}</td>
-    </tr>`;
-  }
-
+  const grupos = [...new Set(FIXTURE.map(f=>f.group))].sort();
   let html='<div style="margin-top:12px">';
-
-  // Cuadro de honor colapsable
-  const honorFields = [
-    {id:'champion',label:'🏆 Campeón'},{id:'runnerup',label:'🥈 Subcampeón'},
-    {id:'third',label:'🥉 3° puesto'},{id:'fourth',label:'4° puesto'},
-    {id:'boot_gold',label:'👟 Bota Oro'},{id:'boot_silver',label:'👟 Bota Plata'},
-    {id:'boot_bronze',label:'👟 Bota Bronce'},{id:'ball_gold',label:'⚽ Balón Oro'},
-    {id:'ball_silver',label:'⚽ Balón Plata'},{id:'ball_bronze',label:'⚽ Balón Bronce'},
-  ];
-  const honorFilled = honorFields.filter(f=>ex[f.id]&&ex[f.id]!=='').length;
-  let honorRows='';
-  honorFields.forEach(f=>{
-    const val=ex[f.id]||''; const td=TEAMS[val];
-    const display = td?`${td.f} ${td.n}`:(val||`<span style="color:#aaa">sin cargar</span>`);
-    honorRows+=`<tr style="border-bottom:1px solid var(--line)">
-      <td style="padding:3px 4px;color:var(--muted)">${f.label}</td>
-      <td style="padding:3px 4px;font-weight:${val?'600':'400'}">${display}</td>
-    </tr>`;
-  });
-  html+=collapseSection(`🎖️ Cuadro de Honor (${honorFilled}/${honorFields.length})`,
-    matchTable(honorRows), honorFilled<honorFields.length);
-
-  // Grupos colapsables
-  const grupos=[...new Set(FIXTURE.filter(m=>m.phase==='grupos').map(f=>f.grp))].filter(Boolean).sort();
-  let gruposHtml='';
   grupos.forEach(g=>{
-    const partidos=FIXTURE.filter(f=>f.grp===g&&f.phase==='grupos');
-    let rows='';
+    const partidos = FIXTURE.filter(f=>f.group===g);
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b><table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
     partidos.forEach(f=>{
       const v=main[f.id]||{};
-      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}</b>`:'<span style="color:#aaa">—</span>';
-      rows+=matchRow(esc(f.home),score,esc(f.away));
+      const score = (v.h!=null&&v.h!=='') ? `${v.h} - ${v.a}` : '<span style="color:#aaa">sin cargar</span>';
+      html+=`<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:3px 4px;text-align:right">${esc(f.home)}</td>
+        <td style="padding:3px 8px;text-align:center;font-weight:600">${score}</td>
+        <td style="padding:3px 4px">${esc(f.away)}</td>
+      </tr>`;
     });
-    const filled=partidos.filter(f=>{const v=main[f.id]||{};return v.h!=null&&v.h!=='';}).length;
-    gruposHtml+=collapseSection(`Grupo ${g} (${filled}/${partidos.length})`, matchTable(rows), false);
+    html+=`</table></div>`;
   });
-  html+=collapseSection(`⚽ Fase de Grupos`, gruposHtml, false);
-
-  // Eliminatorias por fase colapsables
-  const elimPhases=[
-    {key:'r32',label:'Ronda de 32'},
-    {key:'r16',label:'Octavos de Final'},
-    {key:'qf',label:'Cuartos de Final'},
-    {key:'sf',label:'Semifinales'},
-    {key:'tp',label:'3er Puesto'},
-    {key:'final',label:'Final'},
-  ];
-  let elimHtml='';
-  elimPhases.forEach(({key,label})=>{
-    const matches=FIXTURE.filter(m=>m.phase===key&&m.home&&m.away);
-    if(!matches.length) return;
-    let rows='';
-    matches.forEach(m=>{
-      const v=elim[m.slot]||{};
-      const ht=TEAMS[m.home],at=TEAMS[m.away];
-      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}${+v.h===+v.a&&v.pen?` (${v.pen==='1'?ht?.n||m.home:at?.n||m.away})`:''}</b>`:'<span style="color:#aaa">—</span>';
-      rows+=matchRow(ht?ht.f+' '+ht.n:m.home, score, at?at.f+' '+at.n:m.away);
-    });
-    const filled=matches.filter(m=>{const v=elim[m.slot]||{};return v.h!=null&&v.h!=='';}).length;
-    elimHtml+=collapseSection(`${label} (${filled}/${matches.length})`, matchTable(rows), key==='r32');
-  });
-  if(elimHtml) html+=collapseSection('🏆 Eliminatorias', elimHtml, true);
-
   html+='</div>';
   area.innerHTML=html;
 }
