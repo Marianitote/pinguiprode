@@ -2305,19 +2305,35 @@ function admTarjetas(area){
   const sa2 = pred.sent_at||{};
   const wasabiLocked = !!(ss.wasabi || sa2.wasabi || pred.locked);
   const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
+  const rewasabiLocked = !!(sa2.rewasabi);
   const stateTag = (locked) => locked
     ? `<span style="color:var(--gold);font-weight:600">🔒 Cerrada</span>`
     : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
   const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
   const lockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px;background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar ${label}</button>`;
+  // Estado de fases elim
+  const elimStages = ELIM_STAGES.map(s=>({
+    key:s, label:STAGE_LABEL[s]||s,
+    sent:!!(sa2[s]), locked:!!(sa2[s])
+  }));
   let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
     <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
     <label class="field" style="margin-top:10px">Jugador</label>${sel}
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):lockBtn('wasabi','Wasabi')}</div>
+      <div style="display:flex;align-items:center;gap:8px">🎲 Re-Wasabi: ${stateTag(rewasabiLocked)}${rewasabiLocked?unlockBtn('rewasabi','Re-Wasabi'):''}</div>
       <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
+      ${elimStages.filter(s=>s.sent).map(s=>`<div style="display:flex;align-items:center;gap:8px">🏆 ${s.label}: ${stateTag(s.locked)}${s.locked?unlockBtn(s.key,s.label):''}</div>`).join('')}
     </div>
   </div>`;
+  // REWASABI resumen
+  const rewasabiCount=Object.keys(pred.rewasabi||{}).filter(k=>pred.rewasabi[k]!=null&&pred.rewasabi[k]!=="").length;
+  const rwTotal = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>q.type!=='bonus').length;
+  if(rewasabiLocked||rewasabiCount>0){
+    html+=`<div class="card flat"><div class="sec-title">🎲 Re-Wasabi</div>
+      <p class="note">${rewasabiCount}/${rwTotal} respondidas${rewasabiLocked?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
+    </div>`;
+  }
   // WASABI resumen con botón Ver
   const wasabiCount=Object.keys(pred.wasabi||{}).filter(k=>pred.wasabi[k]!=null&&pred.wasabi[k]!=="").length;
   const sentWasabi=!!(pred.sent_at?.wasabi);
@@ -2328,8 +2344,18 @@ function admTarjetas(area){
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
   const sentGroups=!!(pred.sent_at?.grupos);
+  const elimPhasesHtml = elimStages.filter(s=>s.sent||canEnterStage(s.key)).map(s=>{
+    const elimCount = Object.keys(pred.elim||{}).filter(k=>{
+      const slot=+k; return FIXTURE.find(m=>m.slot===slot&&m.phase===s.key);
+    }).length;
+    const total = FIXTURE.filter(m=>m.phase===s.key).length;
+    return `<div style="margin-top:6px;font-size:12px;color:var(--muted)">
+      🏆 ${s.label}: ${elimCount}/${total} cargados${s.sent?' · <b style="color:var(--aqua)">✅ Enviada</b>':''}
+    </div>`;
+  }).join('');
   html+=`<div class="card flat"><div class="sec-title">⚽ Principal</div>
-    <p class="note">${mainCount}/${FIXTURE.length} partidos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
+    <p class="note">${mainCount}/${FIXTURE.filter(m=>m.phase==='grupos').length} partidos grupos cargados${sentGroups?' · <b style="color:var(--aqua)">✅ Fase de grupos enviada</b>':' · <span style="color:#f59e0b">⏳ Aún no enviada</span>'}.</p>
+    ${elimPhasesHtml}
     <button class="btn sm" style="margin-top:10px" onclick="admVerGrupos('${ADM_VIEWUID}',this)">👁 Ver fase de grupos</button>
     <div id="admGruposArea"></div></div>`;
   // BITÁCORA
