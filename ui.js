@@ -2477,8 +2477,29 @@ function admVerGrupos(uid, btn){
   const elim = pred.elim||{};
   const ex = pred.extra||{};
 
-  // Cuadro de honor
+  // Helper para armar tabla de partidos colapsable
+  function collapseSection(title, tableHtml, open=false){
+    return `<details style="margin-bottom:8px" ${open?'open':''}>
+      <summary style="cursor:pointer;font-size:13px;font-weight:700;padding:6px 0;list-style:none;display:flex;justify-content:space-between">
+        ${title} <span style="color:var(--muted);font-size:11px">›</span>
+      </summary>
+      <div style="margin-top:4px">${tableHtml}</div>
+    </details>`;
+  }
+  function matchTable(rows){
+    return `<table style="width:100%;font-size:12px;border-collapse:collapse">${rows}</table>`;
+  }
+  function matchRow(home, score, away){
+    return `<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:3px 4px;text-align:right;font-size:11px">${home}</td>
+      <td style="padding:3px 8px;text-align:center">${score}</td>
+      <td style="padding:3px 4px;font-size:11px">${away}</td>
+    </tr>`;
+  }
+
   let html='<div style="margin-top:12px">';
+
+  // Cuadro de honor colapsable
   const honorFields = [
     {id:'champion',label:'🏆 Campeón'},{id:'runnerup',label:'🥈 Subcampeón'},
     {id:'third',label:'🥉 3° puesto'},{id:'fourth',label:'4° puesto'},
@@ -2487,54 +2508,58 @@ function admVerGrupos(uid, btn){
     {id:'ball_silver',label:'⚽ Balón Plata'},{id:'ball_bronze',label:'⚽ Balón Bronce'},
   ];
   const honorFilled = honorFields.filter(f=>ex[f.id]&&ex[f.id]!=='').length;
-  html+=`<div style="margin-bottom:14px"><b style="font-size:13px">🎖️ Cuadro de Honor (${honorFilled}/${honorFields.length})</b>
-    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+  let honorRows='';
   honorFields.forEach(f=>{
-    const val = ex[f.id]||'';
-    const td = TEAMS[val];
-    const display = td ? `${td.f} ${td.n}` : (val||'<span style="color:#aaa">sin cargar</span>');
-    html+=`<tr style="border-bottom:1px solid var(--line)">
+    const val=ex[f.id]||''; const td=TEAMS[val];
+    const display = td?`${td.f} ${td.n}`:(val||`<span style="color:#aaa">sin cargar</span>`);
+    honorRows+=`<tr style="border-bottom:1px solid var(--line)">
       <td style="padding:3px 4px;color:var(--muted)">${f.label}</td>
-      <td style="padding:3px 4px;font-weight:600">${display}</td>
+      <td style="padding:3px 4px;font-weight:${val?'600':'400'}">${display}</td>
     </tr>`;
   });
-  html+=`</table></div>`;
+  html+=collapseSection(`🎖️ Cuadro de Honor (${honorFilled}/${honorFields.length})`,
+    matchTable(honorRows), honorFilled<honorFields.length);
 
-  // Fase de grupos
-  const grupos = [...new Set(FIXTURE.filter(m=>m.phase==='grupos').map(f=>f.grp))].filter(Boolean).sort();
+  // Grupos colapsables
+  const grupos=[...new Set(FIXTURE.filter(m=>m.phase==='grupos').map(f=>f.grp))].filter(Boolean).sort();
+  let gruposHtml='';
   grupos.forEach(g=>{
-    const partidos = FIXTURE.filter(f=>f.grp===g&&f.phase==='grupos');
-    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b>
-      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+    const partidos=FIXTURE.filter(f=>f.grp===g&&f.phase==='grupos');
+    let rows='';
     partidos.forEach(f=>{
       const v=main[f.id]||{};
-      const score = (v.h!=null&&v.h!=='') ? `<b>${v.h} - ${v.a}</b>` : '<span style="color:#aaa">—</span>';
-      html+=`<tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:3px 4px;text-align:right;font-size:11px">${esc(f.home)}</td>
-        <td style="padding:3px 8px;text-align:center">${score}</td>
-        <td style="padding:3px 4px;font-size:11px">${esc(f.away)}</td>
-      </tr>`;
+      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}</b>`:'<span style="color:#aaa">—</span>';
+      rows+=matchRow(esc(f.home),score,esc(f.away));
     });
-    html+=`</table></div>`;
+    const filled=partidos.filter(f=>{const v=main[f.id]||{};return v.h!=null&&v.h!=='';}).length;
+    gruposHtml+=collapseSection(`Grupo ${g} (${filled}/${partidos.length})`, matchTable(rows), false);
   });
+  html+=collapseSection(`⚽ Fase de Grupos`, gruposHtml, false);
 
-  // Eliminatorias cargadas
-  const elimMatches = FIXTURE.filter(m=>m.phase!=='grupos'&&m.home&&m.away);
-  if(elimMatches.length){
-    html+=`<div style="margin-top:8px"><b style="font-size:13px">🏆 Eliminatorias</b>
-      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
-    elimMatches.forEach(m=>{
+  // Eliminatorias por fase colapsables
+  const elimPhases=[
+    {key:'r32',label:'Ronda de 32'},
+    {key:'r16',label:'Octavos de Final'},
+    {key:'qf',label:'Cuartos de Final'},
+    {key:'sf',label:'Semifinales'},
+    {key:'tp',label:'3er Puesto'},
+    {key:'final',label:'Final'},
+  ];
+  let elimHtml='';
+  elimPhases.forEach(({key,label})=>{
+    const matches=FIXTURE.filter(m=>m.phase===key&&m.home&&m.away);
+    if(!matches.length) return;
+    let rows='';
+    matches.forEach(m=>{
       const v=elim[m.slot]||{};
       const ht=TEAMS[m.home],at=TEAMS[m.away];
-      const score = (v.h!=null&&v.h!=='') ? `<b>${v.h} - ${v.a}${+v.h===+v.a&&v.pen!==''?` (${v.pen==='1'?ht?.n||m.home:at?.n||m.away})`:''}</b>` : '<span style="color:#aaa">—</span>';
-      html+=`<tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:3px 4px;text-align:right;font-size:11px">${ht?ht.f+' '+ht.n:m.home}</td>
-        <td style="padding:3px 8px;text-align:center">${score}</td>
-        <td style="padding:3px 4px;font-size:11px">${at?at.f+' '+at.n:m.away}</td>
-      </tr>`;
+      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}${+v.h===+v.a&&v.pen?` (${v.pen==='1'?ht?.n||m.home:at?.n||m.away})`:''}</b>`:'<span style="color:#aaa">—</span>';
+      rows+=matchRow(ht?ht.f+' '+ht.n:m.home, score, at?at.f+' '+at.n:m.away);
     });
-    html+=`</table></div>`;
-  }
+    const filled=matches.filter(m=>{const v=elim[m.slot]||{};return v.h!=null&&v.h!=='';}).length;
+    elimHtml+=collapseSection(`${label} (${filled}/${matches.length})`, matchTable(rows), key==='r32');
+  });
+  if(elimHtml) html+=collapseSection('🏆 Eliminatorias', elimHtml, true);
 
   html+='</div>';
   area.innerHTML=html;
