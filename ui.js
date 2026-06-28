@@ -474,12 +474,17 @@ function renderInicio(v){
       let tbody='';
       matches.forEach(m=>{
         const ht=TEAMS[m.home],at=TEAMS[m.away];
-        const r=resMain[m.id];
+        const r = m.phase!=='grupos'
+          ? (APP.results?.elim||{})[m.slot]
+          : resMain[m.id];
         const hasRes=r&&r.h!=null&&r.h!=='';
         let rowHtml=`<td style="font-size:12px;padding:5px 6px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
         playerOrder.forEach(uid=>{
           const roles=playerSangs[uid];
-          const pred=(preds[uid]?.main||{})[m.id];
+          const isElimMatch = m.phase!=='grupos';
+          const pred = isElimMatch
+            ? (preds[uid]?.elim||{})[m.slot]
+            : (preds[uid]?.main||{})[m.id];
           const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
           const bgs=[...new Set(roles.map(rr=>sangBg(rr.c,uid)))];
           if(bgs.length<=1){
@@ -1165,17 +1170,24 @@ function acertaronPublic(m){
   if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
   const players = (APP.profiles||[]).filter(p=>!p.is_admin);
   const exact=[], suman=[];
+  const isElimM = m.phase!=='grupos';
+  const rElim = isElimM ? (APP.results?.elim||{})[m.slot] : r;
   players.forEach(p=>{
-    const preds = APP.allPreds?.[p.id]?.main || (p.id===APP.user?.id ? APP.myPred?.main : null) || {};
-    const pred = preds[m.id];
+    const pred = isElimM
+      ? (APP.allPreds?.[p.id]?.elim||(p.id===APP.user?.id?APP.myPred?.elim:null)||{})[m.slot]
+      : (APP.allPreds?.[p.id]?.main||(p.id===APP.user?.id?APP.myPred?.main:null)||{})[m.id];
     if(!pred) return;
-    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
-    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
+    const rv = isElimM ? rElim : r;
+    if(!rv||rv.h==null||rv.h==='') return;
+    if(+pred.h===+rv.h && +pred.a===+rv.a){ exact.push(p.display_name); return; }
+    const rv2 = isElimM ? rElim : r;
+    const rWin = +rv2.h>+rv2.a?'h':+rv2.a>+rv2.h?'a':'x';
     const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
     if(rWin===pWin) suman.push(p.display_name);
   });
+  const rv3 = isElimM ? rElim : r;
   return `<div class="acertaron">
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Resultado final: <b style="color:white">${r.h} – ${r.a}</b></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Resultado final: <b style="color:white">${rv3?rv3.h+' – '+rv3.a:'—'}</b></div>
     <span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>
     <span style="color:var(--gold)">👍 Suman puntos: ${suman.length?suman.join(', '):'nadie'}</span>
   </div>`;
@@ -2133,10 +2145,15 @@ function acertaronMatch(m, r){
   if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
   const players = APP.profiles.filter(p=>!p.is_admin);
   const exact=[], result=[];
+  const isElimM2 = m.phase!=='grupos';
+  const r2 = isElimM2 ? (APP.results?.elim||{})[m.slot] : r;
   players.forEach(p=>{
-    const pred=(APP.allPreds?.[p.id]?.main||{})[m.id];
+    const pred = isElimM2
+      ? (APP.allPreds?.[p.id]?.elim||{})[m.slot]
+      : (APP.allPreds?.[p.id]?.main||{})[m.id];
     if(!pred) return;
-    if(+pred.h===+r.h && +pred.a===+r.a){ exact.push(p.display_name); return; }
+    if(!r2||r2.h==null||r2.h==='') return;
+    if(+pred.h===+r2.h && +pred.a===+r2.a){ exact.push(p.display_name); return; }
     const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
     const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
     if(rWin===pWin) result.push(p.display_name);
