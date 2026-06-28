@@ -2324,62 +2324,55 @@ function admTarjetas(area){
   const wasabiLocked = !!(ss.wasabi || sa2.wasabi || pred.locked);
   const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
   const rewasabiLocked = !!(sa2.rewasabi);
-  // Helper: estado visual de una tarjeta
-  const phaseRow = (emoji, label, locked, completed, stage) => {
-    const lockStr = locked ? '🔒 Cerrada' : '🔓 Abierta';
-    const lockCol = locked ? 'var(--gold)' : 'var(--aqua)';
-    const compStr = completed ? '✅ Completada' : '⏳ Sin completar';
-    const compCol = completed ? '#22c55e' : '#f59e0b';
-    const uid = ADM_VIEWUID;
-    const btn = locked
-      ? '<button class="btn sm" onclick="admUnlockStage(\''+uid+'\',\''+stage+'\')">🔓 Habilitar</button>'
-      : '<button class="btn sm" style="background:var(--gold);color:#000" onclick="admLockStage(\''+uid+'\',\''+stage+'\')">🔒 Cerrar</button>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">'
-      + '<span style="font-size:13px;width:190px;flex-shrink:0">'+emoji+' '+label+'</span>'
-      + '<span style="font-size:12px;font-weight:600;color:'+lockCol+'">'+lockStr+'</span>'
-      + '<span style="font-size:12px;color:'+compCol+'">'+compStr+'</span>'
-      + '<span style="margin-left:auto">'+btn+'</span>'
-      + '</div>';
-  };
-
-  // Completitud por tarjeta
-  const wasabiCount2 = Object.keys(pred.wasabi||{}).filter(k=>(pred.wasabi||{})[k]!=null&&(pred.wasabi||{})[k]!=="").length;
-  const rwAnswered2 = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>{
-    if(q.type==='bonus') return false;
-    if(q.type==='country_phase') return !!(pred.rewasabi?.[q.id+'_pais']);
-    return !!(pred.rewasabi?.[q.id]);
-  }).length;
-  const mainCount2 = Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
-  const elimCount2 = Object.keys(pred.elim||{}).filter(k=>{const v=(pred.elim||{})[k];return v&&v.h!=null&&v.h!=="";}).length;
-  const honorCount2 = ['champion','runnerup','third','fourth','boot_gold','boot_silver','boot_bronze','ball_gold','ball_silver','ball_bronze'].filter(k=>(pred.extra||{})[k]).length;
-
-  // Fases elim — mostrar siempre todas
+  // Estado de tarjetas
   const allElimStages = ELIM_STAGES.map(s=>({
     key:s, label:STAGE_LABEL[s]||s,
     sent:!!(sa2[s]),
-    hasMatches: FIXTURE.some(m=>(m.phase===s||(s==='tpfinal'&&(m.phase==='tp'||m.phase==='final')))&&m.home&&m.away),
-    count: Object.keys(pred.elim||{}).filter(k=>{
-      const slot=+k;
-      const ph = s==='tpfinal'?['tp','final']:[s];
+    total: FIXTURE.filter(m=>(m.phase===s||(s==="tpfinal"&&(m.phase==="tp"||m.phase==="final")))&&m.home&&m.away).length,
+    done: Object.keys(pred.elim||{}).filter(k=>{
+      const v=(pred.elim||{})[k]; if(!v||v.h==null||v.h==="") return false;
+      const slot=+k; const ph=s==="tpfinal"?["tp","final"]:[s];
       return ph.some(p=>FIXTURE.find(m=>m.slot===slot&&m.phase===p));
-    }).filter(k=>{const v=(pred.elim||{})[k];return v&&v.h!=null&&v.h!=="";}).length,
-    total: FIXTURE.filter(m=>{
-      const ph = s==='tpfinal'?['tp','final']:[s];
-      return ph.includes(m.phase)&&m.home&&m.away;
-    }).length,
+    }).length
   }));
+  const wasabiDone = Object.keys(pred.wasabi||{}).filter(k=>(pred.wasabi||{})[k]!=null&&(pred.wasabi||{})[k]!=="").length;
+  const rwDone = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>{
+    if(q.type==="bonus") return false;
+    if(q.type==="country_phase") return !!(pred.rewasabi?.[q.id+"_pais"]);
+    return !!(pred.rewasabi?.[q.id]);
+  }).length;
+  const rwTotal2 = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>q.type!=="bonus").length;
+  const honorDone = ["champion","runnerup","third","fourth","boot_gold","boot_silver","boot_bronze","ball_gold","ball_silver","ball_bronze"].filter(k=>(pred.extra||{})[k]).length;
+  const mainDone = Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
 
-  let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
-    <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
-    <label class="field" style="margin-top:10px">Jugador</label>${sel}
-    <div style="margin-top:12px">
-      ${phaseRow('🌶️','Wasabi', wasabiLocked, wasabiCount2>=55, 'wasabi')}
-      ${phaseRow('🎲','Re-Wasabi', rewasabiLocked, rwAnswered2>=(APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>q.type!=='bonus').length, 'rewasabi')}
-      ${phaseRow('⚽','Grupos', gruposLocked, mainCount2>=72, 'grupos')}
-      ${phaseRow('🎖️','Cuadro de Honor', gruposLocked||isElimWindowClosed('r32')||!!(sa2.r32), honorCount2>=10, 'r32')}
-      ${allElimStages.map(s=>phaseRow('🏆', s.label+`${s.total>0?` (${s.count}/${s.total})`:''}`, s.sent, s.count>=s.total&&s.total>0, s.key)).join('')}
-    </div>
-  </div>`;
+  function mkRow(emoji, label, locked, done, total, stage){
+    const lockTxt = locked ? "🔒 Cerrada" : "🔓 Abierta";
+    const lockCol = locked ? "var(--gold)" : "var(--aqua)";
+    const compTxt = total>0 ? (done+"\/"+total+(done>=total?" ✅":" ⏳")) : (done>0?"✅":"⏳ Sin completar");
+    const compCol = (total>0?done>=total:done>0) ? "#22c55e" : "#f59e0b";
+    const btnHtml = locked
+      ? "<button class=\"btn sm\" onclick=\"admUnlockStage(\'"+ADM_VIEWUID+"\',\'"+stage+"\')\">🔓 Habilitar</button>"
+      : "<button class=\"btn sm\" style=\"background:var(--gold);color:#000\" onclick=\"admLockStage(\'"+ADM_VIEWUID+"\',\'"+stage+"\')\">🔒 Cerrar</button>";
+    return "<div style=\"display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);flex-wrap:wrap\">"
+      +"<span style=\"font-size:13px;min-width:190px\">"+emoji+" "+label+"</span>"
+      +"<span style=\"font-size:12px;font-weight:600;color:"+lockCol+"\">"+lockTxt+"</span>"
+      +"<span style=\"font-size:12px;color:"+compCol+"\">"+compTxt+"</span>"
+      +"<span style=\"margin-left:auto\">"+btnHtml+"</span>"
+      +"</div>";
+  }
+
+  let html="<div class=\"card\"><div class=\"sec-title\">Ver / corregir tarjetas</div>"
+    +"<p class=\"note\">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>"
+    +"<label class=\"field\" style=\"margin-top:10px\">Jugador</label>"+sel
+    +"<div style=\"margin-top:12px\">"
+    +mkRow("🌶️","Wasabi",wasabiLocked,wasabiDone,55,"wasabi")
+    +mkRow("🎲","Re-Wasabi",rewasabiLocked,rwDone,rwTotal2,"rewasabi")
+    +mkRow("⚽","Grupos",gruposLocked,mainDone,72,"grupos")
+    +mkRow("🎖️","Cuadro de Honor",gruposLocked||isElimWindowClosed("r32")||(!!sa2.r32),honorDone,10,"r32")
+    +allElimStages.map(s=>mkRow("🏆",s.label+(s.total>0?" ("+s.done+"/"+s.total+")":""),s.sent,s.done,s.total,s.key)).join("")
+    +"</div></div>";
+
+
   // REWASABI resumen
   const rws = APP.rewasabiQs||[...SEED_REWASABI];
   const rwAnswered = rws.filter(q=>{
