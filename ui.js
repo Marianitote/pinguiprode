@@ -3012,8 +3012,15 @@ async function doExport(){
   try{
     toast("Generando Excel…");
     await adminLoadAllPreds();
-    const [log, wasabiSnaps] = await Promise.all([adminLoadEditLog(), loadWasabiSnapshots()]);
+    const [log, wasabiSnaps, standingSnaps] = await Promise.all([
+      adminLoadEditLog(),
+      loadWasabiSnapshots(),
+      sb.from('standings_snapshots').select('date_key,positions').then(r=>r.data||[])
+    ]);
     APP._wasabiSnaps = wasabiSnaps;
+    // Convertir array de snapshots a objeto {date_key: positions}
+    APP._standingsSnaps = {};
+    standingSnaps.forEach(s=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(s.date_key)) APP._standingsSnaps[s.date_key]=s.positions; });
     buildExcel(log);
   }catch(e){ toast(e.message,"err"); }
 }
@@ -3126,6 +3133,23 @@ function buildExcel(log){
     logRows.push(row);
   });
 
+  // Hoja: Posiciones por día (standings_snapshots)
+  const snapRows = [];
+  const snapData = APP._standingsSnaps || {};
+  const snapDates = Object.keys(snapData).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  if(snapDates.length){
+    // Header: Jugador | fecha1 | fecha2 | ...
+    snapRows.push(["Jugador", ...snapDates.map(d=>d.slice(5))]);
+    players.forEach(p=>{
+      const row = [p.display_name];
+      snapDates.forEach(d=>{
+        const pos = snapData[d]?.[p.id];
+        row.push(pos!=null ? pos : "");
+      });
+      snapRows.push(row);
+    });
+  }
+
   const xml=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -3135,6 +3159,7 @@ ${sheet("Principal",principal)}
 ${sheet("Comodines",com)}
 ${sheet("Bitacora",bit)}
 ${sheet("Log Fechas",logRows)}
+${snapRows.length?sheet("Posiciones por Dia",snapRows):""}
 </Workbook>`;
   const blob=new Blob([xml],{type:"application/vnd.ms-excel"});
   const url=URL.createObjectURL(blob);
