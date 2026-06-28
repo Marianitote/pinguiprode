@@ -2334,11 +2334,18 @@ function admTarjetas(area){
     </div>
   </div>`;
   // REWASABI resumen
-  const rewasabiCount=Object.keys(pred.rewasabi||{}).filter(k=>pred.rewasabi[k]!=null&&pred.rewasabi[k]!=="").length;
-  const rwTotal = (APP.rewasabiQs||[...SEED_REWASABI]).filter(q=>q.type!=='bonus').length;
-  if(rewasabiLocked||rewasabiCount>0){
+  const rws = APP.rewasabiQs||[...SEED_REWASABI];
+  const rwAnswered = rws.filter(q=>{
+    if(q.type==='bonus') return false;
+    if(q.type==='country_phase') return !!(pred.rewasabi?.[q.id+'_pais']);
+    return !!(pred.rewasabi?.[q.id]);
+  }).length;
+  const rwTotal = rws.filter(q=>q.type!=='bonus').length;
+  if(rewasabiLocked||rwAnswered>0){
     html+=`<div class="card flat"><div class="sec-title">🎲 Re-Wasabi</div>
-      <p class="note">${rewasabiCount}/${rwTotal} respondidas${rewasabiLocked?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
+      <p class="note">${rwAnswered}/${rwTotal} respondidas${rewasabiLocked?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
+      <button class="btn sm" style="margin-top:10px" onclick="admVerRewasabi('${ADM_VIEWUID}',this)">👁 Ver Re-Wasabi</button>
+      <div id="admRewasabiArea"></div>
     </div>`;
   }
   // WASABI resumen con botón Ver
@@ -2419,6 +2426,36 @@ function admVerWasabi(uid, btn){
     html+=`<div class="wq"><div class="qt" style="margin-bottom:6px">${i+1}. ${esc(q.t)}</div>${admEditField(uid,'wasabi',q,wv)}</div>`;
   });
   area.innerHTML=html;
+}
+function admVerRewasabi(uid, btn){
+  const area=$("#admRewasabiArea");
+  if(!area) return;
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='👁 Ver Re-Wasabi'; return; }
+  btn.textContent='▲ Ocultar';
+  const pred=APP.allPreds?.[uid]||{};
+  const rw=pred.rewasabi||{};
+  const rqs=APP.rewasabiQs||[...SEED_REWASABI];
+  const r32Teams=FIXTURE.filter(m=>m.phase==="r32"&&m.home&&m.away)
+    .flatMap(m=>[m.home,m.away]).filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const players=(APP.profiles||[]).filter(p=>!p.is_admin);
+  let html='';
+  rqs.forEach((q,qi)=>{
+    let valStr='—';
+    if(q.type==='country_phase'){
+      const p=rw[q.id+'_pais']||'', f=rw[q.id+'_fase']||'';
+      const td=TEAMS[p];
+      valStr = p ? `${td?td.f+' '+td.n:p}${f?' · '+f:''}` : '—';
+    } else if(q.type==='bonus'){
+      valStr='(automático)';
+    } else {
+      valStr = rw[q.id] ? esc(rw[q.id]) : '—';
+    }
+    html+=`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="color:var(--muted)">${qi+1}. ${esc(q.t.slice(0,60))}…</span><br>
+      <span style="font-weight:600">${valStr}</span>
+    </div>`;
+  });
+  area.innerHTML=`<div style="margin-top:10px">${html}</div>`;
 }
 function admVerGrupos(uid, btn){
   const area = document.getElementById('admGruposArea');
