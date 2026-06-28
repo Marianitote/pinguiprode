@@ -1033,7 +1033,7 @@ function elimMatchRow(m, pred, sent, stage){
       <option ${pred.pen==='1'?'selected':''} value="1">${ht?.n||m.home}</option>
       <option ${pred.pen==='0'?'selected':''} value="0">${at?.n||m.away}</option>
     </select></div>`:''}
-  </div>${acertaronStr}`;
+  </div>${acertaronStr}${hasRes?acertaronPublic(m):""}`;
 }
 
 async function setElimScore(slot, key, val){
