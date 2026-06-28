@@ -864,7 +864,7 @@ function prStageArea(){
 
 /* ETAPA GRUPOS: 12 grupos siempre visibles (no colapsan) — se pintan de verde al completarse */
 function prAreaGrupos(area){
-  const sent=stageSent("grupos"); const main=APP.myPred?.main||{};
+  const sent=stageSent("grupos")||isElimWindowClosed("r32"); const main=APP.myPred?.main||{};
   let html="";
   let totalMatches=0, totalDone=0;
   GROUPS.forEach(g=>{
