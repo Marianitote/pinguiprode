@@ -2341,7 +2341,7 @@ function admTarjetas(area){
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:center;gap:8px">🌶️ Wasabi: ${stateTag(wasabiLocked)}${wasabiLocked?unlockBtn('wasabi','Wasabi'):lockBtn('wasabi','Wasabi')}</div>
       <div style="display:flex;align-items:center;gap:8px">🎲 Re-Wasabi: ${stateTag(rewasabiLocked)}${rewasabiLocked?unlockBtn('rewasabi','Re-Wasabi'):''}</div>
-      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}${gruposLocked?unlockBtn('grupos','Grupos'):lockBtn('grupos','Grupos')}</div>
+      <div style="display:flex;align-items:center;gap:8px">⚽ Grupos: ${stateTag(gruposLocked)}</div>
       ${elimStages.filter(s=>s.sent).map(s=>`<div style="display:flex;align-items:center;gap:8px">🏆 ${s.label}: ${stateTag(s.locked)}${s.locked?unlockBtn(s.key,s.label):''}</div>`).join('')}
     </div>
   </div>`;
