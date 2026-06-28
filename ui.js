@@ -2325,22 +2325,22 @@ function admTarjetas(area){
   const gruposLocked = !!(ss.grupos || sa2.grupos || pred.locked);
   const rewasabiLocked = !!(sa2.rewasabi);
   // Helper: estado visual de una tarjeta
-  function phaseRow(emoji, label, locked, completed, stage){
-    const estadoLock = locked
-      ? `<span style="color:var(--gold);font-weight:600;font-size:12px">🔒 Cerrada</span>`
-      : `<span style="color:var(--aqua);font-weight:600;font-size:12px">🔓 Abierta</span>`;
-    const estadoComp = completed
-      ? `<span style="color:#22c55e;font-size:12px">✅ Completada</span>`
-      : `<span style="color:#f59e0b;font-size:12px">⏳ Sin completar</span>`;
-    const btnUnlock = `<button class="btn sm" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar</button>`;
-    const btnLock   = `<button class="btn sm" style="background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar</button>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
-      <span style="font-size:13px;width:180px;flex-shrink:0">${emoji} ${label}</span>
-      ${estadoLock}
-      ${estadoComp}
-      <span style="margin-left:auto;display:flex;gap:6px">${locked?btnUnlock:btnLock}</span>
-    </div>`;
-  }
+  const phaseRow = (emoji, label, locked, completed, stage) => {
+    const lockStr = locked ? '🔒 Cerrada' : '🔓 Abierta';
+    const lockCol = locked ? 'var(--gold)' : 'var(--aqua)';
+    const compStr = completed ? '✅ Completada' : '⏳ Sin completar';
+    const compCol = completed ? '#22c55e' : '#f59e0b';
+    const uid = ADM_VIEWUID;
+    const btn = locked
+      ? '<button class="btn sm" onclick="admUnlockStage(\''+uid+'\',\''+stage+'\')">🔓 Habilitar</button>'
+      : '<button class="btn sm" style="background:var(--gold);color:#000" onclick="admLockStage(\''+uid+'\',\''+stage+'\')">🔒 Cerrar</button>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">'
+      + '<span style="font-size:13px;width:190px;flex-shrink:0">'+emoji+' '+label+'</span>'
+      + '<span style="font-size:12px;font-weight:600;color:'+lockCol+'">'+lockStr+'</span>'
+      + '<span style="font-size:12px;color:'+compCol+'">'+compStr+'</span>'
+      + '<span style="margin-left:auto">'+btn+'</span>'
+      + '</div>';
+  };
 
   // Completitud por tarjeta
   const wasabiCount2 = Object.keys(pred.wasabi||{}).filter(k=>(pred.wasabi||{})[k]!=null&&(pred.wasabi||{})[k]!=="").length;
