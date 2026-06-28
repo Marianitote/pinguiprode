@@ -1166,12 +1166,14 @@ function extrasBlock(locked){
 
 /* Helpers: cargar marcadores en grupos y en bracket */
 function acertaronPublic(m){
-  const r = (APP.results?.main||{})[m.id];
+  const isElimM = m.phase!=='grupos';
+  const r = isElimM
+    ? (APP.results?.elim||{})[m.slot]
+    : (APP.results?.main||{})[m.id];
   if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
   const players = (APP.profiles||[]).filter(p=>!p.is_admin);
   const exact=[], suman=[];
-  const isElimM = m.phase!=='grupos';
-  const rElim = isElimM ? (APP.results?.elim||{})[m.slot] : r;
+  const rElim = r;
   players.forEach(p=>{
     const pred = isElimM
       ? (APP.allPreds?.[p.id]?.elim||(p.id===APP.user?.id?APP.myPred?.elim:null)||{})[m.slot]
