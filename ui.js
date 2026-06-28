@@ -2329,11 +2329,12 @@ function admTarjetas(area){
     : `<span style="color:var(--aqua);font-weight:600">✅ Abierta</span>`;
   const unlockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px" onclick="admUnlockStage('${ADM_VIEWUID}','${stage}')">🔓 Habilitar ${label}</button>`;
   const lockBtn = (stage, label) => `<button class="btn sm" style="margin-left:10px;background:var(--gold);color:#000" onclick="admLockStage('${ADM_VIEWUID}','${stage}')">🔒 Cerrar ${label}</button>`;
-  // Estado de fases elim
+  // Estado de fases elim — solo mostrar las que ya pasaron R32 (tienen partidos reales)
   const elimStages = ELIM_STAGES.map(s=>({
     key:s, label:STAGE_LABEL[s]||s,
-    sent:!!(sa2[s]), locked:!!(sa2[s])
-  }));
+    sent:!!(sa2[s]), locked:!!(sa2[s]),
+    hasMatches: FIXTURE.some(m=>(m.phase===s||m.phase===(s==='tpfinal'?'tp':s)||m.phase===(s==='tpfinal'?'final':s))&&m.home&&m.away)
+  })).filter(s=>s.hasMatches);
   let html=`<div class="card"><div class="sec-title">Ver / corregir tarjetas</div>
     <p class="note">Elegí un jugador. Podés corregir respuestas; <b>cada cambio queda registrado</b> en la bitácora (abajo) y en el Excel.</p>
     <label class="field" style="margin-top:10px">Jugador</label>${sel}
