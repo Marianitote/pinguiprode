@@ -954,7 +954,7 @@ function prAreaElimNew(area, stage){
 
   let html="";
   // cuadro de honor VA PRIMERO en r32
-  if(stage==="r32") html += extrasBlock(stageSent("tpfinal"));
+  if(stage==="r32") html += extrasBlock(false); // cuadro de honor siempre editable hasta tpfinal
 
   html+=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]||stage}</div>
     <p class="note">Estos son los cruces reales del Mundial. Cargá tu predicción para cada partido. Si hay empate, elegí quién avanza por penales.</p>`;
@@ -1390,6 +1390,13 @@ function renderRewasabi(v){
   }
 
   v.innerHTML=html;
+}
+
+async function setExtra(key, val){
+  const extra={...(APP.myPred?.extra||{}), [key]:val};
+  const {data,error}=await sb.from('predictions').update({extra}).eq('user_id',APP.user.id).select().maybeSingle();
+  if(error){ toast(error.message,"err"); return; }
+  APP.myPred=data;
 }
 
 async function setRewasabi(key, val){
