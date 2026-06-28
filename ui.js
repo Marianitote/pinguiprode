@@ -1543,7 +1543,7 @@ function standingsTableHTML(opts){
   const tb=standings();
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
-  const day=todayFifaDate(); const phase=phaseOfDay(day)||"grupos";
+  const day=todayFifaDate(); const phase=APP.comodinPhase||currentComodinPhase()||phaseOfDay(day)||"grupos";
   const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
 
   // helpers por fase
