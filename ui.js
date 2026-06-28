@@ -355,7 +355,9 @@ function renderInicio(v){
     // Partidos por día FIFA (hoy abierto + fechas anteriores colapsadas)
     const tz='America/Argentina/Buenos_Aires';
     const res=APP.results?.main||{};
+    const resElim=APP.results?.elim||{};
     const myMain=APP.myPred?.main||{};
+    const myElim=APP.myPred?.elim||{};
 
     function renderDayMatches(dia){
       const matches=FIXTURE.filter(m=>fifaDateOf(m)===dia)
@@ -363,7 +365,9 @@ function renderInicio(v){
       if(!matches.length) return '';
       let rows='';
       matches.forEach(m=>{
-        const r=res[m.id]; const p=myMain[m.id]||{};
+        const isElim = m.phase!=='grupos';
+        const r = isElim ? resElim[m.slot] : res[m.id];
+        const p = isElim ? (myElim[m.slot]||{}) : (myMain[m.id]||{});
         const hora=new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:tz,hour:'2-digit',minute:'2-digit'});
         const homeTeam=TEAMS[m.home]; const awayTeam=TEAMS[m.away];
         const hasRes = r&&r.h!=null&&r.h!=='';
@@ -376,8 +380,11 @@ function renderInicio(v){
           const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
           const exact=[],suman=[];
           players.forEach(pl=>{
-            const preds=APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{};
-            const pred2=preds[m.id]; if(!pred2) return;
+            const preds = isElim
+              ? (APP.allPreds?.[pl.id]?.elim||(pl.id===APP.user?.id?APP.myPred?.elim:null)||{})
+              : (APP.allPreds?.[pl.id]?.main||(pl.id===APP.user?.id?APP.myPred?.main:null)||{});
+            const pred2 = isElim ? preds[m.slot] : preds[m.id];
+            if(!pred2) return;
             if(+pred2.h===+r.h&&+pred2.a===+r.a){ exact.push(pl.display_name); return; }
             const rWin=+r.h>+r.a?'h':+r.a>+r.h?'a':'x';
             const pWin=+pred2.h>+pred2.a?'h':+pred2.a>+pred2.h?'a':'x';
