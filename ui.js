@@ -1341,7 +1341,7 @@ function renderRewasabi(v){
     } else if(q.type==="bonus"){
       const winner = resRw["bonus_"+q.id];
       const winnerName = winner ? (APP.profiles?.find(p=>p.id===winner)?.display_name||winner) : null;
-      inputHtml=`<p class="note" style="margin-top:6px;font-style:italic">${q.ac}</p>`;
+      inputHtml=``;
       if(winnerName) inputHtml+=`<div class="acertaron" style="margin-top:6px"><span style="color:${winner===APP.user?.id?'var(--aqua)':'var(--muted)'}">🏆 Ganador: <b>${esc(winnerName)}</b>${winner===APP.user?.id?' (+'+q.pts+'pts)':''}</span></div>`;
     } else if(q.type==="player"){
       inputHtml=`<select style="width:100%;margin-top:8px" ${dis} onchange="setRewasabi('${q.id}',this.value)">
