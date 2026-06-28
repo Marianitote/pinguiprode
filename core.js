@@ -501,7 +501,7 @@ function calcGroupStandings(mainPreds, mainResults){
     });
     // Ordenar por pts desc, gd desc, gf desc, nombre asc
     standings[g] = Object.entries(teams)
-      .sort(([,a],[,b])=> b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.localeCompare(b))
+      .sort(([ta,a],[tb,b])=> b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||(ta||'').localeCompare(tb||''))
       .map(([team])=>team);
   });
   return standings;
