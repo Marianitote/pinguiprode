@@ -476,6 +476,54 @@ function sameDate(c,d){ return c.phase==="grupos"&&d.phase==="grupos" ? c.jor===
    - posiciones exactas de cada grupo (1°-4°): +1 cada una
    - equipos clasificados a cada ronda (R32, R16, QF, SF, Final/3°): puntos según ronda
 */
+/* Calcula puntos por posiciones exactas de grupo.
+   Usa pred.main (marcadores predichos) para simular la tabla de cada grupo
+   y compara con la tabla real calculada de results.main.
+   No modifica ningún dato — solo calcula. */
+function calcGroupStandings(mainPreds, mainResults){
+  // mainPreds y mainResults son objetos {matchId: {h, a}}
+  const standings = {};
+  GROUPS.forEach(g=>{
+    const matches = FIXTURE.filter(m=>m.phase==="grupos"&&m.grp===g);
+    const teams = {};
+    GROUP_TEAMS[g].forEach(t=>{ teams[t]={pts:0,gf:0,ga:0,gd:0}; });
+    matches.forEach(m=>{
+      const r = mainPreds[m.id]||{};
+      if(r.h==null||r.h===""||r.a==null||r.a==="") return;
+      const h=+r.h, a=+r.a;
+      if(isNaN(h)||isNaN(a)) return;
+      if(!teams[m.home]||!teams[m.away]) return;
+      teams[m.home].gf+=h; teams[m.home].ga+=a; teams[m.home].gd+=h-a;
+      teams[m.away].gf+=a; teams[m.away].ga+=h; teams[m.away].gd+=a-h;
+      if(h>a){ teams[m.home].pts+=3; }
+      else if(h<a){ teams[m.away].pts+=3; }
+      else { teams[m.home].pts+=1; teams[m.away].pts+=1; }
+    });
+    // Ordenar por pts desc, gd desc, gf desc, nombre asc
+    standings[g] = Object.entries(teams)
+      .sort(([,a],[,b])=> b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.localeCompare(b))
+      .map(([team])=>team);
+  });
+  return standings;
+}
+
+function groupPositionPoints(uid){
+  const pred = predFor(uid);
+  const main = pred.main||{};
+  const resMain = APP.results?.main||{};
+  // Calcular standings de predicción y reales
+  const predStandings = calcGroupStandings(main, resMain);
+  const realStandings = calcGroupStandings(resMain, resMain);
+  let pts = 0;
+  GROUPS.forEach(g=>{
+    const pS = predStandings[g]||[];
+    const rS = realStandings[g]||[];
+    for(let i=0;i<4;i++){
+      if(pS[i] && rS[i] && pS[i]===rS[i]) pts += PTS.grupos.pos||1;
+    }
+  });
+  return pts;
+}
 function cuadroExtraPoints(uid){
   const pred=predFor(uid);
   const pBracket = pred.bracket||{};
@@ -575,6 +623,7 @@ function mainTotal(uid){
   });
   total+=sangDelta(uid);
   total+=cuadroExtraPoints(uid);
+  total+=groupPositionPoints(uid);
   return total;
 }
 function sangDelta(uid){
