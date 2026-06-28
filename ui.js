@@ -1138,7 +1138,7 @@ function extrasBlock(locked){
   const ex=APP.myPred?.extra||{}; const dis=locked?"disabled":"";
   const tsel=(id)=>`<select ${dis} onchange="setExtra('${id}',this.value)"><option value="">—</option>${sortByName(Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f})),'n').map(t=>`<option ${ex[id]===t.c?'selected':''} value="${t.c}">${t.f} ${t.n}</option>`).join("")}</select>`;
   const isel=(id,ph)=>`<input ${dis} value="${esc(ex[id]||'')}" placeholder="${ph}" onchange="setExtra('${id}',this.value)">`;
-  return `<div class="card"><div class="sec-title">Cuadro de honor</div>
+  return `<div class="card" id="honorBlock"><div class="sec-title">Cuadro de honor</div>
     <p class="note">Bonus por aciertos finales. Las botas y balones son texto libre — escribí el nombre del jugador.</p>
     <div class="grid2" style="margin-top:10px">
       <div><label class="field">🏆 Campeón (+4)</label>${tsel('champion')}</div>
@@ -1397,6 +1397,10 @@ async function setExtra(key, val){
   const {data,error}=await sb.from('predictions').update({extra}).eq('user_id',APP.user.id).select().maybeSingle();
   if(error){ toast(error.message,"err"); return; }
   APP.myPred=data;
+  if(APP.allPreds?.[APP.user.id]) APP.allPreds[APP.user.id].extra = data.extra;
+  // re-renderizar solo el bloque del cuadro de honor
+  const honor = $("#honorBlock");
+  if(honor) honor.outerHTML = extrasBlock(false);
 }
 
 async function setRewasabi(key, val){
