@@ -954,7 +954,7 @@ function prAreaElimNew(area, stage){
 
   let html="";
   // cuadro de honor VA PRIMERO en r32
-  if(stage==="r32") html += extrasBlock(isElimWindowClosed("r32") || stageSent("r32")); // bloquear si ventana cerrada O fase enviada
+  if(stage==="r32") html += extrasBlock(!!(APP.myPred?.sent_at?.honor)); // bloqueado solo si el jugador confirmó el cuadro de honor
 
   html+=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]||stage}</div>
     <p class="note">Estos son los cruces reales del Mundial. Cargá tu predicción para cada partido. Si hay empate, elegí quién avanza por penales.</p>`;
@@ -1138,8 +1138,13 @@ function extrasBlock(locked){
   const ex=APP.myPred?.extra||{}; const dis=locked?"disabled":"";
   const tsel=(id)=>`<select ${dis} onchange="setExtra('${id}',this.value)"><option value="">—</option>${sortByName(Object.keys(TEAMS).map(c=>({c,n:TEAMS[c].n,f:TEAMS[c].f})),'n').map(t=>`<option ${ex[id]===t.c?'selected':''} value="${t.c}">${t.f} ${t.n}</option>`).join("")}</select>`;
   const isel=(id,ph)=>`<input ${dis} value="${esc(ex[id]||'')}" placeholder="${ph}" onchange="setExtra('${id}',this.value)">`;
-  return `<div class="card" id="honorBlock"><div class="sec-title">Cuadro de honor</div>
+  const confirmBtn = locked ? '' : `<div style="margin-top:14px;text-align:center">
+    <button class="btn gold sm" onclick="confirmHonor()">✉️ Confirmar Cuadro de Honor</button>
+  </div>`;
+  const lockBanner = locked ? `<div class="lock-banner" style="margin-top:10px">🔒 Cuadro de Honor confirmado.</div>` : '';
+  return `<div class="card" id="honorBlock"><div class="sec-title">🎖️ Cuadro de Honor</div>
     <p class="note">Bonus por aciertos finales. Las botas y balones son texto libre — escribí el nombre del jugador.</p>
+    ${lockBanner}
     <div class="grid2" style="margin-top:10px">
       <div><label class="field">🏆 Campeón (+4)</label>${tsel('champion')}</div>
       <div><label class="field">🥈 Subcampeón (+3)</label>${tsel('runnerup')}</div>
@@ -1151,7 +1156,7 @@ function extrasBlock(locked){
       <div><label class="field">⚽ Balón de Oro (+3) <span class="note">mejor jugador</span></label>${isel('ball_gold','Nombre del jugador')}</div>
       <div><label class="field">⚽ Balón de Plata (+2) <span class="note">2º mejor jugador</span></label>${isel('ball_silver','Nombre del jugador')}</div>
       <div><label class="field">⚽ Balón de Bronce (+1) <span class="note">3º mejor jugador</span></label>${isel('ball_bronze','Nombre del jugador')}</div>
-    </div></div>`;
+    </div>${confirmBtn}</div>`;
 }
 
 /* Helpers: cargar marcadores en grupos y en bracket */
@@ -1390,6 +1395,27 @@ function renderRewasabi(v){
   }
 
   v.innerHTML=html;
+}
+
+async function confirmHonor(){
+  modal(`<h3>✉️ Confirmar Cuadro de Honor</h3>
+    <p class="lead">Una vez confirmado no vas a poder modificarlo. ¿Seguro?</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn gold full" onclick="doConfirmHonor()">Sí, confirmar</button>
+      <button class="btn ghost full" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+async function doConfirmHonor(){
+  try{
+    const sent_at={...(APP.myPred?.sent_at||{}), honor:new Date().toISOString()};
+    const {data,error}=await sb.from('predictions').update({sent_at}).eq('user_id',APP.user.id).select().maybeSingle();
+    if(error) throw error;
+    APP.myPred=data;
+    closeModal();
+    toast("Cuadro de Honor confirmado 🔒","ok");
+    const honor=$("#honorBlock");
+    if(honor) honor.outerHTML = extrasBlock(true);
+  }catch(e){ closeModal(); toast(e.message,"err"); }
 }
 
 async function setExtra(key, val){
@@ -2368,7 +2394,7 @@ function admTarjetas(area){
     +mkRow("🌶️","Wasabi",wasabiLocked,wasabiDone,55,"wasabi")
     +mkRow("🎲","Re-Wasabi",rewasabiLocked,rwDone,rwTotal2,"rewasabi")
     +mkRow("⚽","Grupos",gruposLocked,mainDone,72,"grupos")
-    +mkRow("🎖️","Cuadro de Honor",gruposLocked||isElimWindowClosed("r32")||(!!sa2.r32),honorDone,10,"r32")
+    +mkRow("🎖️","Cuadro de Honor",!!(sa2.honor),honorDone,10,"honor")
     +allElimStages.map(s=>mkRow("🏆",s.label+(s.total>0?" ("+s.done+"/"+s.total+")":""),s.sent,s.done,s.total,s.key)).join("")
     +"</div></div>";
 
