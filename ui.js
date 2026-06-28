@@ -954,7 +954,7 @@ function prAreaElimNew(area, stage){
 
   let html="";
   // cuadro de honor VA PRIMERO en r32
-  if(stage==="r32") html += extrasBlock(false); // cuadro de honor siempre editable hasta tpfinal
+  if(stage==="r32") html += extrasBlock(isElimWindowClosed("r32") || stageSent("r32")); // bloquear si ventana cerrada O fase enviada
 
   html+=`<div class="card"><div class="sec-title">${STAGE_LABEL[stage]||stage}</div>
     <p class="note">Estos son los cruces reales del Mundial. Cargá tu predicción para cada partido. Si hay empate, elegí quién avanza por penales.</p>`;
