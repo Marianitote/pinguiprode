@@ -50,7 +50,7 @@ async function loadAll(){
     sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
     sb.from('results').select('*').eq('id',1).maybeSingle(),
     sb.from('comodines').select('*').order('created_at'),
-    sb.from('predictions').select('user_id,main,wasabi,rewasabi,extra,bracket,penalties'),
+    sb.from('predictions').select('user_id,main,wasabi,rewasabi,extra,bracket,penalties,elim'),
     sb.from('bonuses').select('*').order('date'),
   ]);
   APP.profiles=profsRes.data||[];
