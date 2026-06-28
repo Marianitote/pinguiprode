@@ -2474,22 +2474,68 @@ function admVerGrupos(uid, btn){
   btn.textContent='▲ Ocultar';
   const pred = APP.allPreds?.[uid]||{};
   const main = pred.main||{};
-  const grupos = [...new Set(FIXTURE.map(f=>f.group))].sort();
+  const elim = pred.elim||{};
+  const ex = pred.extra||{};
+
+  // Cuadro de honor
   let html='<div style="margin-top:12px">';
+  const honorFields = [
+    {id:'champion',label:'🏆 Campeón'},{id:'runnerup',label:'🥈 Subcampeón'},
+    {id:'third',label:'🥉 3° puesto'},{id:'fourth',label:'4° puesto'},
+    {id:'boot_gold',label:'👟 Bota Oro'},{id:'boot_silver',label:'👟 Bota Plata'},
+    {id:'boot_bronze',label:'👟 Bota Bronce'},{id:'ball_gold',label:'⚽ Balón Oro'},
+    {id:'ball_silver',label:'⚽ Balón Plata'},{id:'ball_bronze',label:'⚽ Balón Bronce'},
+  ];
+  const honorFilled = honorFields.filter(f=>ex[f.id]&&ex[f.id]!=='').length;
+  html+=`<div style="margin-bottom:14px"><b style="font-size:13px">🎖️ Cuadro de Honor (${honorFilled}/${honorFields.length})</b>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+  honorFields.forEach(f=>{
+    const val = ex[f.id]||'';
+    const td = TEAMS[val];
+    const display = td ? `${td.f} ${td.n}` : (val||'<span style="color:#aaa">sin cargar</span>');
+    html+=`<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:3px 4px;color:var(--muted)">${f.label}</td>
+      <td style="padding:3px 4px;font-weight:600">${display}</td>
+    </tr>`;
+  });
+  html+=`</table></div>`;
+
+  // Fase de grupos
+  const grupos = [...new Set(FIXTURE.filter(m=>m.phase==='grupos').map(f=>f.grp))].filter(Boolean).sort();
   grupos.forEach(g=>{
-    const partidos = FIXTURE.filter(f=>f.group===g);
-    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b><table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+    const partidos = FIXTURE.filter(f=>f.grp===g&&f.phase==='grupos');
+    html+=`<div style="margin-bottom:10px"><b style="font-size:13px">Grupo ${g}</b>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
     partidos.forEach(f=>{
       const v=main[f.id]||{};
-      const score = (v.h!=null&&v.h!=='') ? `${v.h} - ${v.a}` : '<span style="color:#aaa">sin cargar</span>';
+      const score = (v.h!=null&&v.h!=='') ? `<b>${v.h} - ${v.a}</b>` : '<span style="color:#aaa">—</span>';
       html+=`<tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:3px 4px;text-align:right">${esc(f.home)}</td>
-        <td style="padding:3px 8px;text-align:center;font-weight:600">${score}</td>
-        <td style="padding:3px 4px">${esc(f.away)}</td>
+        <td style="padding:3px 4px;text-align:right;font-size:11px">${esc(f.home)}</td>
+        <td style="padding:3px 8px;text-align:center">${score}</td>
+        <td style="padding:3px 4px;font-size:11px">${esc(f.away)}</td>
       </tr>`;
     });
     html+=`</table></div>`;
   });
+
+  // Eliminatorias cargadas
+  const elimMatches = FIXTURE.filter(m=>m.phase!=='grupos'&&m.home&&m.away);
+  if(elimMatches.length){
+    html+=`<div style="margin-top:8px"><b style="font-size:13px">🏆 Eliminatorias</b>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">`;
+    elimMatches.forEach(m=>{
+      const v=elim[m.slot]||{};
+      const ht=TEAMS[m.home],at=TEAMS[m.away];
+      const score = (v.h!=null&&v.h!=='') ? `<b>${v.h} - ${v.a}${+v.h===+v.a&&v.pen!==''?` (${v.pen==='1'?ht?.n||m.home:at?.n||m.away})`:''}</b>` : '<span style="color:#aaa">—</span>';
+      html+=`<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:3px 4px;text-align:right;font-size:11px">${ht?ht.f+' '+ht.n:m.home}</td>
+        <td style="padding:3px 8px;text-align:center">${score}</td>
+        <td style="padding:3px 4px;font-size:11px">${at?at.f+' '+at.n:m.away}</td>
+      </tr>`;
+    });
+    html+=`</table></div>`;
+  }
+
   html+='</div>';
   area.innerHTML=html;
 }
