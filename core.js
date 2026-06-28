@@ -1723,13 +1723,14 @@ function elimOverride(stage){
 // ¿La fase está habilitada para carga?
 function canEnterStage(stage){
   if(stage==="grupos") return true;
-  const i = STAGES.indexOf(stage);
-  if(i>0 && !stageSent(STAGES[i-1])) return false;
-  // Verificar override manual del COMIPRO
+  // Override del COMIPRO tiene MAXIMA prioridad — siempre primero
   const ov = elimOverride(stage);
   if(ov==="open") return true;
   if(ov==="closed") return false;
-  // Si no hay override: usar ventana automática
+  // Sin override: verificar etapa anterior enviada
+  const i = STAGES.indexOf(stage);
+  if(i>0 && !stageSent(STAGES[i-1])) return false;
+  // Usar ventana automática
   return isElimWindowOpen(stage);
 }
 
