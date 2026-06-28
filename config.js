@@ -372,7 +372,7 @@ const SEED_REWASABI = [
    ptsPais:10, ptsFase:10},
   {id:"rw3", t:"¿Qué jugador argentino realiza el primer saque lateral del segundo tiempo en el primer partido de Argentina en R32?",
    pts:10, type:"player",
-   ac:"Menú con todos los jugadores de la selección argentina."},
+   ac:""},
   {id:"rw4", t:"¿Quién es el primer participante en alertar en el grupo de WhatsApp sobre quién realiza ese primer lateral?",
    pts:12, type:"participant",
    ac:"Elegí un jugador del PingüiProde."},
