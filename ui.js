@@ -806,9 +806,11 @@ function renderInicio(v){
     </table>
   </div>
   ${(()=>{
-    // Historial personal del jugador
+    // Historial personal: misma lógica que admHistorial pero solo la fila del jugador logueado
     const uid = APP.profile?.id;
     if(!uid) return '';
+    const wasabiSnaps = APP._wasabiSnaps||{};
+    const preds = APP.allPreds||{};
     const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
     const daysWithRes = allDays.filter(d=>{
       const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
@@ -818,13 +820,36 @@ function renderInicio(v){
       });
     });
     if(!daysWithRes.length) return '';
-    const pred = APP.myPred||{};
-    const wasabiSnaps = APP._wasabiSnaps||{};
+    // calcular acumBefore igual que en admHistorial
     let acum=0;
-    let rows='';
+    const acumBefore={};
     daysWithRes.forEach(d=>{
-      const antes=acum;
-      const ptsPrinc=mainPointsByDay(pred,d);
+      acumBefore[d]=acum;
+      const ptsPrinc=mainPointsByDay(preds[uid]||{},d);
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(uid,wasabiSnap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||'']||{},d);
+        if(c.type==='nitro'&&c.by_user===uid) comodDelta+=pBy*2;
+        if(c.type==='sang'){
+          if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===uid&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      acum+=ptsPrinc+wasabiDelta+comodDelta;
+    });
+    // armar fila igual que admHistorial
+    let cells='';
+    daysWithRes.forEach(d=>{
+      const antes=acumBefore[d]??0;
+      const ptsPrinc=mainPointsByDay(preds[uid]||{},d);
       const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
       const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
       const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
@@ -835,8 +860,8 @@ function renderInicio(v){
       const gen=ptsPrinc+wasabiDelta;
       let comodDelta=0;
       APP.comodines.filter(c=>c.day===d).forEach(c=>{
-        const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},d);
-        const pTg=mainPointsByDay(APP.allPreds?.[c.target_user||'']||{},d);
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||'']||{},d);
         if(c.type==='nitro'&&c.by_user===uid) comodDelta+=pBy*2;
         if(c.type==='sang'){
           if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
@@ -845,36 +870,32 @@ function renderInicio(v){
       });
       const total=gen+comodDelta;
       const comodStr=comodDelta===0?'0':(comodDelta>0?'+'+comodDelta:comodDelta);
-      rows+=`<tr>
-        <td style="font-size:12px;font-weight:600;color:var(--muted);padding:6px 4px 6px 0">${d.slice(5)}</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted);padding:6px 4px">${antes}</td>
-        <td style="text-align:right;font-size:12px;padding:6px 4px">
+      cells+=`<td style="text-align:right;font-size:12px;color:var(--muted)">${antes}</td>
+        <td style="text-align:right;font-size:12px">
           <span style="color:${gen>0?'var(--aqua)':'var(--muted)'};cursor:${gen>0?'pointer':'default'};text-decoration:${gen>0?'underline':'none'}"
             ${gen>0?`onclick="_histDesglose('${uid}','${d}')"`:''}>${gen>0?'+'+gen:'0'}</span>
         </td>
-        <td style="text-align:right;font-size:12px;padding:6px 4px;color:${comodDelta>0?'#22c55e':comodDelta<0?'#ef4444':'var(--muted)'}">
+        <td style="text-align:right;font-size:12px;color:${comodDelta>0?'#22c55e':comodDelta<0?'#ef4444':'var(--muted)'}">
           <span style="cursor:${comodDelta!==0?'pointer':'default'};text-decoration:${comodDelta!==0?'underline':'none'}"
             ${comodDelta!==0?`onclick="_histComodDesglose('${uid}','${d}')"`:''}>${comodStr}</span>
         </td>
-        <td style="text-align:right;font-size:12px;font-weight:700;padding:6px 0">${total>0?'+'+total:total||0}</td>
-      </tr>`;
-      acum+=total;
+        <td style="text-align:right;font-size:12px;font-weight:700">${total>0?'+'+total:total||0}</td>`;
     });
     return `<div class="card" style="margin-top:16px">
       <div class="sec-title">📈 Mi historial por día</div>
-      <p class="note" style="margin-bottom:10px">Pts antes · generados · comodines · total. Tocá los números subrayados para ver el detalle.</p>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-        <tr style="border-bottom:1px solid var(--line)">
-          <th style="text-align:left;font-size:11px;color:var(--muted);padding:4px 4px 4px 0;font-weight:600">Día</th>
-          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Antes</th>
-          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Gen</th>
-          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Comod</th>
-          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px 0 4px 4px;font-weight:600">Total</th>
+      <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
+      <div style="overflow-x:auto;margin-top:12px"><table>
+        <tr>
+          <th style="position:sticky;left:0;z-index:2;background:var(--card);font-size:11px;color:var(--muted)">Jugador</th>
+          ${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join('')}
         </tr>
-        ${rows}
-        <tr style="border-top:2px solid var(--line)">
-          <td colspan="4" style="font-size:13px;font-weight:700;padding:8px 4px 4px 0">🏁 Total acumulado</td>
-          <td style="text-align:right;font-size:14px;font-weight:800;color:var(--aqua);padding:8px 0 4px">${acum}</td>
+        <tr>
+          <th style="position:sticky;left:0;z-index:2;background:var(--card)"></th>
+          ${daysWithRes.map(()=>'<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>').join('')}
+        </tr>
+        <tr>
+          <td class="name" style="font-size:13px;position:sticky;left:0;z-index:1;background:var(--card)">${esc(APP.profile.display_name)}</td>
+          ${cells}
         </tr>
       </table></div>
     </div>`;
