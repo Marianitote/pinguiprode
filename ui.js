@@ -233,61 +233,7 @@ function renderInicio(v){
       ${(wasabiSent&&principalSent&&(!rwWindowOpen||rewasabiSent))?'<span class="note">Todo al día ✓ Seguí la tabla y usá tus comodines.</span>':''}
     </div>
     ${(elimStageOpen&&!stageSent(elimStageOpen))||(rwWindowOpen&&!rewasabiSent)?'<p class="note" style="margin-top:10px">⏰ Hay tarjetas pendientes con ventana abierta. ¡No te olvides de confirmarlas antes de que cierren!</p>':''}
-  <div class="card" style="margin-top:16px">
-    <div class="sec-title">🗂️ Estado de tus tarjetas</div>
-    <table style="width:100%;border-collapse:collapse">
-      <tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:9px 0;font-weight:600;font-size:14px">🌶️ Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${wa}/${waTotal} preguntas</td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(wasabiSent, false)}</td>
-      </tr>
-      ${rwWindowOpen||rewasabiSent ? `<tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:9px 0;font-weight:600;font-size:14px">🎲 Re-Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${rewasabiSent?'✅ Completada':rwWindowOpen?'⏰ Ventana abierta':''}</td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
-      </tr>` : ''}
-      <tr>
-        <td colspan="3" style="padding:10px 0 4px">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--aqua);font-weight:700">⚽ Tarjeta Principal · Etapas</div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🏟️ Fase de Grupos</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0"><span style="color:var(--gold);font-weight:700">🔒 Enviada</span></td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">⚔️ Ronda de 32</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r32')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r32')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🥊 Octavos de Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r16')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r16')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">⚡ Cuartos de Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('qf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('qf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🔥 Semifinales</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('sf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('sf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🥇 3er Puesto y Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('tpfinal')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('tpfinal')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr style="border-top:1px solid var(--line)">
-        <td style="padding:9px 0;font-size:14px;font-weight:600">🏆 Cuadro de Honor</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${(APP.myPred?.sent_at||{}).honor?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-    </table>
-  </div>
+
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
       <p class="note">Vista en vivo de las posiciones.</p>
       ${standingsTableHTML({inline:false})}
@@ -669,61 +615,7 @@ function renderInicio(v){
       ${(wasabiSent&&principalSent&&(!rwWindowOpen||rewasabiSent))?'<span class="note">Todo al día ✓ Seguí la tabla y usá tus comodines.</span>':''}
     </div>
     ${(elimStageOpen&&!stageSent(elimStageOpen))||(rwWindowOpen&&!rewasabiSent)?'<p class="note" style="margin-top:10px">⏰ Hay tarjetas pendientes con ventana abierta. ¡No te olvides de confirmarlas antes de que cierren!</p>':''}
-  <div class="card" style="margin-top:16px">
-    <div class="sec-title">🗂️ Estado de tus tarjetas</div>
-    <table style="width:100%;border-collapse:collapse">
-      <tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:9px 0;font-weight:600;font-size:14px">🌶️ Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${wa}/${waTotal} preguntas</td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(wasabiSent, false)}</td>
-      </tr>
-      ${rwWindowOpen||rewasabiSent ? `<tr style="border-bottom:1px solid var(--line)">
-        <td style="padding:9px 0;font-weight:600;font-size:14px">🎲 Re-Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${rewasabiSent?'✅ Completada':rwWindowOpen?'⏰ Ventana abierta':''}</td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
-      </tr>` : ''}
-      <tr>
-        <td colspan="3" style="padding:10px 0 4px">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--aqua);font-weight:700">⚽ Tarjeta Principal · Etapas</div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🏟️ Fase de Grupos</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0"><span style="color:var(--gold);font-weight:700">🔒 Enviada</span></td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">⚔️ Ronda de 32</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r32')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r32')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🥊 Octavos de Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r16')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r16')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">⚡ Cuartos de Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('qf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('qf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🔥 Semifinales</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('sf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('sf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 6px 12px;font-size:13px">🥇 3er Puesto y Final</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('tpfinal')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('tpfinal')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-      <tr style="border-top:1px solid var(--line)">
-        <td style="padding:9px 0;font-size:14px;font-weight:600">🏆 Cuadro de Honor</td>
-        <td></td>
-        <td style="text-align:right;min-width:110px;padding:9px 0">${(APP.myPred?.sent_at||{}).honor?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
-      </tr>
-    </table>
-  </div>
+
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
     ${(()=>{
       const ua = APP.results?.updated_at;
@@ -857,7 +749,136 @@ function renderInicio(v){
   <div class="card flat"><div class="sec-title">Comodines · resumen</div>
     <p class="note" style="line-height:1.7"><b>🩸 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado en su día, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó; si empatan, no pasa nada.<br>
     <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2°.<br>
-    <span style="color:var(--muted)">Se piden cualquier día de la fase entre las 6 y las 12 (hora argentina) y valen para los partidos de ese día. Ojo: no podés usar ambos en el mismo día.</span></p></div>`;
+    <span style="color:var(--muted)">Se piden cualquier día de la fase entre las 6 y las 12 (hora argentina) y valen para los partidos de ese día. Ojo: no podés usar ambos en el mismo día.</span></p></div>
+    <div class="card" style="margin-top:16px">
+    <div class="sec-title">🗂️ Estado de tus tarjetas</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:9px 0;font-weight:600;font-size:14px">🌶️ Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${wa}/${waTotal} preguntas</td>
+        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(wasabiSent, false)}</td>
+      </tr>
+      ${rwWindowOpen||rewasabiSent ? `<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:9px 0;font-weight:600;font-size:14px">🎲 Re-Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted);padding:9px 4px">${rewasabiSent?'✅ Completada':rwWindowOpen?'⏰ Ventana abierta':''}</td>
+        <td style="text-align:right;min-width:110px;padding:9px 0">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
+      </tr>` : ''}
+      <tr>
+        <td colspan="3" style="padding:10px 0 4px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--aqua);font-weight:700">⚽ Tarjeta Principal · Etapas</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">🏟️ Fase de Grupos</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0"><span style="color:var(--gold);font-weight:700">🔒 Enviada</span></td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">⚔️ Ronda de 32</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r32')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r32')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">🥊 Octavos de Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('r16')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r16')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">⚡ Cuartos de Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('qf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('qf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">🔥 Semifinales</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('sf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('sf')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0 6px 12px;font-size:13px">🥇 3er Puesto y Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:6px 0">${stageSent('tpfinal')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('tpfinal')?'<span style="color:#ef4444;font-weight:700">🔓 Abierta</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+      <tr style="border-top:1px solid var(--line)">
+        <td style="padding:9px 0;font-size:14px;font-weight:600">🏆 Cuadro de Honor</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:9px 0">${(APP.myPred?.sent_at||{}).honor?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">🕐 Por jugar</span>'}</td>
+      </tr>
+    </table>
+  </div>
+  ${(()=>{
+    // Historial personal del jugador
+    const uid = APP.profile?.id;
+    if(!uid) return '';
+    const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
+    const daysWithRes = allDays.filter(d=>{
+      const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
+      return matches.some(m=>{
+        if(m.phase==="grupos"){ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; }
+        else { const slotKey=String(m.slot); const r=(APP.results?.elim||{})[slotKey]; return r&&r.h!=null&&r.h!==""; }
+      });
+    });
+    if(!daysWithRes.length) return '';
+    const pred = APP.myPred||{};
+    const wasabiSnaps = APP._wasabiSnaps||{};
+    let acum=0;
+    let rows='';
+    daysWithRes.forEach(d=>{
+      const antes=acum;
+      const ptsPrinc=mainPointsByDay(pred,d);
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(uid,wasabiSnap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      const gen=ptsPrinc+wasabiDelta;
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(APP.allPreds?.[c.by_user]||{},d);
+        const pTg=mainPointsByDay(APP.allPreds?.[c.target_user||'']||{},d);
+        if(c.type==='nitro'&&c.by_user===uid) comodDelta+=pBy*2;
+        if(c.type==='sang'){
+          if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===uid&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      const total=gen+comodDelta;
+      const comodStr=comodDelta===0?'0':(comodDelta>0?'+'+comodDelta:comodDelta);
+      rows+=`<tr>
+        <td style="font-size:12px;font-weight:600;color:var(--muted);padding:6px 4px 6px 0">${d.slice(5)}</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted);padding:6px 4px">${antes}</td>
+        <td style="text-align:right;font-size:12px;padding:6px 4px">
+          <span style="color:${gen>0?'var(--aqua)':'var(--muted)'};cursor:${gen>0?'pointer':'default'};text-decoration:${gen>0?'underline':'none'}"
+            ${gen>0?`onclick="_histDesglose('${uid}','${d}')"`:''}>${gen>0?'+'+gen:'0'}</span>
+        </td>
+        <td style="text-align:right;font-size:12px;padding:6px 4px;color:${comodDelta>0?'#22c55e':comodDelta<0?'#ef4444':'var(--muted)'}">
+          <span style="cursor:${comodDelta!==0?'pointer':'default'};text-decoration:${comodDelta!==0?'underline':'none'}"
+            ${comodDelta!==0?`onclick="_histComodDesglose('${uid}','${d}')"`:''}>${comodStr}</span>
+        </td>
+        <td style="text-align:right;font-size:12px;font-weight:700;padding:6px 0">${total>0?'+'+total:total||0}</td>
+      </tr>`;
+      acum+=total;
+    });
+    return `<div class="card" style="margin-top:16px">
+      <div class="sec-title">📈 Mi historial por día</div>
+      <p class="note" style="margin-bottom:10px">Pts antes · generados · comodines · total. Tocá los números subrayados para ver el detalle.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--line)">
+          <th style="text-align:left;font-size:11px;color:var(--muted);padding:4px 4px 4px 0;font-weight:600">Día</th>
+          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Antes</th>
+          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Gen</th>
+          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px;font-weight:600">Comod</th>
+          <th style="text-align:right;font-size:11px;color:var(--muted);padding:4px 0 4px 4px;font-weight:600">Total</th>
+        </tr>
+        ${rows}
+        <tr style="border-top:2px solid var(--line)">
+          <td colspan="4" style="font-size:13px;font-weight:700;padding:8px 4px 4px 0">🏁 Total acumulado</td>
+          <td style="text-align:right;font-size:14px;font-weight:800;color:var(--aqua);padding:8px 0 4px">${acum}</td>
+        </tr>
+      </table></div>
+    </div>`;
+  })()}`;
 }
 
 /* helper input según tipo */
