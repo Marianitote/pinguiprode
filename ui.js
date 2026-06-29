@@ -2682,10 +2682,19 @@ async function admHistorial(area){
 
   // todos los días con partidos
   const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
-  // días con resultados cargados (al menos un partido con resultado)
+  // días con resultados cargados (al menos un partido con resultado, grupos o elim)
   const daysWithRes = allDays.filter(d=>{
     const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
-    return matches.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
+    return matches.some(m=>{
+      if(m.phase==="grupos"){
+        const r=(APP.results.main||{})[m.id];
+        return r&&r.h!=null&&r.h!=="";
+      } else {
+        const slotKey=String(m.slot);
+        const r=(APP.results?.elim||{})[slotKey]||(APP.results?.elim||{})[m.slot];
+        return r&&r.h!=null&&r.h!=="";
+      }
+    });
   });
 
   // puntos acumulados por jugador antes de cada día
