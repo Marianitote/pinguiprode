@@ -475,7 +475,7 @@ function renderInicio(v){
       matches.forEach(m=>{
         const ht=TEAMS[m.home],at=TEAMS[m.away];
         const r = m.phase!=='grupos'
-          ? (APP.results?.elim||{})[m.slot]
+          ? ((APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot])
           : resMain[m.id];
         const hasRes=r&&r.h!=null&&r.h!=='';
         let rowHtml=`<td style="font-size:12px;padding:5px 6px">${ht?.f||''} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||''}</td>`;
@@ -483,7 +483,7 @@ function renderInicio(v){
           const roles=playerSangs[uid];
           const isElimMatch = m.phase!=='grupos';
           const pred = isElimMatch
-            ? (preds[uid]?.elim||{})[m.slot]
+            ? ((preds[uid]?.elim||{})[String(m.slot)]||(preds[uid]?.elim||{})[m.slot])
             : (preds[uid]?.main||{})[m.id];
           const predStr=pred&&pred.h!=null&&pred.h!==''?`${pred.h}-${pred.a}`:'—';
           const bgs=[...new Set(roles.map(rr=>sangBg(rr.c,uid)))];
@@ -1007,7 +1007,7 @@ function elimMatchRow(m, pred, sent, stage){
   const hora = m.kickoff ? new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hour:'2-digit',minute:'2-digit'}) : "";
   const tie = pred.h!=null&&pred.a!=null&&pred.h!==""&&pred.a!==""&&(+pred.h===+pred.a);
   const answered = pred.h!=null&&pred.h!==""&&pred.a!=null&&pred.a!==""&&(!tie||pred.pen==="0"||pred.pen==="1");
-  const res = (APP.results?.elim||{})[m.slot];
+  const res = (APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot];
   const hasRes = res&&res.h!=null&&res.h!=="";
   // acertaron
   let acertaronStr="";
@@ -1168,7 +1168,7 @@ function extrasBlock(locked){
 function acertaronPublic(m){
   const isElimM = m.phase!=='grupos';
   const r = isElimM
-    ? (APP.results?.elim||{})[m.slot]
+    ? ((APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot])
     : (APP.results?.main||{})[m.id];
   if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
   const players = (APP.profiles||[]).filter(p=>!p.is_admin);
@@ -1176,7 +1176,7 @@ function acertaronPublic(m){
   const rElim = r;
   players.forEach(p=>{
     const pred = isElimM
-      ? (APP.allPreds?.[p.id]?.elim||(p.id===APP.user?.id?APP.myPred?.elim:null)||{})[m.slot]
+      ? ((APP.allPreds?.[p.id]?.elim||(p.id===APP.user?.id?APP.myPred?.elim:null)||{})[String(m.slot)]||(APP.allPreds?.[p.id]?.elim||(p.id===APP.user?.id?APP.myPred?.elim:null)||{})[m.slot])
       : (APP.allPreds?.[p.id]?.main||(p.id===APP.user?.id?APP.myPred?.main:null)||{})[m.id];
     if(!pred) return;
     const rv = isElimM ? rElim : r;
@@ -2155,10 +2155,10 @@ function acertaronMatch(m, r){
   const players = APP.profiles.filter(p=>!p.is_admin);
   const exact=[], result=[];
   const isElimM2 = m.phase!=='grupos';
-  const r2 = isElimM2 ? (APP.results?.elim||{})[m.slot] : r;
+  const r2 = isElimM2 ? ((APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot]) : r;
   players.forEach(p=>{
     const pred = isElimM2
-      ? (APP.allPreds?.[p.id]?.elim||{})[m.slot]
+      ? ((APP.allPreds?.[p.id]?.elim||{})[String(m.slot)]||(APP.allPreds?.[p.id]?.elim||{})[m.slot])
       : (APP.allPreds?.[p.id]?.main||{})[m.id];
     if(!pred) return;
     if(!r2||r2.h==null||r2.h==='') return;
@@ -2179,7 +2179,7 @@ function admMatch(m,r){r=r||{};
     <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m,r)}`;
 }
 function admMatchKO(m){
-  const r=(APP.results?.elim||{})[m.slot]||{};
+  const r=(APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot]||{};
   const tie=r.h!=null&&r.a!=null&&r.h!==""&&r.a!==""&&(+r.h===+r.a);
   const ht=TEAMS[m.home],at=TEAMS[m.away];
   const homeLabel=ht?ht.f+' '+ht.n:(m.home||m.label||'Local');
