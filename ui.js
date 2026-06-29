@@ -225,19 +225,12 @@ function renderInicio(v){
       });
       return `<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="sec-title" style="margin:0">⚽ Partidos de hoy · <span style="font-weight:400;color:var(--muted);font-size:13px">${new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date(_hoyFifa+'T12:00:00'))}</span></div><button class="btn sm primary" onclick="syncESPN()">🔄 Sincronizar ESPN</button></div>${_rows}</div>`;
     })()}
-    <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
-      ${elimStageOpen&&!stageSent(elimStageOpen)?`<button class="btn danger sm" onclick="TAB='principal';PR_PHASE='${elimStageOpen}';render()">⚽ Cargar ${STAGE_LABEL[elimStageOpen]||elimStageOpen}</button>`:''}
-      ${rwWindowOpen&&!rewasabiSent?`<button class="btn danger sm" onclick="TAB='rewasabi';render()">🎲 Cargar Re-Wasabi</button>`:''}
-      ${!principalSent&&!elimStageOpen?`<button class="btn primary sm" onclick="TAB='principal';render()">⚽ Ir a Principal</button>`:''}
-      ${!wasabiSent?`<button class="btn primary sm" onclick="TAB='wasabi';render()">🌶️ Ir a Wasabi</button>`:''}
-      ${(wasabiSent&&principalSent&&(!rwWindowOpen||rewasabiSent))?'<span class="note">Todo al día ✓ Seguí la tabla y usá tus comodines.</span>':''}
-    </div>
-    ${(elimStageOpen&&!stageSent(elimStageOpen))||(rwWindowOpen&&!rewasabiSent)?'<p class="note" style="margin-top:10px">⏰ Hay tarjetas pendientes con ventana abierta. ¡No te olvides de confirmarlas antes de que cierren!</p>':''}
 
     <div class="card"><div class="sec-title">Tabla de posiciones</div>
       <p class="note">Vista en vivo de las posiciones.</p>
       ${standingsTableHTML({inline:false})}
     </div>
+
     ${(()=>{
       const _last=standings()[standings().length-1];
       if(!_last) return '';
