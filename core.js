@@ -576,8 +576,9 @@ function mainPointsByDay(pred, day){
       pts+=matchPointsGrupos(m[mt.id],res[mt.id]);
     } else {
       // eliminatoria: usar el nuevo sistema (pred propia del jugador vs resultado real)
-      const pElim = (pred.elim||{})[mt.slot];
-      const rElim = (APP.results?.elim||{})[mt.slot];
+      const slotKey = String(mt.slot);
+      const pElim = (pred.elim||{})[slotKey]||(pred.elim||{})[mt.slot];
+      const rElim = (APP.results?.elim||{})[slotKey]||(APP.results?.elim||{})[mt.slot];
       pts += matchPointsElim(pElim, rElim);
     }
   });
