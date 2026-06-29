@@ -2902,15 +2902,44 @@ async function myHistorial(){
       html+=`<td style="text-align:right;font-size:12px;color:var(--muted)">${antes}</td>
         <td style="text-align:right;font-size:12px">
           <span style="color:${gen>0?"var(--aqua)":"var(--muted)"};cursor:${gen>0?"pointer":"default"};text-decoration:${gen>0?"underline":"none"}"
-            ${gen>0?`onclick="_histDesglose('${p.id}','${d}')"`:""}}>${gen>0?"+"+gen:"0"}</span>
+            ${gen>0?`onclick="_histDesglose('${p.id}','${d}')"`:""}>${gen>0?"+"+gen:"0"}</span>
         </td>
         <td style="text-align:right;font-size:12px;color:${comodDelta>0?"#22c55e":comodDelta<0?"#ef4444":"var(--muted)"}">
           <span style="cursor:${comodDelta!==0?"pointer":"default"};text-decoration:${comodDelta!==0?"underline":"none"}"
-            ${comodDelta!==0?`onclick="_histComodDesglose('${p.id}','${d}')"`:""}}>${comodStr}</span>
+            ${comodDelta!==0?`onclick="_histComodDesglose('${p.id}','${d}')"`:""}>${comodStr}</span>
         </td>
         <td style="text-align:right;font-size:12px;font-weight:700">${total>0?"+"+total:total||0}</td>`;
     });
     html+=`</tr>`;
+  });
+  html+=`</table></div>`;
+  // fila de ajustes que no son "por día": Honor, Re-Wasabi, clasificación elim, penalizaciones, bonus
+  html+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">⚖️ AJUSTES (no entran en el día a día)</div>
+    <table style="width:100%"><tr>
+      <th style="font-size:11px;color:var(--muted)">Jugador</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏆 Honor</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🎲 Re-Wasabi</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏟️ Clasif. Elim</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">⚡ Penal/Bonus</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">Total ajustes</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏁 Total (tabla)</th>
+    </tr>`;
+  players.forEach(p=>{
+    const honor=extraTotal(p.id);
+    const rw=rewasabiTotal(p.id);
+    const elimClas=elimClasPoints(p.id);
+    const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
+    const ajustes=honor+rw+elimClas+penBonus;
+    html+=`<tr>
+      <td class="name" style="font-size:13px">${esc(p.display_name)}</td>
+      <td style="text-align:right;font-size:12px">${honor||0}</td>
+      <td style="text-align:right;font-size:12px">${rw||0}</td>
+      <td style="text-align:right;font-size:12px">${elimClas||0}</td>
+      <td style="text-align:right;font-size:12px;color:${penBonus<0?'#ef4444':penBonus>0?'#22c55e':'var(--muted)'}">${penBonus>0?'+'+penBonus:penBonus||0}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700">${ajustes>0?'+'+ajustes:ajustes||0}</td>
+      <td style="text-align:right;font-size:13px;font-weight:800;color:var(--aqua)">${grandTotal(p.id)}</td>
+    </tr>`;
   });
   html+=`</table></div></div>`;
   area.innerHTML=html;
@@ -3132,6 +3161,35 @@ async function admHistorial(area){
     html+=`</tr>`;
   });
 
+  html+=`</table></div>`;
+  // fila de ajustes que no son "por día"
+  html+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">⚖️ AJUSTES (no entran en el día a día)</div>
+    <table style="width:100%"><tr>
+      <th style="font-size:11px;color:var(--muted)">Jugador</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏆 Honor</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🎲 Re-Wasabi</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏟️ Clasif. Elim</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">⚡ Penal/Bonus</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">Total ajustes</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🏁 Total (tabla)</th>
+    </tr>`;
+  players.forEach(p=>{
+    const honor=extraTotal(p.id);
+    const rw=rewasabiTotal(p.id);
+    const elimClas=elimClasPoints(p.id);
+    const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
+    const ajustes=honor+rw+elimClas+penBonus;
+    html+=`<tr>
+      <td class="name" style="font-size:13px">${esc(p.display_name)}</td>
+      <td style="text-align:right;font-size:12px">${honor||0}</td>
+      <td style="text-align:right;font-size:12px">${rw||0}</td>
+      <td style="text-align:right;font-size:12px">${elimClas||0}</td>
+      <td style="text-align:right;font-size:12px;color:${penBonus<0?'#ef4444':penBonus>0?'#22c55e':'var(--muted)'}">${penBonus>0?'+'+penBonus:penBonus||0}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700">${ajustes>0?'+'+ajustes:ajustes||0}</td>
+      <td style="text-align:right;font-size:13px;font-weight:800;color:var(--aqua)">${grandTotal(p.id)}</td>
+    </tr>`;
+  });
   html+=`</table></div></div>`;
 
   // ── Comodines del día (sección existente abajo) ──────────────────
