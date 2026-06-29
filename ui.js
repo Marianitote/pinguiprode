@@ -2911,6 +2911,7 @@ async function myHistorial(){
     <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">⚖️ AJUSTES (no entran en el día a día)</div>
     <table style="width:100%"><tr>
       <th style="font-size:11px;color:var(--muted)">Jugador</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🌶️ Wasabi s/snap</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🏆 Honor</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🎲 Re-Wasabi</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🏟️ Clasif. Elim</th>
@@ -2919,13 +2920,19 @@ async function myHistorial(){
       <th style="font-size:11px;color:var(--muted);text-align:right">🏁 Total (tabla)</th>
     </tr>`;
   players.forEach(p=>{
+    // Wasabi real vs lo que se contó día a día vía snapshots (la diferencia es lo que faltó capturar)
+    const wasabiReal = wasabiTotal(p.id);
+    const lastSnapKeys = Object.keys(wasabiSnaps).sort();
+    const wasabiViaSnaps = lastSnapKeys.length ? wasabiTotalAtDay(p.id, wasabiSnaps[lastSnapKeys[lastSnapKeys.length-1]]) : 0;
+    const wasabiSinSnap = wasabiReal - wasabiViaSnaps;
     const honor=extraTotal(p.id);
     const rw=rewasabiTotal(p.id);
     const elimClas=elimClasPoints(p.id);
     const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
-    const ajustes=honor+rw+elimClas+penBonus;
+    const ajustes=wasabiSinSnap+honor+rw+elimClas+penBonus;
     html+=`<tr>
       <td class="name" style="font-size:13px">${esc(p.display_name)}</td>
+      <td style="text-align:right;font-size:12px;color:${wasabiSinSnap!==0?'#f59e0b':'var(--muted)'}">${wasabiSinSnap>0?'+'+wasabiSinSnap:wasabiSinSnap||0}</td>
       <td style="text-align:right;font-size:12px">${honor||0}</td>
       <td style="text-align:right;font-size:12px">${rw||0}</td>
       <td style="text-align:right;font-size:12px">${elimClas||0}</td>
@@ -2934,7 +2941,9 @@ async function myHistorial(){
       <td style="text-align:right;font-size:13px;font-weight:800;color:var(--aqua)">${grandTotal(p.id)}</td>
     </tr>`;
   });
-  html+=`</table></div></div>`;
+  html+=`</table>
+    <p class="note" style="margin-top:8px;font-size:11px">🌶️ <b>Wasabi s/snap</b>: puntos de Wasabi que no quedaron capturados en ningún snapshot diario (preguntas resueltas sin que se guardara una foto ese día). Si está en 0, el Wasabi del día a día ya suma el total real.</p>
+  </div>`;
   area.innerHTML=html;
 }
 
@@ -3160,6 +3169,7 @@ async function admHistorial(area){
     <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">⚖️ AJUSTES (no entran en el día a día)</div>
     <table style="width:100%"><tr>
       <th style="font-size:11px;color:var(--muted)">Jugador</th>
+      <th style="font-size:11px;color:var(--muted);text-align:right">🌶️ Wasabi s/snap</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🏆 Honor</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🎲 Re-Wasabi</th>
       <th style="font-size:11px;color:var(--muted);text-align:right">🏟️ Clasif. Elim</th>
@@ -3168,13 +3178,18 @@ async function admHistorial(area){
       <th style="font-size:11px;color:var(--muted);text-align:right">🏁 Total (tabla)</th>
     </tr>`;
   players.forEach(p=>{
+    const wasabiReal = wasabiTotal(p.id);
+    const lastSnapKeys = Object.keys(wasabiSnaps).sort();
+    const wasabiViaSnaps = lastSnapKeys.length ? wasabiTotalAtDay(p.id, wasabiSnaps[lastSnapKeys[lastSnapKeys.length-1]]) : 0;
+    const wasabiSinSnap = wasabiReal - wasabiViaSnaps;
     const honor=extraTotal(p.id);
     const rw=rewasabiTotal(p.id);
     const elimClas=elimClasPoints(p.id);
     const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
-    const ajustes=honor+rw+elimClas+penBonus;
+    const ajustes=wasabiSinSnap+honor+rw+elimClas+penBonus;
     html+=`<tr>
       <td class="name" style="font-size:13px">${esc(p.display_name)}</td>
+      <td style="text-align:right;font-size:12px;color:${wasabiSinSnap!==0?'#f59e0b':'var(--muted)'}">${wasabiSinSnap>0?'+'+wasabiSinSnap:wasabiSinSnap||0}</td>
       <td style="text-align:right;font-size:12px">${honor||0}</td>
       <td style="text-align:right;font-size:12px">${rw||0}</td>
       <td style="text-align:right;font-size:12px">${elimClas||0}</td>
@@ -3183,7 +3198,9 @@ async function admHistorial(area){
       <td style="text-align:right;font-size:13px;font-weight:800;color:var(--aqua)">${grandTotal(p.id)}</td>
     </tr>`;
   });
-  html+=`</table></div></div>`;
+  html+=`</table>
+    <p class="note" style="margin-top:8px;font-size:11px">🌶️ <b>Wasabi s/snap</b>: puntos de Wasabi que no quedaron capturados en ningún snapshot diario. Si está en 0, el Wasabi del día a día ya suma el total real.</p>
+  </div></div>`;
 
   // ── Comodines del día (sección existente abajo) ──────────────────
   const byBlock={};
