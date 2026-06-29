@@ -805,101 +805,11 @@ function renderInicio(v){
       </tr>
     </table>
   </div>
-  ${(()=>{
-    // Historial personal: misma lógica que admHistorial pero solo la fila del jugador logueado
-    const uid = APP.profile?.id;
-    if(!uid) return '';
-    const wasabiSnaps = APP._wasabiSnaps||{};
-    const preds = APP.allPreds||{};
-    const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
-    const daysWithRes = allDays.filter(d=>{
-      const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
-      return matches.some(m=>{
-        if(m.phase==="grupos"){ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; }
-        else { const slotKey=String(m.slot); const r=(APP.results?.elim||{})[slotKey]; return r&&r.h!=null&&r.h!==""; }
-      });
-    });
-    if(!daysWithRes.length) return '';
-    // calcular acumBefore igual que en admHistorial
-    let acum=0;
-    const acumBefore={};
-    daysWithRes.forEach(d=>{
-      acumBefore[d]=acum;
-      const ptsPrinc=mainPointsByDay(preds[uid]||{},d);
-      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
-      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
-      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
-      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
-      const ptsWas=wasabiSnap?wasabiTotalAtDay(uid,wasabiSnap):0;
-      const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
-      const wasabiDelta=ptsWas-ptsWasPrev;
-      let comodDelta=0;
-      APP.comodines.filter(c=>c.day===d).forEach(c=>{
-        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
-        const pTg=mainPointsByDay(preds[c.target_user||'']||{},d);
-        if(c.type==='nitro'&&c.by_user===uid) comodDelta+=pBy*2;
-        if(c.type==='sang'){
-          if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
-          if(c.target_user===uid&&pBy>pTg) comodDelta-=pTg;
-        }
-      });
-      acum+=ptsPrinc+wasabiDelta+comodDelta;
-    });
-    // armar fila igual que admHistorial
-    let cells='';
-    daysWithRes.forEach(d=>{
-      const antes=acumBefore[d]??0;
-      const ptsPrinc=mainPointsByDay(preds[uid]||{},d);
-      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
-      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
-      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
-      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
-      const ptsWas=wasabiSnap?wasabiTotalAtDay(uid,wasabiSnap):0;
-      const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
-      const wasabiDelta=ptsWas-ptsWasPrev;
-      const gen=ptsPrinc+wasabiDelta;
-      let comodDelta=0;
-      APP.comodines.filter(c=>c.day===d).forEach(c=>{
-        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
-        const pTg=mainPointsByDay(preds[c.target_user||'']||{},d);
-        if(c.type==='nitro'&&c.by_user===uid) comodDelta+=pBy*2;
-        if(c.type==='sang'){
-          if(c.by_user===uid){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
-          if(c.target_user===uid&&pBy>pTg) comodDelta-=pTg;
-        }
-      });
-      const total=gen+comodDelta;
-      const comodStr=comodDelta===0?'0':(comodDelta>0?'+'+comodDelta:comodDelta);
-      cells+=`<td style="text-align:right;font-size:12px;color:var(--muted)">${antes}</td>
-        <td style="text-align:right;font-size:12px">
-          <span style="color:${gen>0?'var(--aqua)':'var(--muted)'};cursor:${gen>0?'pointer':'default'};text-decoration:${gen>0?'underline':'none'}"
-            ${gen>0?`onclick="_histDesglose('${uid}','${d}')"`:''}>${gen>0?'+'+gen:'0'}</span>
-        </td>
-        <td style="text-align:right;font-size:12px;color:${comodDelta>0?'#22c55e':comodDelta<0?'#ef4444':'var(--muted)'}">
-          <span style="cursor:${comodDelta!==0?'pointer':'default'};text-decoration:${comodDelta!==0?'underline':'none'}"
-            ${comodDelta!==0?`onclick="_histComodDesglose('${uid}','${d}')"`:''}>${comodStr}</span>
-        </td>
-        <td style="text-align:right;font-size:12px;font-weight:700">${total>0?'+'+total:total||0}</td>`;
-    });
-    return `<div class="card" style="margin-top:16px">
-      <div class="sec-title">📈 Mi historial por día</div>
-      <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
-      <div style="overflow-x:auto;margin-top:12px"><table>
-        <tr>
-          <th style="position:sticky;left:0;z-index:2;background:var(--card);font-size:11px;color:var(--muted)">Jugador</th>
-          ${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join('')}
-        </tr>
-        <tr>
-          <th style="position:sticky;left:0;z-index:2;background:var(--card)"></th>
-          ${daysWithRes.map(()=>'<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>').join('')}
-        </tr>
-        <tr>
-          <td class="name" style="font-size:13px;position:sticky;left:0;z-index:1;background:var(--card)">${esc(APP.profile.display_name)}</td>
-          ${cells}
-        </tr>
-      </table></div>
-    </div>`;
-  })()}`;
+  <div class="card" style="margin-top:16px">
+    <div class="sec-title">📈 Mi historial por día</div>
+    <p class="note" style="margin-bottom:12px">Puntos generados día a día, con desglose de partidos, Wasabi y comodines.</p>
+    <button class="btn primary full" onclick="myHistorial()">📊 Ver mi historial</button>
+  </div>`;
 }
 
 /* helper input según tipo */
@@ -2813,6 +2723,199 @@ async function doAdminEdit(uid,card,field,value){
 }
 
 /* ---------- ADMIN: exportar todo a Excel ---------- */
+async function myHistorial(){
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg);overflow-y:auto;padding:16px';
+  div.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+    <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
+    <div class="sec-title" style="margin:0">📈 Mi historial por día</div>
+  </div><div id="_myHistArea"><div class="card"><div class="empty"><div class="big">⏳</div>Cargando…</div></div></div>`;
+  document.body.appendChild(div);
+  const area=$("#_myHistArea");
+  // Usar la misma lógica de admHistorial pero filtrada al jugador logueado
+  const wasabiSnaps = await loadWasabiSnapshots();
+  const preds = APP.allPreds||{};
+  const uid = APP.profile?.id;
+  // solo el jugador logueado
+  const players = APP.profiles.filter(p=>p.id===uid);
+  if(!players.length){ area.innerHTML='<div class="card"><p class="note">No se encontró tu perfil.</p></div>'; return; }
+
+  const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
+  const daysWithRes = allDays.filter(d=>{
+    const matches=FIXTURE.filter(m=>fifaDateOf(m)===d);
+    return matches.some(m=>{
+      if(m.phase==="grupos"){ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; }
+      else { const slotKey=String(m.slot); const r=(APP.results?.elim||{})[slotKey]||(APP.results?.elim||{})[m.slot]; return r&&r.h!=null&&r.h!==""; }
+    });
+  });
+
+  const acumBefore={};
+  players.forEach(p=>{
+    acumBefore[p.id]={};
+    let acum=0;
+    daysWithRes.forEach(d=>{
+      acumBefore[p.id][d]=acum;
+      const ptsPrinc=mainPointsByDay(preds[p.id]||{},d);
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(p.id,wasabiSnap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(p.id,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||""]||{},d);
+        if(c.type==="nitro"&&c.by_user===p.id) comodDelta+=pBy*2;
+        if(c.type==="sang"){
+          if(c.by_user===p.id){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===p.id&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      acum+=ptsPrinc+wasabiDelta+comodDelta;
+    });
+  });
+
+  // reusar _histDesglose y _histComodDesglose de admHistorial (ya definidas globalmente cuando se carga admHistorial)
+  // pero como acá no pasamos por admHistorial, las redefinimos localmente
+  window._histDesglose=(uid,day)=>{
+    const pred=preds[uid]||{};
+    const pName=APP.profiles.find(p=>p.id===uid)?.display_name||"?";
+    const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=day).sort();
+    const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:{};
+    const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<day).sort();
+    const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:{};
+    const matches=FIXTURE.filter(m=>fifaDateOf(m)===day);
+    let rows="";
+    matches.forEach(m=>{
+      if(m.phase==="grupos"){
+        const p=(pred.main||{})[m.id]; const r=(APP.results.main||{})[m.id];
+        if(!r||r.h==null||r.h==="") return;
+        const pts=matchPointsGrupos(p,r);
+        const ht=TEAMS[m.home],at=TEAMS[m.away];
+        rows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="flex:1">${ht?.f||""} ${ht?.n||m.home} vs ${at?.n||m.away} ${at?.f||""}</span>
+          <span style="color:var(--muted)">Pred: ${p?`${p.h}-${p.a}`:"—"}</span>
+          <span style="color:var(--muted)">Real: ${r.h}-${r.a}</span>
+          <span style="font-weight:700;color:${pts>0?"var(--aqua)":"var(--muted)"};min-width:28px;text-align:right">${pts>0?"+"+pts:"0"}</span>
+        </div>`;
+      } else {
+        const slotKey=String(m.slot);
+        const pElim=(pred.elim||{})[slotKey];
+        const rElim=(APP.results?.elim||{})[slotKey];
+        if(!rElim||rElim.h==null||rElim.h==="") return;
+        const pts=matchPointsElim(pElim,rElim);
+        const ht=TEAMS[m.home],at=TEAMS[m.away];
+        rows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="flex:1">${ht?.f||""} ${ht?.n||m.home||"?"} vs ${at?.n||m.away||"?"} ${at?.f||""}</span>
+          <span style="color:var(--muted)">Pred: ${pElim?`${pElim.h}-${pElim.a}`:"—"}</span>
+          <span style="color:var(--muted)">Real: ${rElim.h}-${rElim.a}</span>
+          <span style="font-weight:700;color:${pts>0?"var(--aqua)":"var(--muted)"};min-width:28px;text-align:right">${pts>0?"+"+pts:"0"}</span>
+        </div>`;
+      }
+    });
+    let wasabiRows="";
+    APP.wasabiQs.forEach((q,i)=>{
+      if(q.type==="bonus") return;
+      const resVal=wasabiSnap[q.id]; if(resVal==null||resVal==="") return;
+      const prevVal=prevSnap[q.id]; if(resVal===prevVal) return;
+      const ans=(pred.wasabi||{})[q.id];
+      const pts=q.type==="approx"?approxPts(uid,q.id):(matchesResult(ans,resVal)?q.pts:0);
+      wasabiRows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+        <span style="flex:1;color:var(--muted)">${i+1}. ${esc(q.t.slice(0,50))}</span>
+        <span style="color:var(--muted);font-size:11px">R: ${esc(resVal)}</span>
+        <span style="font-weight:700;color:${pts>0?"var(--aqua)":"var(--muted)"};min-width:28px;text-align:right">${pts>0?"+"+pts:"0"}</span>
+      </div>`;
+    });
+    modal(`<h3>📊 ${esc(pName)} · ${day}</h3>
+      ${rows||""}
+      ${wasabiRows?`<div style="margin-top:12px"><div class="sec-title" style="font-size:12px">🌶️ Wasabi resuelto este día</div>${wasabiRows}</div>`:""}
+      <button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`);
+  };
+  window._histComodDesglose=(uid,day)=>{
+    const pName=APP.profiles.find(p=>p.id===uid)?.display_name||"?";
+    const dayComods=APP.comodines.filter(c=>c.day===day&&(c.by_user===uid||c.target_user===uid));
+    if(!dayComods.length){ modal(`<h3>🎮 Sin comodines · ${day}</h3><button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`); return; }
+    let rows="";
+    dayComods.forEach(c=>{
+      const byName=APP.profiles.find(p=>p.id===c.by_user)?.display_name||"?";
+      const tgName=c.target_user?APP.profiles.find(p=>p.id===c.target_user)?.display_name||"?":"-";
+      const pBy=mainPointsByDay(preds[c.by_user]||{},day);
+      const pTg=c.target_user?mainPointsByDay(preds[c.target_user]||{},day):0;
+      if(c.type==="nitro"){
+        rows+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px"><span>🔥</span><b style="flex:1">${esc(byName)} usó Nitro</b><span style="color:var(--gold);font-weight:700">x3</span></div>
+          <div style="font-size:12px;color:var(--muted);padding-left:26px;margin-top:6px">Base: ${pBy} pts → Con nitro: <b style="color:var(--gold)">${pBy*3} pts</b> · <span style="color:#22c55e">+${pBy*2} pts</span></div>
+        </div>`;
+      } else if(c.type==="sang"){
+        let resultado="",color="var(--muted)",detalle="";
+        if(pBy>pTg){ resultado=`${byName} ganó`; color="var(--aqua)"; detalle=c.by_user===uid?`<span style="color:#22c55e">+${pTg} pts</span>`:`<span style="color:#ef4444">-${pTg} pts</span>`; }
+        else if(pBy<pTg){ resultado=`${byName} perdió`; color="#ef4444"; detalle=c.by_user===uid?`<span style="color:#ef4444">-${pBy*0.5} pts</span>`:`<span style="color:#22c55e">Sin efecto</span>`; }
+        else { resultado="Empate"; detalle=`<span style="color:var(--muted)">Sin transferencia</span>`; }
+        rows+=`<div style="padding:10px;border-radius:10px;background:var(--card2);margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px"><span>🩸</span><b style="flex:1">${esc(byName)} retó a ${esc(tgName)}</b><span style="color:${color};font-weight:700">${resultado}</span></div>
+          <div style="font-size:12px;color:var(--muted);padding-left:26px;margin-top:6px">${esc(byName)}: ${pBy} pts · ${esc(tgName)}: ${pTg} pts · ${detalle}</div>
+        </div>`;
+      }
+    });
+    modal(`<h3>🎮 ${esc(pName)} · comodines ${day}</h3>${rows}<button class="btn ghost full" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`);
+  };
+
+  let html=`<div class="card"><div class="sec-title">📊 Historial por día</div>
+    <p class="note">Pts antes · generados (Princ+Was) · comodines · total del día. Tocá los puntos generados para ver el desglose.</p>
+    <div style="overflow-x:auto;margin-top:12px"><table>
+      <tr>
+        <th style="position:sticky;left:0;z-index:2;background:var(--card)">Jugador</th>
+        ${daysWithRes.map(d=>`<th colspan="4" style="text-align:center;font-size:11px">${d.slice(5)}</th>`).join("")}
+      </tr>
+      <tr>
+        <th style="position:sticky;left:0;z-index:2;background:var(--card)"></th>
+        ${daysWithRes.map(()=>`<th style="font-size:10px;color:var(--muted)">Antes</th><th style="font-size:10px;color:var(--muted)">Gen</th><th style="font-size:10px;color:var(--muted)">Comod</th><th style="font-size:10px;color:var(--muted)">Total</th>`).join("")}
+      </tr>`;
+
+  players.forEach(p=>{
+    html+=`<tr><td class="name" style="font-size:13px;position:sticky;left:0;z-index:1;background:var(--card)">${esc(p.display_name)}</td>`;
+    daysWithRes.forEach(d=>{
+      const antes=acumBefore[p.id]?.[d]??0;
+      const ptsPrinc=mainPointsByDay(preds[p.id]||{},d);
+      const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+      const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+      const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+      const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+      const ptsWas=wasabiSnap?wasabiTotalAtDay(p.id,wasabiSnap):0;
+      const ptsWasPrev=prevSnap?wasabiTotalAtDay(p.id,prevSnap):0;
+      const wasabiDelta=ptsWas-ptsWasPrev;
+      const gen=ptsPrinc+wasabiDelta;
+      let comodDelta=0;
+      APP.comodines.filter(c=>c.day===d).forEach(c=>{
+        const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+        const pTg=mainPointsByDay(preds[c.target_user||""]||{},d);
+        if(c.type==="nitro"&&c.by_user===p.id) comodDelta+=pBy*2;
+        if(c.type==="sang"){
+          if(c.by_user===p.id){ if(pBy>pTg) comodDelta+=pTg; else if(pBy<pTg) comodDelta-=pBy*0.5; }
+          if(c.target_user===p.id&&pBy>pTg) comodDelta-=pTg;
+        }
+      });
+      const total=gen+comodDelta;
+      const comodStr=comodDelta===0?"0":(comodDelta>0?"+"+comodDelta:comodDelta);
+      html+=`<td style="text-align:right;font-size:12px;color:var(--muted)">${antes}</td>
+        <td style="text-align:right;font-size:12px">
+          <span style="color:${gen>0?"var(--aqua)":"var(--muted)"};cursor:${gen>0?"pointer":"default"};text-decoration:${gen>0?"underline":"none"}"
+            ${gen>0?`onclick="_histDesglose('${p.id}','${d}')"`:""}}>${gen>0?"+"+gen:"0"}</span>
+        </td>
+        <td style="text-align:right;font-size:12px;color:${comodDelta>0?"#22c55e":comodDelta<0?"#ef4444":"var(--muted)"}">
+          <span style="cursor:${comodDelta!==0?"pointer":"default"};text-decoration:${comodDelta!==0?"underline":"none"}"
+            ${comodDelta!==0?`onclick="_histComodDesglose('${p.id}','${d}')"`:""}}>${comodStr}</span>
+        </td>
+        <td style="text-align:right;font-size:12px;font-weight:700">${total>0?"+"+total:total||0}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</table></div></div>`;
+  area.innerHTML=html;
+}
+
 async function admHistorial(area){
   area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>Cargando historial…</div></div>`;
   // cargar snapshots de wasabi por día
