@@ -3085,9 +3085,11 @@ function buildExcel(log){
   const wasabi=[["Jugador",...APP.wasabiQs.map((q,i)=>`${i+1}. ${q.t.slice(0,40)}`)]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{}; wasabi.push([p.display_name,...APP.wasabiQs.map(q=>(pred.wasabi||{})[q.id]??"")]); });
   // Principal
-  const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:""))]];
+  const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:(m.home&&m.away?` ${TEAMS[m.home]?.n||m.home} vs ${TEAMS[m.away]?.n||m.away}`:"")))]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
-    principal.push([p.display_name,...FIXTURE.map(m=>{const v=(pred.main||{})[m.id]; return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]); });
+    principal.push([p.display_name,...FIXTURE.map(m=>{
+      const v = m.phase==='grupos' ? (pred.main||{})[m.id] : (pred.elim||{})[m.slot];
+      return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]);  });
   // Comodines - con detalle de resultado
   const com=[["Fecha","Tipo","De","A","Fase","Dia","Resultado","Pts transferidos"]];
   APP.comodines.forEach(c=>{
