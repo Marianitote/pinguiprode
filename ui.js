@@ -3090,12 +3090,19 @@ function buildExcel(log){
   // Wasabi
   const wasabi=[["Jugador",...APP.wasabiQs.map((q,i)=>`${i+1}. ${q.t.slice(0,40)}`)]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{}; wasabi.push([p.display_name,...APP.wasabiQs.map(q=>(pred.wasabi||{})[q.id]??"")]); });
-  // Principal
-  const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:(m.home&&m.away?` ${TEAMS[m.home]?.n||m.home} vs ${TEAMS[m.away]?.n||m.away}`:"")))]];
+  // Hoja Grupos
+  const gruposFix = FIXTURE.filter(m=>m.phase==='grupos');
+  const principal=[["Jugador",...gruposFix.map(m=>m.label+` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`)]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
-
-    principal.push([p.display_name,...FIXTURE.map(m=>{
-      const v = m.phase==='grupos' ? (pred.main||{})[m.id] : (pred.elim||{})[m.slot]||(pred.elim||{})[String(m.slot)];
+    principal.push([p.display_name,...gruposFix.map(m=>{
+      const v=(pred.main||{})[m.id];
+      return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}`:"";})]);  });
+  // Hoja Eliminatorias
+  const elimFix = FIXTURE.filter(m=>m.phase!=='grupos'&&m.slot);
+  const elimSheet=[["Jugador",...elimFix.map(m=>m.label+(m.home&&m.away?` ${TEAMS[m.home]?.n||m.home} vs ${TEAMS[m.away]?.n||m.away}`:""  ))]];
+  players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
+    elimSheet.push([p.display_name,...elimFix.map(m=>{
+      const v=(pred.elim||{})[m.slot]||(pred.elim||{})[String(m.slot)];
       return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]);  });
   // Comodines - con detalle de resultado
   const com=[["Fecha","Tipo","De","A","Fase","Dia","Resultado","Pts transferidos"]];
@@ -3203,7 +3210,8 @@ function buildExcel(log){
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 ${sheet("Resumen",resumen)}
 ${sheet("Wasabi",wasabi)}
-${sheet("Principal",principal)}
+${sheet("Grupos",principal)}
+${sheet("Eliminatorias",elimSheet)}
 ${sheet("Comodines",com)}
 ${sheet("Bitacora",bit)}
 ${sheet("Log Fechas",logRows)}
