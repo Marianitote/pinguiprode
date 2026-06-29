@@ -327,10 +327,10 @@ function matchPointsElim(pred, res){
   if(exact){
     if(rWin==='x'){
       // empate: verificar avance por penales
-      if(pred.pen===res.pen) return PTS.elim.exact + PTS.elim.gd; // exacto + gd bonus (mismo marcador = misma dif)
+      if(pred.pen===res.pen) return PTS.elim.exact + PTS.elim.gd + PTS.elim.result; // exacto + gd + ganador (avance)
       return PTS.elim.result; // acertaste el marcador pero no el avance
     }
-    return PTS.elim.exact + PTS.elim.gd; // exacto y misma diferencia
+    return PTS.elim.exact + PTS.elim.gd + PTS.elim.result; // exacto + gd + ganador = 5pts
   }
   // ganador correcto
   if(rWin===pWin){
