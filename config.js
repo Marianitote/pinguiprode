@@ -200,7 +200,7 @@ function buildFixture(){
   // slot = número de partido FIFA (P73-P104)
   const R32_MATCHES = [
     {slot:73,label:"P73 · 2°A vs 2°B",        date:"28 jun", kickoff:"2026-06-28T19:00:00-03:00", fifaDate:"2026-06-28"},
-    {slot:74,label:"P74 · 1°E vs 3°(A/B/C/D/F)",date:"29 jun",kickoff:"2026-06-29T15:00:00-03:00", fifaDate:"2026-06-29"},
+    {slot:74,label:"P74 · 1°E vs 3°(A/B/C/D/F)",date:"29 jun",kickoff:"2026-06-29T17:30:00-03:00", fifaDate:"2026-06-29"},
     {slot:75,label:"P75 · 1°F vs 2°C",          date:"29 jun",kickoff:"2026-06-29T18:00:00-03:00", fifaDate:"2026-06-29"},
     {slot:76,label:"P76 · 1°C vs 2°F",          date:"29 jun",kickoff:"2026-06-29T21:00:00-03:00", fifaDate:"2026-06-29"},
     {slot:77,label:"P77 · 1°I vs 3°(C/D/F/G/H)",date:"30 jun",kickoff:"2026-06-30T16:00:00-03:00", fifaDate:"2026-06-30"},
