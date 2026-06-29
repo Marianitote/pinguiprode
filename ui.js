@@ -290,26 +290,7 @@ function renderInicio(v){
     <div class="k"><div class="n">${meRow?.total||0}</div><div class="l">Tus puntos</div></div>
     <div class="k"><div class="n">${tb.length}</div><div class="l">Jugadores</div></div>
   </div>
-  <div class="card">
-    <div class="sec-title">Tus tarjetas</div>
-    <table style="width:100%">
-      <tr>
-        <td class="name">⚽ Principal</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted)">${principalProgress}</td>
-        <td style="text-align:right;min-width:110px">${statusBadge(principalSent, elimStageOpen&&!stageSent(elimStageOpen))}</td>
-      </tr>
-      <tr>
-        <td class="name">🌶️ Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted)">${wa}/${waTotal}</td>
-        <td style="text-align:right">${statusBadge(wasabiSent, false)}</td>
-      </tr>
-      ${rwWindowOpen||rewasabiSent ? `<tr>
-        <td class="name">🎲 Re-Wasabi</td>
-        <td style="text-align:right;font-size:12px;color:var(--muted)">${rwWindowOpen&&!rewasabiSent?'Ventana abierta':rewasabiSent?'Completada':''}</td>
-        <td style="text-align:right">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
-      </tr>` : ''}
-    </table>
-    <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
+  <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
       ${elimStageOpen&&!stageSent(elimStageOpen)?`<button class="btn danger sm" onclick="TAB='principal';PR_PHASE='${elimStageOpen}';render()">⚽ Cargar ${STAGE_LABEL[elimStageOpen]||elimStageOpen}</button>`:''}
       ${rwWindowOpen&&!rewasabiSent?`<button class="btn danger sm" onclick="TAB='rewasabi';render()">🎲 Cargar Re-Wasabi</button>`:''}
       ${!principalSent&&!elimStageOpen?`<button class="btn primary sm" onclick="TAB='principal';render()">⚽ Ir a Principal</button>`:''}
@@ -317,7 +298,56 @@ function renderInicio(v){
       ${(wasabiSent&&principalSent&&(!rwWindowOpen||rewasabiSent))?'<span class="note">Todo al día ✓ Seguí la tabla y usá tus comodines.</span>':''}
     </div>
     ${(elimStageOpen&&!stageSent(elimStageOpen))||(rwWindowOpen&&!rewasabiSent)?'<p class="note" style="margin-top:10px">⏰ Hay tarjetas pendientes con ventana abierta. ¡No te olvides de confirmarlas antes de que cierren!</p>':''}
-    ${(!wasabiSent||(!principalSent&&!elimStageOpen))?'<p class="note" style="margin-top:10px">Podés volver y seguir cargando cada tarjeta. Cuando estés listo, tocá <b>Confirmar y enviar</b>.</p>':''}
+  <div class="card" style="margin-top:16px">
+    <div class="sec-title">Tus tarjetas</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td class="name" style="padding:7px 0;font-weight:600">🌶️ Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted);padding:7px 4px">${wa}/${waTotal}</td>
+        <td style="text-align:right;min-width:110px;padding:7px 0">${statusBadge(wasabiSent, false)}</td>
+      </tr>
+      ${rwWindowOpen||rewasabiSent ? `<tr>
+        <td class="name" style="padding:7px 0;font-weight:600">🎲 Re-Wasabi</td>
+        <td style="text-align:right;font-size:12px;color:var(--muted);padding:7px 4px">${rewasabiSent?'Completada':rwWindowOpen?'Ventana abierta':''}</td>
+        <td style="text-align:right;min-width:110px;padding:7px 0">${statusBadge(rewasabiSent, rwWindowOpen&&!rewasabiSent)}</td>
+      </tr>` : ''}
+      <tr><td colspan="3" style="padding:6px 0 2px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">⚽ Principal</div></td></tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">Fase de Grupos</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0"><span style="color:var(--gold);font-weight:700">🔒 Enviada</span></td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">Ronda de 32</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0">${stageSent('r32')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r32')?'<span style="color:#ef4444;font-weight:700">⚠️ Abierta</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">Octavos de Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0">${stageSent('r16')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('r16')?'<span style="color:#ef4444;font-weight:700">⚠️ Abierta</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">Cuartos de Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0">${stageSent('qf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('qf')?'<span style="color:#ef4444;font-weight:700">⚠️ Abierta</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">Semifinales</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0">${stageSent('sf')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('sf')?'<span style="color:#ef4444;font-weight:700">⚠️ Abierta</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 0 5px 10px;font-size:13px">3er Puesto y Final</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:5px 0">${stageSent('tpfinal')?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':canEnterStage('tpfinal')?'<span style="color:#ef4444;font-weight:700">⚠️ Abierta</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+      <tr>
+        <td style="padding:7px 0 5px 0;font-size:13px;font-weight:600">🏆 Cuadro de Honor</td>
+        <td></td>
+        <td style="text-align:right;min-width:110px;padding:7px 0 5px">${(APP.myPred?.sent_at||{}).honor?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">Por jugar</span>'}</td>
+      </tr>
+    </table>
   </div>
   ${(()=>{
     // Splash de pendientes — solo si hay ventana abierta y algo sin enviar
