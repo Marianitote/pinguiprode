@@ -2074,6 +2074,7 @@ async function syncESPN(){
     const data = await resp.json();
     const events = data.events||[];
     const main = {...(APP.results.main||{})};
+    const elim = {...(APP.results.elim||{})};
     let updated = 0;
     events.forEach(ev=>{
       const comp = ev.competitions?.[0];
@@ -2094,14 +2095,20 @@ async function syncESPN(){
       const isFlipped = match.home===awayCode;
       const h = isFlipped ? awayScore : homeScore;
       const a = isFlipped ? homeScore : awayScore;
-      // solo actualizar si cambió
-      const cur = main[match.id]||{};
-      if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
-      main[match.id]={h, a, pen:cur.pen||''};
+      const isElimMatch = match.phase!=='grupos';
+      if(isElimMatch){
+        const cur = elim[match.slot]||{};
+        if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
+        elim[match.slot]={h, a, pen:cur.pen||''};
+      } else {
+        const cur = main[match.id]||{};
+        if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
+        main[match.id]={h, a, pen:cur.pen||''};
+      }
       updated++;
     });
     if(updated>0){
-      await adminSaveResults({main});
+      await adminSaveResults({main, elim});
       toast(`✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`, 'ok');
       const admArea = document.getElementById('admArea');
       if(admArea) admResultados(admArea);
@@ -2128,7 +2135,7 @@ function admResultados(area){
       html+=`<details class="fold" open><summary><span class="gtag">${g}</span> Grupo ${g}<span class="badge ${done===gm.length?'g':'w'}" style="margin-left:6px">${done}/${gm.length}</span><span class="arr">›</span></summary>
         <div class="body">${[1,2,3].map(j=>`<div class="meta">Jornada ${j}</div>`+gm.filter(m=>m.jor===j).map(m=>admMatch(m,res[m.id])).join("")).join("")}</div></details>`;});
     a.innerHTML=html;
-  }else a.innerHTML=`<div class="meta">${ms[0]?.label.split(' · ')[0]||''}</div>${ms.map(m=>admMatchKO(m,res[m.id])).join("")}`;
+  }else a.innerHTML=`<div class="meta">${ms[0]?.label.split(' · ')[0]||''}</div>${ms.map(m=>admMatchKO(m)).join("")}`;
   // cuadro honor
   const ex=APP.results.extra||{};
   const tsel=(id)=>`<select onchange="setResExtra('${id}',this.value)"><option value="">—</option>${Object.keys(TEAMS).map(c=>`<option ${ex[id]===c?'selected':''} value="${c}">${TEAMS[c].f} ${TEAMS[c].n}</option>`).join("")}</select>`;
@@ -2171,11 +2178,19 @@ function admMatch(m,r){r=r||{};
     <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
     <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m,r)}`;
 }
-function admMatchKO(m,r){r=r||{};const tie=r.h!=null&&r.a!=null&&r.h!==""&&r.a!==""&&(+r.h===+r.a);
-  return `<div class="match" style="flex-wrap:wrap"><div class="teams"><div class="t"><span class="flag">🔵</span><span class="nm">${m.label}</span></div><div class="t"><span class="flag">🔴</span><span class="nm">cruce</span></div></div>
-    <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
-    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)">
-    ${tie?`<div class="pen" style="width:100%">⚽ Avanza: <select style="width:auto;display:inline-block" onchange="setRes(${m.id},'pen',this.value)"><option value="">—</option><option ${r.pen==='1'?'selected':''} value="1">Local</option><option ${r.pen==='0'?'selected':''} value="0">Visitante</option></select></div>`:''}</div>`;
+function admMatchKO(m){
+  const r=(APP.results?.elim||{})[m.slot]||{};
+  const tie=r.h!=null&&r.a!=null&&r.h!==""&&r.a!==""&&(+r.h===+r.a);
+  const ht=TEAMS[m.home],at=TEAMS[m.away];
+  const homeLabel=ht?ht.f+' '+ht.n:(m.home||m.label||'Local');
+  const awayLabel=at?at.f+' '+at.n:(m.away||'Visitante');
+  return "<div class=\"match\" style=\"flex-wrap:wrap\">"
+    +"<div class=\"teams\"><div class=\"t\">"+homeLabel+"</div><div class=\"t\">"+awayLabel+"</div></div>"
+    +"<input class=\"score-in\" type=\"number\" min=\"0\" value=\""+(r.h??"")+"\" onchange=\"admSetElimRes("+m.slot+",'h',this.value)\">"
+    +"<span class=\"vs\">–</span>"
+    +"<input class=\"score-in\" type=\"number\" min=\"0\" value=\""+(r.a??"")+"\" onchange=\"admSetElimRes("+m.slot+",'a',this.value)\">"
+    +(tie?"<div class=\"pen\" style=\"width:100%\">⚽ Avanza: <select style=\"width:auto;display:inline-block\" onchange=\"admSetElimRes("+m.slot+",'pen',this.value)\"><option value=\"\">—</option><option "+(r.pen==='1'?'selected':'')+" value=\"1\">"+homeLabel+"</option><option "+(r.pen==='0'?'selected':'')+" value=\"0\">"+awayLabel+"</option></select></div>":"")
+    +"</div>";
 }
 async function setRes(id,k,val){
   const main={...(APP.results.main||{})}; if(!main[id])main[id]={h:"",a:"",pen:""}; main[id]={...main[id],[k]:val};
