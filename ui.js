@@ -3088,7 +3088,7 @@ function buildExcel(log){
   const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:(m.home&&m.away?` ${TEAMS[m.home]?.n||m.home} vs ${TEAMS[m.away]?.n||m.away}`:"")))]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
     principal.push([p.display_name,...FIXTURE.map(m=>{
-      const v = m.phase==='grupos' ? (pred.main||{})[m.id] : (pred.elim||{})[m.slot];
+      const v = m.phase==='grupos' ? (pred.main||{})[m.id] : (pred.elim||{})[m.slot]||(pred.elim||{})[String(m.slot)];
       return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]);  });
   // Comodines - con detalle de resultado
   const com=[["Fecha","Tipo","De","A","Fase","Dia","Resultado","Pts transferidos"]];
