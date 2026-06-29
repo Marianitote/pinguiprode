@@ -3046,6 +3046,12 @@ async function doExport(){
   try{
     toast("Generando Excel…");
     await adminLoadAllPreds();
+    // verificar que elim se cargó
+    const firstUid = Object.keys(APP.allPreds)[0];
+    const firstPred = APP.allPreds[firstUid]||{};
+    console.log("doExport: allPreds tiene", Object.keys(APP.allPreds).length, "jugadores");
+    console.log("doExport: primer pred keys:", Object.keys(firstPred));
+    console.log("doExport: primer pred.elim:", firstPred.elim ? Object.keys(firstPred.elim).length+" slots" : "VACÍO");
     const [log, wasabiSnaps, standingSnaps] = await Promise.all([
       adminLoadEditLog(),
       loadWasabiSnapshots(),
@@ -3087,7 +3093,7 @@ function buildExcel(log){
   // Principal
   const principal=[["Jugador",...FIXTURE.map(m=>m.label+(m.grp?` ${TEAMS[m.home]?.n||''} vs ${TEAMS[m.away]?.n||''}`:(m.home&&m.away?` ${TEAMS[m.home]?.n||m.home} vs ${TEAMS[m.away]?.n||m.away}`:"")))]];
   players.forEach(p=>{ const pred=APP.allPreds?.[p.id]||{};
-    console.log("ELIM", p.display_name, "elim:", pred.elim ? Object.keys(pred.elim).length+" slots" : "NULL/UNDEFINED", "keys pred:", Object.keys(pred));
+
     principal.push([p.display_name,...FIXTURE.map(m=>{
       const v = m.phase==='grupos' ? (pred.main||{})[m.id] : (pred.elim||{})[m.slot]||(pred.elim||{})[String(m.slot)];
       return v&&v.h!==""&&v.h!=null?`${v.h}-${v.a}${v.pen?` (av:${v.pen==='1'?'L':'V'})`:''}`:"";})]);  });
@@ -3122,7 +3128,12 @@ function buildExcel(log){
   const allDaysExcel=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
   const daysWithResExcel = allDaysExcel.filter(d=>{
     const ms=FIXTURE.filter(m=>fifaDateOf(m)===d);
-    return ms.some(m=>{ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; });
+    return ms.some(m=>{
+      const r = m.phase==='grupos'
+        ? (APP.results.main||{})[m.id]
+        : (APP.results.elim||{})[m.slot];
+      return r&&r.h!=null&&r.h!=="";
+    });
   });
 
   // header fijo por día: Pts antes | Principal | Wasabi | Generados | Comodines | Total día
