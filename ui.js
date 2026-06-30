@@ -2838,10 +2838,14 @@ async function myHistorialV2(){
     ROWS.forEach(r=>{ acum+=vals[r.id][d]||0; });
     acumByDay[d]=acum;
   });
-  // Wasabi sin snapshot (ajuste)
+  // Wasabi sin snapshot (ajuste) — se asienta en el último día para que el acumulado cuadre con el total real
   const lastSnap=Object.keys(wasabiSnaps).sort().pop();
   const wasabiViaSnaps=lastSnap?wasabiTotalAtDay(uid,wasabiSnaps[lastSnap]):0;
   const wasabiSinSnap=wasabiTotal(uid)-wasabiViaSnaps;
+  if(wasabiSinSnap!==0 && daysWithRes.length){
+    const lastDay=daysWithRes[daysWithRes.length-1];
+    acumByDay[lastDay]+=wasabiSinSnap;
+  }
 
   // Rewasabi y honor reales (no por día)
   const rwTotal=rewasabiTotal(uid);
