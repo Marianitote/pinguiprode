@@ -348,6 +348,68 @@ function matchPointsElim(pred, res){
 
 // Puntos por equipos clasificados a cada ronda (nuevo sistema elim)
 // Se calcula comparando los equipos reales clasificados con los que predijo el jugador
+/* Reglas oficiales FIFA de emparejamiento entre fases (mismo dato usado en sendStageElim,
+   pero acá expresado en términos de SLOTS reales del FIXTURE, no de índices 0-15). */
+const FIFA_NEXT_PAIRS = {
+  // slot de R16 → [slot R32 ganador-local, slot R32 ganador-visitante]
+  89:[74,77], 90:[73,75], 91:[76,78], 92:[79,80], 93:[83,84], 94:[81,82], 95:[86,88], 96:[85,87],
+  // slot de QF → [slot R16, slot R16]
+  97:[89,90], 98:[93,94], 99:[91,92], 100:[95,96],
+  // slot de SF → [slot QF, slot QF]
+  101:[97,98], 102:[99,100],
+};
+
+/* Devuelve el equipo (string) que la predicción del jugador hace avanzar en un slot de
+   eliminatorias dado, según su pred.elim. Usado recursivamente para derivar fases siguientes. */
+function predictedWinner(pred, slot, home, away){
+  const pe=(pred.elim||{})[String(slot)];
+  if(!pe||pe.h==null||pe.h===""||pe.a==null||pe.a==="") return null;
+  const h=+pe.h, a=+pe.a;
+  if(h>a) return home;
+  if(a>h) return away;
+  // empate: definido por penales
+  if(pe.pen==="1") return home;
+  if(pe.pen==="0") return away;
+  return null;
+}
+
+/* Genérica: dado el slot de un cruce de una fase NUEVA (r16/qf/sf), calcula qué equipos
+   predijo el jugador para local/visitante, recorriendo recursivamente los cruces previos
+   con los equipos reales ya conocidos (results.elim_fixture) como base de cada ronda. */
+function predictedTeamsForSlot(pred, slot){
+  const real = (APP.results?.elim_fixture||{})[slot]||(APP.results?.elim_fixture||{})[String(slot)];
+  const prevPair = FIFA_NEXT_PAIRS[slot];
+  if(!prevPair){
+    // R32: los equipos vienen directo del fixture real (no hay fase anterior que predecir)
+    return real ? {home:real.home, away:real.away} : {home:null, away:null};
+  }
+  const [slotA, slotB] = prevPair;
+  const [teamsA, teamsB] = [predictedTeamsForSlot(pred, slotA), predictedTeamsForSlot(pred, slotB)];
+  const winnerA = predictedWinner(pred, slotA, teamsA.home, teamsA.away);
+  const winnerB = predictedWinner(pred, slotB, teamsB.home, teamsB.away);
+  return {home:winnerA, away:winnerB};
+}
+
+/* +1 por cada equipo (local o visitante) que el jugador hizo avanzar correctamente al cruce
+   real de la fase indicada, comparado contra el fixture oficial (results.elim_fixture).
+   stageSlots: lista de slots de la fase a evaluar (ej. R16 = [89..96]). */
+function clasStagePoints(uid, stageSlots){
+  const pred = predFor(uid);
+  const realFixture = APP.results?.elim_fixture||{};
+  let pts=0;
+  stageSlots.forEach(slot=>{
+    const real = realFixture[slot]||realFixture[String(slot)];
+    if(!real) return;
+    const predicted = predictedTeamsForSlot(pred, slot);
+    if(predicted.home && real.home && predicted.home===real.home) pts++;
+    if(predicted.away && real.away && predicted.away===real.away) pts++;
+  });
+  return pts;
+}
+function clasR16Points(uid){ return clasStagePoints(uid, [89,90,91,92,93,94,95,96]); }
+function clasQFPoints(uid){ return clasStagePoints(uid, [97,98,99,100]); }
+function clasSFPoints(uid){ return clasStagePoints(uid, [101,102]); }
+
 function clasR32Points(uid){
   // Compara el bracket de R32 que se desprende de la predicción de GRUPOS del jugador
   // contra el fixture oficial real (results.elim_fixture). +1 por cada equipo que
@@ -848,7 +910,7 @@ function rewasabiTotal(uid){
   return pts;
 }
 
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+clasR16Points(uid)+clasQFPoints(uid)+clasSFPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 async function adminApplyBonus(uid, pts, reason){
   const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
