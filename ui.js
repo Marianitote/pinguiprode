@@ -1644,15 +1644,19 @@ function standingsTableHTML(opts){
   const tb=standings();
   const me=tb.find(r=>r.id===APP.user.id);
   const ZONE_LABELS={elite:"🏆 La élite",midfield:"⚙️ Midfield",pobreza:"🥶 Zona de pobreza"};
-  const day=todayFifaDate(); const phase=APP.comodinPhase||currentComodinPhase()||phaseOfDay(day)||"grupos";
-  const qKey = phase==="tp"||phase==="final" ? "finals" : phase;
+  const day=todayFifaDate(); const rawPhase=APP.comodinPhase||currentComodinPhase()||phaseOfDay(day)||"grupos";
+  // Las sanguijuelas y nitros son 3 y 2 respectivamente por "fase de comodines", y hay solo DOS
+  // fases de comodines en todo el prode: "grupos" (ya cerrada) y "elim" (todo lo eliminatorio:
+  // r32, r16, qf, sf, tp, final juntos, sin resetear cupos entre etapas). Por eso acá agrupamos
+  // cualquier etapa eliminatoria bajo una sola clave "elim" antes de contar usos.
+  const phase = rawPhase==="grupos" ? "grupos" : "elim";
+  const qKey = rawPhase==="tp"||rawPhase==="final" ? "finals" : rawPhase;
 
   // helpers por fase
-  function sangRecibidas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.target_user===uid&&c.phase===phase).length; }
-  function sangAplicadas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.by_user===uid&&c.phase===phase).length; }
+  function sangRecibidas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.target_user===uid&&comodinPhaseOf(c)===phase).length; }
+  function sangAplicadas(uid){ return APP.comodines.filter(c=>c.type==="sang"&&c.by_user===uid&&comodinPhaseOf(c)===phase).length; }
   function nitrosUsados(uid){
-    const ph1 = phase==="tp"||phase==="final" ? ["tp","final"] : [phase];
-    return APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&ph1.includes(c.phase)).length;
+    return APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&comodinPhaseOf(c)===phase).length;
   }
   function nitrosQuedan(uid){ return Math.max(0, 2 - nitrosUsados(uid)); }
   function sangQuedan(uid){ return Math.max(0, 3 - sangAplicadas(uid)); }
