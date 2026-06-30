@@ -2119,6 +2119,7 @@ async function syncESPN(){
     const main = {...(APP.results.main||{})};
     const elim = {...(APP.results.elim||{})};
     let updated = 0;
+    let penalesPendientes = []; // partidos en empate sin penal detectado automáticamente
     events.forEach(ev=>{
       const comp = ev.competitions?.[0];
       if(!comp) return;
@@ -2139,10 +2140,37 @@ async function syncESPN(){
       const h = isFlipped ? awayScore : homeScore;
       const a = isFlipped ? homeScore : awayScore;
       const isElimMatch = match.phase!=='grupos';
+      // Detectar resultado de penales: ESPN puede traerlo en distintos lugares según el partido.
+      // Probamos varias rutas conocidas/posibles sin asumir una sola; si no encontramos nada
+      // fiable, dejamos el penal sin tocar (igual que antes) para no inventar un dato.
+      let penWinnerCode = null;
+      if(home.winner === true) penWinnerCode = homeCode;
+      else if(away.winner === true) penWinnerCode = awayCode;
+      // shootout explícito (algunas respuestas de ESPN lo traen así)
+      const shootout = comp.shootout || comp.competitors?.find(c=>c.shootoutScore!=null);
+      if(Array.isArray(comp.shootout) && comp.shootout.length===2){
+        const shHome = comp.shootout.find(s=>s.homeAway==='home');
+        const shAway = comp.shootout.find(s=>s.homeAway==='away');
+        if(shHome && shAway && shHome.score!=null && shAway.score!=null){
+          penWinnerCode = (+shHome.score > +shAway.score) ? homeCode : awayCode;
+        }
+      }
+      let pen = '';
+      if(String(h)===String(a) && penWinnerCode){
+        // pen='1' significa "avanza el local del FIXTURE", pen='0' "avanza el visitante del FIXTURE"
+        // hay que mapear el código ganador (de ESPN) al lado real según nuestro fixture (que puede
+        // estar invertido respecto a home/away de ESPN — por eso usamos isFlipped también acá).
+        const fixtureHomeWon = penWinnerCode === match.home;
+        pen = fixtureHomeWon ? '1' : '0';
+      }
       if(isElimMatch){
         const cur = elim[match.slot]||{};
-        if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
-        elim[match.slot]={h, a, pen:cur.pen||''};
+        const samePen = pen==='' ? true : (cur.pen===pen); // si no detectamos pen, no lo pisamos
+        if(String(cur.h)===String(h)&&String(cur.a)===String(a)&&samePen) return;
+        elim[match.slot]={h, a, pen: pen||cur.pen||''};
+        if(String(h)===String(a) && !pen && !cur.pen){
+          penalesPendientes.push(match.label||`slot ${match.slot}`);
+        }
       } else {
         const cur = main[match.id]||{};
         if(String(cur.h)===String(h)&&String(cur.a)===String(a)) return;
@@ -2152,7 +2180,11 @@ async function syncESPN(){
     });
     if(updated>0){
       await adminSaveResults({main, elim});
-      toast(`✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`, 'ok');
+      let msg = `✅ ${updated} resultado${updated>1?'s':''} actualizado${updated>1?'s':''}`;
+      if(penalesPendientes.length){
+        msg += ` · ⚠️ Faltan penales por cargar a mano: ${penalesPendientes.join(', ')}`;
+      }
+      toast(msg, 'ok');
       const admArea = document.getElementById('admArea');
       if(admArea) admResultados(admArea);
     } else {
@@ -3533,8 +3565,14 @@ function admElim(area){
       const hasRes = res.h!=null&&res.h!=="";
       html+=`<tr style="border-bottom:1px solid var(--line)">
         <td style="padding:4px;color:var(--muted);font-size:11px">${m?.label||'P'+slot}</td>
-        <td style="padding:4px"><input style="width:90px;font-size:11px" value="${esc(fx.home||'')}" placeholder="Local" onchange="admSetElimTeam(${slot},'home',this.value)"></td>
-        <td style="padding:4px"><input style="width:90px;font-size:11px" value="${esc(fx.away||'')}" placeholder="Visitante" onchange="admSetElimTeam(${slot},'away',this.value)"></td>
+        <td style="padding:4px"><select style="width:120px;font-size:11px" onchange="admSetElimTeam(${slot},'home',this.value)">
+          <option value="">— Local —</option>
+          ${Object.keys(TEAMS).sort((a,b)=>(TEAMS[a].n||a).localeCompare(TEAMS[b].n||b)).map(code=>`<option value="${code}" ${fx.home===code?'selected':''}>${TEAMS[code].f||''} ${TEAMS[code].n||code}</option>`).join('')}
+        </select></td>
+        <td style="padding:4px"><select style="width:120px;font-size:11px" onchange="admSetElimTeam(${slot},'away',this.value)">
+          <option value="">— Visitante —</option>
+          ${Object.keys(TEAMS).sort((a,b)=>(TEAMS[a].n||a).localeCompare(TEAMS[b].n||b)).map(code=>`<option value="${code}" ${fx.away===code?'selected':''}>${TEAMS[code].f||''} ${TEAMS[code].n||code}</option>`).join('')}
+        </select></td>
         <td style="padding:4px;display:flex;gap:4px;align-items:center">
           <input type="number" style="width:40px;font-size:11px" value="${res.h??''}" placeholder="L" onchange="admSetElimRes(${slot},'h',this.value)">
           <span>-</span>
@@ -3591,9 +3629,16 @@ async function admSetElimTeam(slot, side, val){
 }
 
 async function admSetElimRes(slot, key, val){
-  const elim = {...(APP.results?.elim||{})};
-  elim[slot] = {...(elim[slot]||{}), [key]:val};
+  // Importante: leemos el estado de 'elim' DIRECTO de la base (no de APP.results en memoria)
+  // antes de mergear. Si el admin carga marcador local, visitante y penal en sucesión rápida,
+  // cada llamada es async y dispara su propio refresh — sin esto, una llamada más lenta podía
+  // pisar un cambio guardado por una llamada posterior, perdiendo silenciosamente el dato
+  // (ej: el resultado de penales no quedaba guardado aunque el dropdown lo mostrara seleccionado).
   try{
+    const {data,error:selErr} = await sb.from('results').select('elim').eq('id',1).maybeSingle();
+    if(selErr) throw selErr;
+    const elim = {...(data?.elim||{})};
+    elim[slot] = {...(elim[slot]||{}), [key]:val};
     await adminSaveResults({elim});
     invalidateStandings();
     toast("Resultado guardado","ok");
