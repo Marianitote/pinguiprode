@@ -626,12 +626,21 @@ function mainPointsByDay(pred, day){
 }
 
 /* total Principal con nitros + sanguijuelas + extras de cuadro para un usuario.
-   En el modelo diario: cada nitro/sang opera sobre los puntos de SU DÍA. */
+   En el modelo diario: cada nitro/sang opera sobre los puntos de SU DÍA.
+   NOTA: el sistema de "bracket" (pred.bracket / cuadroExtraPoints / mainPointsByDate para fases
+   r32 en adelante) quedó vestigial — la UI real usa pred.elim contra el fixture oficial de la FIFA
+   (FIXTURE + results.elim_fixture). Por eso aquí solo se suman partidos de GRUPOS vía el sistema
+   viejo, y partidos de ELIMINATORIAS vía el sistema nuevo (matchPointsElim). cuadroExtraPoints ya
+   no se suma: sus dos componentes (posiciones de grupo y equipos clasificados a R32) están
+   reemplazados por groupPositionPoints() y clasR32Points() respectivamente. */
 function mainTotal(uid){
   const pred=predFor(uid); let total=0;
-  // mainPointsByDate cubre todas las fases; sumamos base + ajustes diarios
-  ALL_DATES.forEach(d=>{
-    total+=mainPointsByDate(pred,d.phase,d.jor);
+  // Grupos (jornadas 1-3): sistema viejo, sigue vigente porque ahí no hay equivalente nuevo
+  [1,2,3].forEach(jor=>{ total+=mainPointsByDate(pred,"grupos",jor); });
+  // Eliminatorias (r32, r16, qf, sf, tp, final): sistema nuevo, vs fixture oficial real
+  FIXTURE.filter(m=>m.phase!=="grupos").forEach(m=>{
+    const slotKey=String(m.slot);
+    total+=matchPointsElim((pred.elim||{})[slotKey],(APP.results?.elim||{})[slotKey]);
   });
   // nitros: por cada nitro del usuario, multiplicamos x2 (no x3, porque x3 = base+2x extra)
   // → en realidad la base ya está sumada arriba, así que sumamos 2x los puntos del día del nitro
@@ -640,7 +649,6 @@ function mainTotal(uid){
     total += dayPts*2; // base ya está sumada, agregamos 2x para llegar a 3x total
   });
   total+=sangDelta(uid);
-  total+=cuadroExtraPoints(uid);
   total+=groupPositionPoints(uid);
   return total;
 }
