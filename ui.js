@@ -2800,19 +2800,10 @@ async function myHistorialV2(){
   }
   // Posiciones exactas de grupo → las ponemos en el último día de grupos (27/6)
   const lastGruposDay = allDays.filter(d=>FIXTURE.some(m=>m.phase==="grupos"&&fifaDateOf(m)===d)).pop()||null;
-  // Clasif elim → por partido (día del partido)
+  // Clasif elim → todos los puntos en el último día de grupos (cuando se conocen los clasificados)
+  const totalClasElim = elimClasPoints(uid);
   function clasElimDia(d){
-    let pts=0;
-    const resElim=APP.results?.elim||{};
-    FIXTURE.filter(m=>m.phase==="r32"&&fifaDateOf(m)===d).forEach(m=>{
-      const slot=m.slot;
-      const res=resElim[String(slot)]; const pe=(pred.elim||{})[String(slot)];
-      if(!res||res.h==null||res.h===""||!pe) return;
-      const rWin=+res.h>+res.a?'h':+res.a>+res.h?'a':'x';
-      const pWin=+pe.h>+pe.a?'h':+pe.a>+pe.h?'a':'x';
-      if(rWin===pWin&&(rWin!=='x'||pe.pen===res.pen)) pts+=PTS.elim.clas_r16;
-    });
-    return pts;
+    return d===lastGruposDay ? totalClasElim : 0;
   }
   // Penalizaciones/bonus por fecha
   function penalDia(d){
