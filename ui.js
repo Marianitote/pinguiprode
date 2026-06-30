@@ -801,7 +801,7 @@ function renderInicio(v){
   <div class="card" style="margin-top:16px">
     <div class="sec-title">📈 Mi historial por día</div>
     <p class="note" style="margin-bottom:12px">Puntos generados día a día, con desglose de partidos, Wasabi y comodines.</p>
-    <button class="btn primary full" onclick="myHistorial()">📊 Ver mi historial</button>
+    <button class="btn primary full" onclick="myHistorialV2()">📊 Ver mi historial</button>
   </div>`;
 }
 
@@ -2716,6 +2716,209 @@ async function doAdminEdit(uid,card,field,value){
 }
 
 /* ---------- ADMIN: exportar todo a Excel ---------- */
+
+async function myHistorialV2(){
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg);overflow:hidden;display:flex;flex-direction:column';
+  div.innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg);flex-shrink:0">
+      <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
+      <div class="sec-title" style="margin:0">📈 Mi historial por día</div>
+    </div>
+    <div id="_mhArea" style="flex:1;overflow:auto;padding:16px">
+      <div class="card"><div class="empty"><div class="big">⏳</div>Cargando…</div></div>
+    </div>`;
+  document.body.appendChild(div);
+  const area=div.querySelector('#_mhArea');
+
+  const uid = APP.profile?.id;
+  if(!uid){ area.innerHTML='<div class="card"><p class="note">No se encontró tu perfil.</p></div>'; return; }
+
+  const wasabiSnaps = await loadWasabiSnapshots();
+  const preds = APP.allPreds||{};
+  const pred = preds[uid]||{};
+  const penalties = pred.penalties||[];
+  const bonuses = (APP.bonuses||[]).filter(b=>b.user_id===uid);
+
+  // Días con resultados (grupos o elim)
+  const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
+  const daysWithRes = allDays.filter(d=>{
+    return FIXTURE.filter(m=>fifaDateOf(m)===d).some(m=>{
+      if(m.phase==="grupos"){ const r=(APP.results.main||{})[m.id]; return r&&r.h!=null&&r.h!==""; }
+      const r=(APP.results?.elim||{})[String(m.slot)]; return r&&r.h!=null&&r.h!=="";
+    });
+  });
+
+  // ── Calcular cada fila por día ──────────────────────────────────
+
+  // Función: puntos de partidos de grupos ese día
+  function gruposDia(d){
+    let pts=0;
+    FIXTURE.filter(m=>m.phase==="grupos"&&fifaDateOf(m)===d).forEach(m=>{
+      pts+=matchPointsGrupos((pred.main||{})[m.id],(APP.results.main||{})[m.id]);
+    });
+    return pts;
+  }
+  // Función: puntos de partidos R32 ese día
+  function elimDia(d){
+    let pts=0;
+    FIXTURE.filter(m=>m.phase!=="grupos"&&fifaDateOf(m)===d).forEach(m=>{
+      const slotKey=String(m.slot);
+      pts+=matchPointsElim((pred.elim||{})[slotKey],(APP.results?.elim||{})[slotKey]);
+    });
+    return pts;
+  }
+  // Función: nitros ese día (solo +extra por encima de base)
+  function nitrosDia(d){
+    let pts=0;
+    APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&c.day===d).forEach(c=>{
+      const base=mainPointsByDay(pred,d);
+      pts+=base*2; // base ya está sumada en grupos/elim, esto es el extra
+    });
+    return pts;
+  }
+  // Función: sanguijuelas ese día (delta)
+  function sangDia(d){
+    let delta=0;
+    APP.comodines.filter(c=>c.type==="sang"&&c.day===d).forEach(c=>{
+      const pBy=mainPointsByDay(preds[c.by_user]||{},d);
+      const pTg=mainPointsByDay(preds[c.target_user||""]||{},d);
+      if(c.by_user===uid){ if(pBy>pTg) delta+=pTg; else if(pBy<pTg) delta-=pBy*0.5; }
+      if(c.target_user===uid&&pBy>pTg) delta-=pTg;
+    });
+    return delta;
+  }
+  // Función: wasabi delta ese día
+  function wasabiDia(d){
+    const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
+    const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
+    const prevSnapKeys=Object.keys(wasabiSnaps).filter(k=>k<d).sort();
+    const prevSnap=prevSnapKeys.length?wasabiSnaps[prevSnapKeys[prevSnapKeys.length-1]]:null;
+    const ptsWas=wasabiSnap?wasabiTotalAtDay(uid,wasabiSnap):0;
+    const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
+    return ptsWas-ptsWasPrev;
+  }
+  // Posiciones exactas de grupo → las ponemos en el último día de grupos (27/6)
+  const lastGruposDay = allDays.filter(d=>FIXTURE.some(m=>m.phase==="grupos"&&fifaDateOf(m)===d)).pop()||null;
+  // Clasif elim → por partido (día del partido)
+  function clasElimDia(d){
+    let pts=0;
+    const resElim=APP.results?.elim||{};
+    FIXTURE.filter(m=>m.phase==="r32"&&fifaDateOf(m)===d).forEach(m=>{
+      const slot=m.slot;
+      const res=resElim[String(slot)]; const pe=(pred.elim||{})[String(slot)];
+      if(!res||res.h==null||res.h===""||!pe) return;
+      const rWin=+res.h>+res.a?'h':+res.a>+res.h?'a':'x';
+      const pWin=+pe.h>+pe.a?'h':+pe.a>+pe.h?'a':'x';
+      if(rWin===pWin&&(rWin!=='x'||pe.pen===res.pen)) pts+=PTS.elim.clas_r16;
+    });
+    return pts;
+  }
+  // Penalizaciones/bonus por fecha
+  function penalDia(d){
+    let pts=0;
+    penalties.forEach(p=>{ if(p.date&&p.date.slice(0,10)===d) pts-=(+p.pts||0); });
+    bonuses.forEach(b=>{ if(b.date&&b.date.slice(0,10)===d) pts+=(+b.pts||0); });
+    return pts;
+  }
+
+  // ── Definir filas ──────────────────────────────────────────────
+  const ROWS = [
+    {id:"grupos",   icon:"⚽", label:"Partidos Grupos",       fn: gruposDia,    days:"grupos"},
+    {id:"nitros",   icon:"🔥", label:"Nitros",                fn: nitrosDia,    days:"all"},
+    {id:"sangs",    icon:"🩸", label:"Sanguijuelas",          fn: sangDia,      days:"all"},
+    {id:"posGrupo", icon:"🏟️", label:"Pos. exactas grupo",    fn: d=>d===lastGruposDay?groupPositionPoints(uid):0, days:"grupos_last"},
+    {id:"r32",      icon:"⚔️", label:"Partidos R32",          fn: elimDia,      days:"elim"},
+    {id:"wasabi",   icon:"🌶️", label:"Wasabi",                fn: wasabiDia,    days:"all"},
+    {id:"clasElim", icon:"🏆", label:"Clasif. Eliminatorias", fn: clasElimDia,  days:"elim"},
+    {id:"penal",    icon:"⚡", label:"Penal/Bonus",           fn: penalDia,     days:"all"},
+    {id:"rewasabi", icon:"🎲", label:"Re-Wasabi",             fn: ()=>0,        days:"none"},
+    {id:"honor",    icon:"📋", label:"Cuadro de Honor",       fn: ()=>extraTotal(uid), days:"honor_last"},
+  ];
+
+  // Calcular valores por fila/día
+  const vals = {}; // vals[rowId][day]
+  ROWS.forEach(r=>{ vals[r.id]={}; daysWithRes.forEach(d=>{ vals[r.id][d]=r.fn(d); }); });
+
+  // Total acumulado por día
+  let acum=0;
+  const acumByDay={};
+  daysWithRes.forEach(d=>{
+    ROWS.forEach(r=>{ acum+=vals[r.id][d]||0; });
+    acumByDay[d]=acum;
+  });
+  // Wasabi sin snapshot (ajuste)
+  const lastSnap=Object.keys(wasabiSnaps).sort().pop();
+  const wasabiViaSnaps=lastSnap?wasabiTotalAtDay(uid,wasabiSnaps[lastSnap]):0;
+  const wasabiSinSnap=wasabiTotal(uid)-wasabiViaSnaps;
+
+  // Rewasabi y honor reales (no por día)
+  const rwTotal=rewasabiTotal(uid);
+  const honorTotal=extraTotal(uid);
+
+  // ── Render tabla ────────────────────────────────────────────────
+  const thStyle='font-size:10px;color:var(--muted);text-align:right;padding:5px 8px;white-space:nowrap;font-weight:600;border-bottom:2px solid var(--line)';
+  const tdStyle=(v)=>{
+    if(v===null||v===undefined||v==='—') return 'font-size:12px;text-align:right;padding:5px 8px;color:var(--muted)';
+    if(v>0) return 'font-size:12px;text-align:right;padding:5px 8px;color:var(--aqua);font-weight:600';
+    if(v<0) return 'font-size:12px;text-align:right;padding:5px 8px;color:#ef4444;font-weight:600';
+    return 'font-size:12px;text-align:right;padding:5px 8px;color:var(--muted)';
+  };
+  const fmt=(v)=>{
+    if(v===null||v===undefined||v==='—') return '—';
+    if(typeof v==='number'){ if(v>0) return '+'+v; if(v<0) return String(v); return '0'; }
+    return String(v);
+  };
+
+  let html=`<div style="overflow:auto;-webkit-overflow-scrolling:touch"><table style="border-collapse:collapse;min-width:100%">
+  <thead><tr>
+    <th style="position:sticky;left:0;z-index:3;background:var(--card);${thStyle};text-align:left;min-width:160px">Concepto</th>
+    ${daysWithRes.map(d=>`<th style="${thStyle}">${d.slice(5)}</th>`).join("")}
+    <th style="${thStyle};color:var(--aqua)">Total</th>
+  </tr></thead>
+  <tbody>`;
+
+  ROWS.forEach((r,ri)=>{
+    const bg=ri%2===0?'background:var(--card)':'background:var(--card2)';
+    let rowTotal=0;
+    daysWithRes.forEach(d=>{ rowTotal+=vals[r.id][d]||0; });
+    // Re-Wasabi y Honor usan total real
+    let displayTotal=rowTotal;
+    if(r.id==='rewasabi') displayTotal=rwTotal;
+    if(r.id==='honor') displayTotal=honorTotal;
+    if(r.id==='wasabi') displayTotal=wasabiTotal(uid); // total real incluyendo sin snap
+    html+=`<tr style="${bg}">
+      <td style="position:sticky;left:0;z-index:2;${bg};font-size:13px;padding:7px 10px;white-space:nowrap;border-bottom:1px solid var(--line)">${r.icon} ${r.label}</td>
+      ${daysWithRes.map(d=>{
+        let v=vals[r.id][d];
+        // Re-wasabi y honor: solo mostrar en última columna, dash en días
+        if((r.id==='rewasabi'||r.id==='honor')&&d!==daysWithRes[daysWithRes.length-1]) v=null;
+        return `<td style="${tdStyle(v)};border-bottom:1px solid var(--line)">${fmt(v)}</td>`;
+      }).join("")}
+      <td style="${tdStyle(displayTotal)};border-bottom:1px solid var(--line);font-weight:800">${fmt(displayTotal)}</td>
+    </tr>`;
+  });
+
+  // Wasabi sin snapshot extra (si > 0)
+  if(wasabiSinSnap>0){
+    html+=`<tr style="background:rgba(245,158,11,0.08)">
+      <td style="position:sticky;left:0;z-index:2;background:rgba(245,158,11,0.08);font-size:12px;padding:7px 10px;white-space:nowrap;color:#f59e0b;border-bottom:1px solid var(--line)">🌶️ Wasabi (sin snapshot)</td>
+      ${daysWithRes.map((_,i)=>i===daysWithRes.length-1?`<td style="font-size:12px;text-align:right;padding:5px 8px;color:#f59e0b;font-weight:600;border-bottom:1px solid var(--line)">+${wasabiSinSnap}</td>`:`<td style="font-size:12px;text-align:right;padding:5px 8px;color:var(--muted);border-bottom:1px solid var(--line)">—</td>`).join("")}
+      <td style="font-size:12px;text-align:right;padding:5px 8px;color:#f59e0b;font-weight:800;border-bottom:1px solid var(--line)">+${wasabiSinSnap}</td>
+    </tr>`;
+  }
+
+  // Fila Total acumulado
+  html+=`<tr style="border-top:2px solid var(--line)">
+    <td style="position:sticky;left:0;z-index:2;background:var(--card);font-size:13px;font-weight:800;padding:8px 10px;white-space:nowrap">🏁 Total acumulado</td>
+    ${daysWithRes.map(d=>`<td style="font-size:13px;font-weight:800;text-align:right;padding:8px 8px;color:var(--aqua)">${acumByDay[d]||0}</td>`).join("")}
+    <td style="font-size:14px;font-weight:900;text-align:right;padding:8px 8px;color:var(--aqua)">${grandTotal(uid)}</td>
+  </tr>`;
+
+  html+=`</tbody></table></div>`;
+  area.innerHTML=html;
+}
+
 async function myHistorial(){
   const div=document.createElement('div');
   div.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg);overflow-y:auto;padding:16px';
