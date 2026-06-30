@@ -348,6 +348,23 @@ function matchPointsElim(pred, res){
 
 // Puntos por equipos clasificados a cada ronda (nuevo sistema elim)
 // Se calcula comparando los equipos reales clasificados con los que predijo el jugador
+function clasR32Points(uid){
+  // Compara el bracket de R32 que se desprende de la predicción de GRUPOS del jugador
+  // contra el fixture oficial real (results.elim_fixture). +1 por cada equipo que
+  // coincide exactamente en el mismo cruce y lado (home/away).
+  const pred = predFor(uid);
+  const myBracket = computeBracket(pred.main||{});
+  const realFixture = APP.results?.elim_fixture||{};
+  let pts = 0;
+  myBracket.r32.forEach(cruce=>{
+    const slotNum = +String(cruce.slot).replace(/\D/g,""); // "M74" -> 74
+    const real = realFixture[slotNum]||realFixture[String(slotNum)];
+    if(!real) return;
+    if(cruce.home && real.home && cruce.home.team===real.home) pts++;
+    if(cruce.away && real.away && cruce.away.team===real.away) pts++;
+  });
+  return pts;
+}
 function elimClasPoints(uid){
   const fix = APP.results?.elim_fixture||{};
   const myElim = (APP.allPreds?.[uid]||APP.myPred||{}).elim||{};
@@ -823,7 +840,7 @@ function rewasabiTotal(uid){
   return pts;
 }
 
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+elimClasPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 async function adminApplyBonus(uid, pts, reason){
   const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
