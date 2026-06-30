@@ -3578,9 +3578,9 @@ function admElim(area){
           <span>-</span>
           <input type="number" style="width:40px;font-size:11px" value="${res.a??''}" placeholder="V" onchange="admSetElimRes(${slot},'a',this.value)">
           ${hasRes&&+res.h===+res.a?`<select style="font-size:11px" onchange="admSetElimRes(${slot},'pen',this.value)">
-            <option value="">Pen?</option>
-            <option ${res.pen==='1'?'selected':''} value="1">Local</option>
-            <option ${res.pen==='0'?'selected':''} value="0">Visita</option>
+            <option value="">¿Quién avanza?</option>
+            <option ${res.pen==='1'?'selected':''} value="1">${fx.home?(TEAMS[fx.home]?.f+' '+TEAMS[fx.home]?.n):'Local'}</option>
+            <option ${res.pen==='0'?'selected':''} value="0">${fx.away?(TEAMS[fx.away]?.f+' '+TEAMS[fx.away]?.n):'Visitante'}</option>
           </select>`:''}
         </td>
       </tr>`;
