@@ -2717,30 +2717,14 @@ async function doAdminEdit(uid,card,field,value){
 
 /* ---------- ADMIN: exportar todo a Excel ---------- */
 
-async function myHistorialV2(){
-  const div=document.createElement('div');
-  div.style.cssText='position:fixed;inset:0;z-index:9999;background:#0f1117;overflow:hidden;display:flex;flex-direction:column';
-  div.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#0f1117;flex-shrink:0">
-      <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
-      <div class="sec-title" style="margin:0">📈 Mi historial por día</div>
-    </div>
-    <div id="_mhArea" style="flex:1;overflow:auto;padding:16px">
-      <div class="card"><div class="empty"><div class="big">⏳</div>Cargando…</div></div>
-    </div>`;
-  document.body.appendChild(div);
-  const area=div.querySelector('#_mhArea');
-
-  const uid = APP.profile?.id;
-  if(!uid){ area.innerHTML='<div class="card"><p class="note">No se encontró tu perfil.</p></div>'; return; }
-
-  const wasabiSnaps = await loadWasabiSnapshots();
+/* Construye el HTML de la tabla de historial (conceptos x fechas) para UN jugador.
+   Reutilizada tanto por myHistorialV2 (vista jugador) como por admHistorialV2 (vista admin). */
+function buildHistorialTableHTML(uid, wasabiSnaps){
   const preds = APP.allPreds||{};
   const pred = preds[uid]||{};
   const penalties = pred.penalties||[];
   const bonuses = (APP.bonuses||[]).filter(b=>b.user_id===uid);
 
-  // Días con resultados (grupos o elim)
   const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
   const daysWithRes = allDays.filter(d=>{
     return FIXTURE.filter(m=>fifaDateOf(m)===d).some(m=>{
@@ -2749,9 +2733,6 @@ async function myHistorialV2(){
     });
   });
 
-  // ── Calcular cada fila por día ──────────────────────────────────
-
-  // Función: puntos de partidos de grupos ese día
   function gruposDia(d){
     let pts=0;
     FIXTURE.filter(m=>m.phase==="grupos"&&fifaDateOf(m)===d).forEach(m=>{
@@ -2759,7 +2740,6 @@ async function myHistorialV2(){
     });
     return pts;
   }
-  // Función: puntos de partidos R32 ese día
   function elimDia(d){
     let pts=0;
     FIXTURE.filter(m=>m.phase!=="grupos"&&fifaDateOf(m)===d).forEach(m=>{
@@ -2768,16 +2748,14 @@ async function myHistorialV2(){
     });
     return pts;
   }
-  // Función: nitros ese día (solo +extra por encima de base)
   function nitrosDia(d){
     let pts=0;
     APP.comodines.filter(c=>c.type==="nitro"&&c.by_user===uid&&c.day===d).forEach(c=>{
       const base=mainPointsByDay(pred,d);
-      pts+=base*2; // base ya está sumada en grupos/elim, esto es el extra
+      pts+=base*2;
     });
     return pts;
   }
-  // Función: sanguijuelas ese día (delta)
   function sangDia(d){
     let delta=0;
     APP.comodines.filter(c=>c.type==="sang"&&c.day===d).forEach(c=>{
@@ -2788,7 +2766,6 @@ async function myHistorialV2(){
     });
     return delta;
   }
-  // Función: wasabi delta ese día
   function wasabiDia(d){
     const snapKeys=Object.keys(wasabiSnaps).filter(k=>k<=d).sort();
     const wasabiSnap=snapKeys.length?wasabiSnaps[snapKeys[snapKeys.length-1]]:null;
@@ -2798,14 +2775,11 @@ async function myHistorialV2(){
     const ptsWasPrev=prevSnap?wasabiTotalAtDay(uid,prevSnap):0;
     return ptsWas-ptsWasPrev;
   }
-  // Posiciones exactas de grupo → las ponemos en el último día de grupos (27/6)
   const lastGruposDay = allDays.filter(d=>FIXTURE.some(m=>m.phase==="grupos"&&fifaDateOf(m)===d)).pop()||null;
-  // Clasif elim → todos los puntos en el último día de grupos (cuando se conocen los clasificados)
   const totalClasElim = clasR32Points(uid);
   function clasElimDia(d){
     return d===lastGruposDay ? totalClasElim : 0;
   }
-  // Penalizaciones/bonus por fecha
   function penalDia(d){
     let pts=0;
     penalties.forEach(p=>{ if(p.date&&p.date.slice(0,10)===d) pts-=(+p.pts||0); });
@@ -2813,7 +2787,6 @@ async function myHistorialV2(){
     return pts;
   }
 
-  // ── Definir filas ──────────────────────────────────────────────
   const ROWS = [
     {id:"grupos",   icon:"⚽", label:"Partidos Grupos",       fn: gruposDia,    days:"grupos"},
     {id:"nitros",   icon:"🔥", label:"Nitros",                fn: nitrosDia,    days:"all"},
@@ -2827,20 +2800,15 @@ async function myHistorialV2(){
     {id:"honor",    icon:"📋", label:"Cuadro de Honor",       fn: ()=>extraTotal(uid), days:"honor_last"},
   ];
 
-  // Calcular valores por fila/día
-  const vals = {}; // vals[rowId][day]
+  const vals = {};
   ROWS.forEach(r=>{ vals[r.id]={}; daysWithRes.forEach(d=>{ vals[r.id][d]=r.fn(d); }); });
 
-  // Total acumulado por día
   let acum=0;
   const acumByDay={};
   daysWithRes.forEach(d=>{
     ROWS.forEach(r=>{ acum+=vals[r.id][d]||0; });
     acumByDay[d]=acum;
   });
-  // Wasabi sin snapshot: si hubo preguntas resueltas sin que se guardara un snapshot ese día,
-  // esos puntos no quedan reflejados en ninguna columna diaria. Los sumamos al acumulado del
-  // último día para que el total siga siendo exacto.
   const lastSnap=Object.keys(wasabiSnaps).sort().pop();
   const wasabiViaSnaps=lastSnap?wasabiTotalAtDay(uid,wasabiSnaps[lastSnap]):0;
   const wasabiSinSnap=wasabiTotal(uid)-wasabiViaSnaps;
@@ -2849,11 +2817,9 @@ async function myHistorialV2(){
     acumByDay[lastDay]+=wasabiSinSnap;
   }
 
-  // Rewasabi y honor reales (no por día)
   const rwTotal=rewasabiTotal(uid);
   const honorTotal=extraTotal(uid);
 
-  // ── Render tabla ────────────────────────────────────────────────
   const thStyle='font-size:10px;color:var(--muted);text-align:right;padding:5px 8px;white-space:nowrap;font-weight:600;border-bottom:2px solid var(--line)';
   const tdStyle=(v)=>{
     if(v===null||v===undefined||v==='—') return 'font-size:12px;text-align:right;padding:5px 8px;color:var(--muted)';
@@ -2879,16 +2845,14 @@ async function myHistorialV2(){
     const bg=ri%2===0?'background:var(--card)':'background:var(--card2)';
     let rowTotal=0;
     daysWithRes.forEach(d=>{ rowTotal+=vals[r.id][d]||0; });
-    // Re-Wasabi y Honor usan total real
     let displayTotal=rowTotal;
     if(r.id==='rewasabi') displayTotal=rwTotal;
     if(r.id==='honor') displayTotal=honorTotal;
-    if(r.id==='wasabi') displayTotal=wasabiTotal(uid); // total real incluyendo sin snap
+    if(r.id==='wasabi') displayTotal=wasabiTotal(uid);
     html+=`<tr style="${bg}">
       <td style="position:sticky;left:0;z-index:2;${bg};font-size:13px;padding:7px 10px;white-space:nowrap;border-bottom:1px solid var(--line)">${r.icon} ${r.label}</td>
       ${daysWithRes.map(d=>{
         let v=vals[r.id][d];
-        // Re-wasabi y honor: solo mostrar en última columna, dash en días
         if((r.id==='rewasabi'||r.id==='honor')&&d!==daysWithRes[daysWithRes.length-1]) v=null;
         return `<td style="${tdStyle(v)};border-bottom:1px solid var(--line)">${fmt(v)}</td>`;
       }).join("")}
@@ -2896,7 +2860,6 @@ async function myHistorialV2(){
     </tr>`;
   });
 
-  // Wasabi sin snapshot extra (si > 0)
   if(wasabiSinSnap>0){
     html+=`<tr style="background:rgba(245,158,11,0.08)">
       <td style="position:sticky;left:0;z-index:2;background:rgba(245,158,11,0.08);font-size:12px;padding:7px 10px;white-space:nowrap;color:#f59e0b;border-bottom:1px solid var(--line)">🌶️ Wasabi (sin snapshot)</td>
@@ -2905,7 +2868,6 @@ async function myHistorialV2(){
     </tr>`;
   }
 
-  // Fila Total acumulado
   html+=`<tr style="border-top:2px solid var(--line)">
     <td style="position:sticky;left:0;z-index:2;background:var(--card);font-size:13px;font-weight:800;padding:8px 10px;white-space:nowrap">🏁 Total acumulado</td>
     ${daysWithRes.map(d=>`<td style="font-size:13px;font-weight:800;text-align:right;padding:8px 8px;color:var(--aqua)">${acumByDay[d]||0}</td>`).join("")}
@@ -2913,6 +2875,69 @@ async function myHistorialV2(){
   </tr>`;
 
   html+=`</tbody></table></div>`;
+  return html;
+}
+
+async function myHistorialV2(){
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;inset:0;z-index:9999;background:#0f1117;overflow:hidden;display:flex;flex-direction:column;align-items:center';
+  div.innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#0f1117;flex-shrink:0;width:100%;max-width:920px">
+      <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
+      <div class="sec-title" style="margin:0">📈 Mi historial por día</div>
+    </div>
+    <div id="_mhArea" style="flex:1;overflow:auto;padding:16px;width:100%;max-width:920px;box-sizing:border-box">
+      <div class="card"><div class="empty"><div class="big">⏳</div>Cargando…</div></div>
+    </div>`;
+  document.body.appendChild(div);
+  const area=div.querySelector('#_mhArea');
+
+  const uid = APP.profile?.id;
+  if(!uid){ area.innerHTML='<div class="card"><p class="note">No se encontró tu perfil.</p></div>'; return; }
+
+  const wasabiSnaps = await loadWasabiSnapshots();
+  area.innerHTML = buildHistorialTableHTML(uid, wasabiSnaps);
+}
+
+/* Vista ADMIN: historial de TODOS los jugadores, uno por uno, en acordeones colapsables. */
+async function admHistorialV2(){
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;inset:0;z-index:9999;background:#0f1117;overflow:hidden;display:flex;flex-direction:column;align-items:center';
+  div.innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#0f1117;flex-shrink:0;width:100%;max-width:920px">
+      <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
+      <div class="sec-title" style="margin:0">📈 Historial por día · todos los jugadores</div>
+    </div>
+    <div id="_ahArea" style="flex:1;overflow:auto;padding:16px;width:100%;max-width:920px;box-sizing:border-box">
+      <div class="card"><div class="empty"><div class="big">⏳</div>Cargando…</div></div>
+    </div>`;
+  document.body.appendChild(div);
+  const area=div.querySelector('#_ahArea');
+
+  const wasabiSnaps = await loadWasabiSnapshots();
+  const players = APP.profiles.filter(p=>!p.is_admin).sort((a,b)=>a.display_name.localeCompare(b.display_name));
+
+  let html='';
+  players.forEach((p,i)=>{
+    const panelId=`_ahPanel_${i}`;
+    html+=`<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
+      <button onclick="
+        const panel=document.getElementById('${panelId}');
+        const open=panel.style.display!=='none';
+        panel.style.display=open?'none':'block';
+        this.querySelector('.chev').textContent=open?'▾':'▴';
+      " style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;color:inherit;padding:14px 16px;cursor:pointer;font-size:14px;font-weight:700">
+        <span>${esc(p.display_name)}</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span style="color:var(--aqua);font-weight:800">${grandTotal(p.id)}</span>
+          <span class="chev" style="color:var(--muted)">▾</span>
+        </span>
+      </button>
+      <div id="${panelId}" style="display:none;padding:0 16px 16px">
+        ${buildHistorialTableHTML(p.id, wasabiSnaps)}
+      </div>
+    </div>`;
+  });
   area.innerHTML=html;
 }
 
@@ -3153,6 +3178,12 @@ async function admHistorial(area){
   const wasabiSnaps = await loadWasabiSnapshots();
   const preds = APP.allPreds||{};
   const players = APP.profiles.filter(p=>!p.is_admin).sort((a,b)=>a.display_name.localeCompare(b.display_name));
+
+  const accesoNuevo = `<div class="card" style="margin-bottom:14px">
+    <div class="sec-title">📈 Historial por concepto</div>
+    <p class="note" style="margin-bottom:12px">Desglose día por día de cada componente (grupos, nitros, sanguijuelas, Wasabi, etc.) para cada jugador, en acordeones colapsables.</p>
+    <button class="btn primary full" onclick="admHistorialV2()">📊 Ver historial por jugador y concepto</button>
+  </div>`;
 
   // todos los días con partidos
   const allDays=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort();
@@ -3436,7 +3467,7 @@ async function admHistorial(area){
     html+=`</div>`;
   });
   html+=`</div>`;
-  area.innerHTML=html;
+  area.innerHTML=accesoNuevo+html;
 }
 
 function admElim(area){
