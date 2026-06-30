@@ -2801,7 +2801,7 @@ async function myHistorialV2(){
   // Posiciones exactas de grupo → las ponemos en el último día de grupos (27/6)
   const lastGruposDay = allDays.filter(d=>FIXTURE.some(m=>m.phase==="grupos"&&fifaDateOf(m)===d)).pop()||null;
   // Clasif elim → todos los puntos en el último día de grupos (cuando se conocen los clasificados)
-  const totalClasElim = elimClasPoints(uid);
+  const totalClasElim = clasR32Points(uid);
   function clasElimDia(d){
     return d===lastGruposDay ? totalClasElim : 0;
   }
@@ -3121,7 +3121,7 @@ async function myHistorial(){
     const wasabiSinSnap = wasabiReal - wasabiViaSnaps;
     const honor=extraTotal(p.id);
     const rw=rewasabiTotal(p.id);
-    const elimClas=elimClasPoints(p.id);
+    const elimClas=clasR32Points(p.id);
     const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
     const ajustes=wasabiSinSnap+honor+rw+elimClas+penBonus;
     html+=`<tr>
@@ -3378,7 +3378,7 @@ async function admHistorial(area){
     const wasabiSinSnap = wasabiReal - wasabiViaSnaps;
     const honor=extraTotal(p.id);
     const rw=rewasabiTotal(p.id);
-    const elimClas=elimClasPoints(p.id);
+    const elimClas=clasR32Points(p.id);
     const penBonus=bonusTotal(p.id)-penaltyTotal(p.id);
     const ajustes=wasabiSinSnap+honor+rw+elimClas+penBonus;
     html+=`<tr>
