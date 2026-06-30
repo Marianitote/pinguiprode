@@ -3793,6 +3793,22 @@ ${snapRows.length?sheet("Posiciones por Dia",snapRows):""}
 /* ---------- ARRANQUE ---------- */
 boot();
 
+/* Refresco automático: como no hay datos en tiempo real (websockets), si alguien deja
+   la pestaña abierta mientras el admin carga resultados, los puntos quedarían
+   "congelados" hasta que recargue manualmente. Para evitarlo, cada 60s — solo si la
+   pestaña está visible y hay sesión activa — volvemos a traer todo de Supabase y
+   re-renderizamos. Evita el caso real: jugador con la app abierta no ve actualizado
+   su total apenas el admin carga un resultado nuevo. */
+setInterval(async ()=>{
+  try{
+    if(document.hidden) return; // no gastar recursos con la pestaña en background
+    if(!APP.user || !APP.profile) return; // todavía no logueado
+    await loadAll();
+    render();
+  }catch(e){ console.error("Auto-refresh falló:", e); }
+}, 60000);
+
+
 async function doDeletePenalty(uid, penId){
   if(!confirm("¿Eliminar esta penalización?")) return;
   try{ await adminDeletePenalty(uid, penId); toast("Penalización eliminada","ok"); admPenalizaciones($("#admArea")); }
