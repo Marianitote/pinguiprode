@@ -1117,20 +1117,22 @@ function dayHasMatches(day){
 }
 
 function quotaLeft(uid,type){
-  const max = type==="sang" ? 3 : 2; // 3 sanguijuelas / 2 nitros POR FASE
-  const byPhase = {};
-  ["grupos","r32","r16","qf","sf","tp","final"].forEach(ph=> byPhase[ph]=0);
+  const max = type==="sang" ? 3 : 2; // 3 sanguijuelas / 2 nitros por fase de comodines
+  // Solo hay DOS fases de comodines: "grupos" y "elim" (esta última agrupa r32, r16, qf, sf,
+  // tp y final — todas comparten el mismo cupo de 3 sanguijuelas / 2 nitros para todo lo que
+  // queda de torneo desde que cierra la fase de grupos, sin resetear entre rondas).
+  let usedGrupos=0, usedElim=0;
   APP.comodines.filter(c=>c.type===type&&c.by_user===uid).forEach(c=>{
-    byPhase[c.phase] = (byPhase[c.phase]||0)+1;
+    if(c.phase==="grupos") usedGrupos++; else usedElim++;
   });
-  // resumen
+  const elimLeft = Math.max(0,max-usedElim);
   return {
-    grupos:Math.max(0,max-byPhase.grupos),
-    r32:Math.max(0,max-byPhase.r32),
-    r16:Math.max(0,max-byPhase.r16),
-    qf:Math.max(0,max-byPhase.qf),
-    sf:Math.max(0,max-byPhase.sf),
-    finals:Math.max(0,max-(byPhase.tp+byPhase.final)),
+    grupos:Math.max(0,max-usedGrupos),
+    r32:elimLeft,
+    r16:elimLeft,
+    qf:elimLeft,
+    sf:elimLeft,
+    finals:elimLeft,
   };
 }
 
@@ -1177,11 +1179,11 @@ function validateSang(by,target){
   if(wasChallengedToday(by)) return "Fuiste sanguijueleado en este bloque: no podés aplicar sanguijuela hasta el próximo.";
   if(askedNitroToday(by)) return "No podés usar Sanguijuela y Nitro el mismo día.";
   if(askedNitroToday(target)) return "No podés retar a quien pidió Nitro hoy (perderías la sanguijuela).";
-  // máximo 2 veces a la misma persona por fase
-  const tgByMeInPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&c.by_user===by&&c.phase===phase);
+  // máximo 2 veces a la misma persona por fase de comodines (grupos / elim completa)
+  const tgByMeInPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&c.by_user===by&&comodinPhaseOf(c)===comodinPhaseOf({phase}));
   if(tgByMeInPhase.length>=2) return "No podés retar más de 2 veces a la misma persona en una fase.";
-  // máximo 3 retos recibidos por fase
-  const tgRecvPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&c.phase===phase);
+  // máximo 3 retos recibidos por fase de comodines
+  const tgRecvPhase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===target&&comodinPhaseOf(c)===comodinPhaseOf({phase}));
   if(tgRecvPhase.length>=3) return "Esa persona ya recibió 3 retos en esta fase (el máximo).";
   // no retar a quien ya fue retado HOY
   if(wasChallengedToday(target)) return "Ese jugador ya fue retado por otro hoy (vale el primer aviso).";
@@ -1906,6 +1908,13 @@ function currentElimPhaseByTime(){
 
 // Reset automático de comodines al cambiar de fase
 // Se llama en loadAll — detecta si la fase actual es distinta a la de los comodines activos
+/* Mapea la fase guardada en un comodín (c.phase: "grupos","r32","r16","qf","sf","tp","final")
+   a su "fase de comodines": "grupos" o "elim". Los cupos de sanguijuelas/nitros son por fase
+   de comodines, no por etapa individual — un jugador tiene 3 sanguijuelas y 2 nitros para TODA
+   la instancia eliminatoria (r32 a final), no 3+2 nuevos cada vez que cambia de ronda. */
+function comodinPhaseOf(c){
+  return c.phase==="grupos" ? "grupos" : "elim";
+}
 function currentComodinPhase(){
   // La fase de comodines es la fase elim activa, o "grupos" si aún no empezaron
   const elimPhase = currentElimPhaseByTime();
