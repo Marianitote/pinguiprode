@@ -2719,9 +2719,9 @@ async function doAdminEdit(uid,card,field,value){
 
 async function myHistorialV2(){
   const div=document.createElement('div');
-  div.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg);overflow:hidden;display:flex;flex-direction:column';
+  div.style.cssText='position:fixed;inset:0;z-index:9999;background:#0f1117;overflow:hidden;display:flex;flex-direction:column';
   div.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#0f1117;flex-shrink:0">
       <button class="btn ghost sm" onclick="this.closest('[style*=fixed]').remove()">← Volver</button>
       <div class="sec-title" style="margin:0">📈 Mi historial por día</div>
     </div>
