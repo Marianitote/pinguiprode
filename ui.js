@@ -2838,7 +2838,9 @@ async function myHistorialV2(){
     ROWS.forEach(r=>{ acum+=vals[r.id][d]||0; });
     acumByDay[d]=acum;
   });
-  // Wasabi sin snapshot (ajuste) — se asienta en el último día para que el acumulado cuadre con el total real
+  // Wasabi sin snapshot: si hubo preguntas resueltas sin que se guardara un snapshot ese día,
+  // esos puntos no quedan reflejados en ninguna columna diaria. Los sumamos al acumulado del
+  // último día para que el total siga siendo exacto.
   const lastSnap=Object.keys(wasabiSnaps).sort().pop();
   const wasabiViaSnaps=lastSnap?wasabiTotalAtDay(uid,wasabiSnaps[lastSnap]):0;
   const wasabiSinSnap=wasabiTotal(uid)-wasabiViaSnaps;
