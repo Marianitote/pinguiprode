@@ -2229,22 +2229,24 @@ function admResultados(area){
     <div><label class="field">⚽ Balón de Plata <span class="note">2º mejor</span></label>${isel('ball_silver')}</div>
     <div><label class="field">⚽ Balón de Bronce <span class="note">3º mejor</span></label>${isel('ball_bronze')}</div>`;
 }
-function acertaronMatch(m, r){
-  if(!r||r.h==null||r.h===""||r.a==null||r.a==="") return "";
+function acertaronMatch(m){
+  const isElimM2 = m.phase!=='grupos';
+  const r2 = isElimM2
+    ? ((APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot])
+    : (APP.results?.main||{})[m.id];
+  if(!r2||r2.h==null||r2.h===""||r2.a==null||r2.a==="") return "";
   const players = APP.profiles.filter(p=>!p.is_admin);
   const exact=[], result=[];
-  const isElimM2 = m.phase!=='grupos';
-  const r2 = isElimM2 ? ((APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot]) : r;
   players.forEach(p=>{
     const pred = isElimM2
       ? ((APP.allPreds?.[p.id]?.elim||{})[String(m.slot)]||(APP.allPreds?.[p.id]?.elim||{})[m.slot])
       : (APP.allPreds?.[p.id]?.main||{})[m.id];
     if(!pred) return;
-    if(!r2||r2.h==null||r2.h==='') return;
-    if(+pred.h===+r2.h && +pred.a===+r2.a){ exact.push(p.display_name); return; }
-    const rWin = +r.h>+r.a?'h':+r.a>+r.h?'a':'x';
-    const pWin = +pred.h>+pred.a?'h':+pred.a>+pred.h?'a':'x';
-    if(rWin===pWin) result.push(p.display_name);
+    const pts = isElimM2 ? matchPointsElim(pred, r2) : matchPointsGrupos(pred, r2);
+    if(pts<=0) return;
+    const label = `${p.display_name} (+${pts})`;
+    const isExact = +pred.h===+r2.h && +pred.a===+r2.a;
+    if(isExact) exact.push(label); else result.push(label);
   });
   let html='<div class="acertaron">';
   html+=`<span style="color:var(--aqua)">✅ Exacto: ${exact.length?exact.join(', '):'nadie'}</span><br>`;
@@ -2255,7 +2257,7 @@ function acertaronMatch(m, r){
 function admMatch(m,r){r=r||{};
   return `<div class="match"><div class="teams"><div class="t">${team(m.home)}</div><div class="t">${team(m.away)}</div></div>
     <input class="score-in" type="number" min="0" value="${r.h??""}" onchange="setRes(${m.id},'h',this.value)"><span class="vs">–</span>
-    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m,r)}`;
+    <input class="score-in" type="number" min="0" value="${r.a??""}" onchange="setRes(${m.id},'a',this.value)"></div>${acertaronMatch(m)}`;
 }
 function admMatchKO(m){
   const r=(APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot]||{};
@@ -2269,7 +2271,7 @@ function admMatchKO(m){
     +"<span class=\"vs\">–</span>"
     +"<input class=\"score-in\" type=\"number\" min=\"0\" value=\""+(r.a??"")+"\" onchange=\"admSetElimRes("+m.slot+",'a',this.value)\">"
     +(tie?"<div class=\"pen\" style=\"width:100%\">⚽ Avanza: <select style=\"width:auto;display:inline-block\" onchange=\"admSetElimRes("+m.slot+",'pen',this.value)\"><option value=\"\">—</option><option "+(r.pen==='1'?'selected':'')+" value=\"1\">"+homeLabel+"</option><option "+(r.pen==='0'?'selected':'')+" value=\"0\">"+awayLabel+"</option></select></div>":"")
-    +"</div>";
+    +"</div>"+acertaronMatch(m);
 }
 async function setRes(id,k,val){
   const main={...(APP.results.main||{})}; if(!main[id])main[id]={h:"",a:"",pen:""}; main[id]={...main[id],[k]:val};
