@@ -648,7 +648,7 @@ function teamsInStage(matches){
 function mainPointsByDay(pred, day){
   if(!pred||!day) return 0;
   let pts=0;
-  const matches = FIXTURE.filter(m=>fifaDateOf(m)===day);
+  const matches = FIXTURE.filter(m=>matchArgDate(m)===day);
   matches.forEach(mt=>{
     if(mt.phase==="grupos"){
       const m=pred.main||{}, res=APP.results.main||{};
@@ -1073,34 +1073,31 @@ function todayBlockKey(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
 }
 
-/* Día FIFA "actual": la fecha FIFA de los partidos cuyo kickoff cae en el bloque
-   argentino de hoy (8am-4am). Si no hay partidos hoy, usa la fecha ARG actual.
-   Esta es la fuente para "Partidos de hoy" y para los comodines. */
-function todayFifaDate(){
-  const block = todayBlockKey(); // día calendario ARG del bloque actual
-  // partidos cuyo kickoff cae en el bloque ARG de hoy
+// Fecha calendario ARG del kickoff de un partido, respetando el corte de 4am
+// (un partido que arranca a la 1am ARG cuenta como del día anterior, igual que todayBlockKey).
+// Esta es la fecha que se usa para agrupar "partidos de hoy", ventanas de comodines, etc.
+function matchArgDate(m){
+  if(!m || !m.kickoff) return null;
   const tz='America/Argentina/Buenos_Aires';
-  function blockOfKickoff(k){
-    const d=new Date(k);
-    const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
-    if(h<4) d.setDate(d.getDate()-1);
-    return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
-  }
-  const hoy = FIXTURE.filter(m=>m.kickoff && blockOfKickoff(m.kickoff)===block);
-  if(hoy.length){
-    // devolver la fecha FIFA más común entre los partidos de hoy
-    const counts={};
-    hoy.forEach(m=>{ const f=fifaDateOf(m); if(f) counts[f]=(counts[f]||0)+1; });
-    const best=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
-    if(best) return best;
-  }
-  return block;
+  const d=new Date(m.kickoff);
+  const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
+  if(h<4) d.setDate(d.getDate()-1);
+  return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
+
+/* Día "actual": el día calendario ARG del bloque de hoy (8am-4am).
+   Esta es la fuente para "Partidos de hoy" y para los comodines.
+   OJO: esto es la fecha ARG del kickoff, no necesariamente la "fecha FIFA" oficial
+   del partido (que puede diferir por husos horarios) — usar matchArgDate(m) para
+   comparar partidos contra este valor, no fifaDateOf(m). */
+function todayFifaDate(){
+  return todayBlockKey();
 }
 
 // ¿hay partidos hoy de la fase X?
 function phaseOfDay(day){
-  // miramos qué FIXTURE tiene fecha FIFA en ese día; devolvemos su fase (o null)
-  const m = FIXTURE.find(mt=>fifaDateOf(mt)===day);
+  // miramos qué FIXTURE cae en ese día calendario ARG; devolvemos su fase (o null)
+  const m = FIXTURE.find(mt=>matchArgDate(mt)===day);
   return m?m.phase:null;
 }
 
@@ -1111,9 +1108,9 @@ function windowOpenNow(){
   return hh>=6 && hh<12;
 }
 
-// ¿día de partidos? (al menos un partido en FIXTURE con ese día calendario)
+// ¿día de partidos? (al menos un partido en FIXTURE con ese día calendario ARG)
 function dayHasMatches(day){
-  return FIXTURE.some(m=>fifaDateOf(m)===day);
+  return FIXTURE.some(m=>matchArgDate(m)===day);
 }
 
 function quotaLeft(uid,type){
