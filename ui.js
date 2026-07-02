@@ -211,7 +211,7 @@ function renderInicio(v){
     ${(()=>{
       const _tz='America/Argentina/Buenos_Aires';
       const _hoyFifa=todayFifaDate();
-      const _tm=FIXTURE.filter(m=>fifaDateOf(m)===_hoyFifa)
+      const _tm=FIXTURE.filter(m=>matchArgDate(m)===_hoyFifa)
         .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!_tm.length) return '';
       const _res=APP.results?.main||{};
@@ -333,9 +333,8 @@ function renderInicio(v){
     const myMain=APP.myPred?.main||{};
     const myElim=APP.myPred?.elim||{};
 
-    function renderDayMatches(dia){
-      const matches=FIXTURE.filter(m=>fifaDateOf(m)===dia)
-        .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    function renderDayMatches(matches){
+      matches = matches.slice().sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!matches.length) return '';
       let rows='';
       matches.forEach(m=>{
@@ -380,15 +379,21 @@ function renderInicio(v){
       return rows;
     }
 
-    // días con partidos, ordenados (más reciente primero)
+    // días con partidos, ordenados (más reciente primero) — fecha FIFA oficial, para el historial
     const diasConPartidos=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort().reverse();
     const hoyFifa=todayFifaDate();
-    const rowsHoy=renderDayMatches(hoyFifa);
+    // partidos de hoy: por fecha ARG real del kickoff (respeta el corte de 4am),
+    // no por fecha FIFA oficial — así no se pierde ningún partido de la noche anterior.
+    const hoyMatches = FIXTURE.filter(m=>matchArgDate(m)===hoyFifa);
+    const hoyKeys = new Set(hoyMatches.map(m=>m.phase==='grupos'?('g'+m.id):('e'+m.slot)));
+    const rowsHoy=renderDayMatches(hoyMatches);
     // días anteriores que ya tienen al menos un resultado cargado o ya pasaron
+    // (excluimos los partidos que ya se muestran arriba en "hoy" para no duplicarlos)
     const anteriores=diasConPartidos.filter(d=>d<hoyFifa);
     let prevHtml='';
     anteriores.forEach(d=>{
-      const r=renderDayMatches(d);
+      const matchesDia = FIXTURE.filter(m=>fifaDateOf(m)===d && !hoyKeys.has(m.phase==='grupos'?('g'+m.id):('e'+m.slot)));
+      const r=renderDayMatches(matchesDia);
       if(r) prevHtml+=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--aqua);margin-bottom:6px">📅 ${d}</div>${r}</div>`;
     });
 
@@ -407,7 +412,7 @@ function renderInicio(v){
     function renderFFTable(sangDay){
       const sangs = APP.comodines.filter(c=>c.type==='sang'&&c.day===sangDay);
       if(!sangs.length) return '';
-      const matches = FIXTURE.filter(m=>fifaDateOf(m)===sangDay)
+      const matches = FIXTURE.filter(m=>matchArgDate(m)===sangDay)
         .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!matches.length) return '';
 
@@ -1989,7 +1994,7 @@ function renderAdmin(v){
   // Partidos de hoy
   const _tz='America/Argentina/Buenos_Aires';
   const _hoyFifa=todayFifaDate();
-  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>fifaDateOf(m)===_hoyFifa)
+  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>matchArgDate(m)===_hoyFifa)
     .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
   const _res=APP.results?.main||{};
   let _rows='';
@@ -2116,7 +2121,15 @@ async function syncESPN(){
   const btn = document.getElementById('espnSyncBtn');
   if(btn){ btn.disabled=true; btn.textContent='🔄 Sincronizando...'; }
   try{
-    const resp = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard');
+    // Pedimos un rango (ayer + hoy, en calendario ARG) en vez de confiar en el
+    // "hoy" implícito de ESPN, que a veces no coincide con el día ARG y deja
+    // afuera partidos que terminaron tarde en la noche.
+    const tzArg='America/Argentina/Buenos_Aires';
+    const fmtArg = d => new Intl.DateTimeFormat('en-CA',{timeZone:tzArg,year:'numeric',month:'2-digit',day:'2-digit'}).format(d).replace(/-/g,'');
+    const hoyD = new Date();
+    const ayerD = new Date(hoyD.getTime()-24*60*60*1000);
+    const dateRange = `${fmtArg(ayerD)}-${fmtArg(hoyD)}`;
+    const resp = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateRange}`);
     if(!resp.ok) throw new Error('Error al conectar con ESPN');
     const data = await resp.json();
     const events = data.events||[];
