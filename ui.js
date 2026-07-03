@@ -211,7 +211,7 @@ function renderInicio(v){
     ${(()=>{
       const _tz='America/Argentina/Buenos_Aires';
       const _hoyFifa=todayFifaDate();
-      const _tm=FIXTURE.filter(m=>matchArgDate(m)===_hoyFifa)
+      const _tm=FIXTURE.filter(m=>fifaDateOf(m)===_hoyFifa)
         .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!_tm.length) return '';
       const _res=APP.results?.main||{};
@@ -379,19 +379,19 @@ function renderInicio(v){
       return rows;
     }
 
-    // días con partidos, ordenados (más reciente primero) — fecha ARG real del kickoff
-    // (con corte de 4am), la misma que usamos para "hoy". Antes esto usaba la fecha FIFA
-    // oficial mientras "hoy" usaba la fecha ARG: un partido de madrugada podía quedar
-    // fechado distinto en cada lado y desaparecer un día entero. Ahora todo usa el mismo criterio.
-    const diasConPartidos=[...new Set(FIXTURE.filter(m=>matchArgDate(m)).map(m=>matchArgDate(m)))].sort().reverse();
+    // días con partidos, ordenados (más reciente primero) — fecha FIFA oficial (fija por partido).
+    // "Hoy" y el historial usan el mismo criterio (fifaDateOf), así que un partido siempre
+    // aparece en un solo lado. El horario que se muestra en cada fila es siempre hora ARG,
+    // independientemente de a qué día FIFA pertenezca el partido.
+    const diasConPartidos=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort().reverse();
     const hoyFifa=todayFifaDate();
-    const hoyMatches = FIXTURE.filter(m=>matchArgDate(m)===hoyFifa);
+    const hoyMatches = FIXTURE.filter(m=>fifaDateOf(m)===hoyFifa);
     const rowsHoy=renderDayMatches(hoyMatches);
     // días anteriores que ya tienen al menos un resultado cargado o ya pasaron
     const anteriores=diasConPartidos.filter(d=>d<hoyFifa);
     let prevHtml='';
     anteriores.forEach(d=>{
-      const matchesDia = FIXTURE.filter(m=>matchArgDate(m)===d);
+      const matchesDia = FIXTURE.filter(m=>fifaDateOf(m)===d);
       const r=renderDayMatches(matchesDia);
       if(r) prevHtml+=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--aqua);margin-bottom:6px">📅 ${d}</div>${r}</div>`;
     });
@@ -411,7 +411,7 @@ function renderInicio(v){
     function renderFFTable(sangDay){
       const sangs = APP.comodines.filter(c=>c.type==='sang'&&c.day===sangDay);
       if(!sangs.length) return '';
-      const matches = FIXTURE.filter(m=>matchArgDate(m)===sangDay)
+      const matches = FIXTURE.filter(m=>fifaDateOf(m)===sangDay)
         .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
       if(!matches.length) return '';
 
@@ -1993,7 +1993,7 @@ function renderAdmin(v){
   // Partidos de hoy
   const _tz='America/Argentina/Buenos_Aires';
   const _hoyFifa=todayFifaDate();
-  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>matchArgDate(m)===_hoyFifa)
+  const _todayM=(typeof FIXTURE!=='undefined'?FIXTURE:[]).filter(m=>fifaDateOf(m)===_hoyFifa)
     .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
   const _res=APP.results?.main||{};
   let _rows='';
@@ -3575,14 +3575,16 @@ function admElim(area){
 
     // tabla de equipos + resultados por partido
     html+=`<table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr style="color:var(--muted);font-size:11px"><th style="text-align:left;padding:3px 4px">Partido</th><th>Local</th><th>Visitante</th><th>Resultado real</th></tr>`;
+      <tr style="color:var(--muted);font-size:11px"><th style="text-align:left;padding:3px 4px">Partido</th><th style="text-align:left;padding:3px 4px">Fecha/hora</th><th>Local</th><th>Visitante</th><th>Resultado real</th></tr>`;
     slots.forEach(slot=>{
       const fx = elimFix[slot]||{};
       const res = resElim[slot]||{};
       const m = matches.find(x=>x.slot===slot);
       const hasRes = res.h!=null&&res.h!=="";
+      const kickoffLabel = m?.kickoff ? new Date(m.kickoff).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
       html+=`<tr style="border-bottom:1px solid var(--line)">
         <td style="padding:4px;color:var(--muted);font-size:11px">${m?.label||'P'+slot}</td>
+        <td style="padding:4px;color:var(--aqua);font-size:11px;font-weight:700;white-space:nowrap">${kickoffLabel}</td>
         <td style="padding:4px"><select style="width:120px;font-size:11px" onchange="admSetElimTeam(${slot},'home',this.value)">
           <option value="">— Local —</option>
           ${Object.keys(TEAMS).sort((a,b)=>(TEAMS[a].n||a).localeCompare(TEAMS[b].n||b)).map(code=>`<option value="${code}" ${fx.home===code?'selected':''}>${TEAMS[code].f||''} ${TEAMS[code].n||code}</option>`).join('')}
