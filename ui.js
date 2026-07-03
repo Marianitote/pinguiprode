@@ -3859,18 +3859,29 @@ boot();
 
 /* Refresco automático: como no hay datos en tiempo real (websockets), si alguien deja
    la pestaña abierta mientras el admin carga resultados, los puntos quedarían
-   "congelados" hasta que recargue manualmente. Para evitarlo, cada 60s — solo si la
-   pestaña está visible y hay sesión activa — volvemos a traer todo de Supabase y
-   re-renderizamos. Evita el caso real: jugador con la app abierta no ve actualizado
-   su total apenas el admin carga un resultado nuevo. */
-setInterval(async ()=>{
-  try{
-    if(document.hidden) return; // no gastar recursos con la pestaña en background
-    if(!APP.user || !APP.profile) return; // todavía no logueado
-    await loadAll();
-    render();
-  }catch(e){ console.error("Auto-refresh falló:", e); }
-}, 60000);
+   "congelados" hasta que recargue manualmente. Para evitarlo — solo si la pestaña está
+   visible y hay sesión activa — volvemos a traer todo de Supabase y re-renderizamos.
+   Usamos un intervalo con jitter aleatorio (en vez de un setInterval fijo de 60s) para
+   que los ~11 clientes conectados NO pidan datos todos en el mismo segundo exacto —
+   eso generaba picos de carga simultánea en Supabase, muy notorio en el plan gratuito
+   (recursos compartidos/limitados). Con jitter, cada cliente refresca en un momento
+   levemente distinto, repartiendo la carga en el tiempo en vez de golpear todo junto. */
+const AUTO_REFRESH_BASE_MS = 90000; // 90s de base (antes 60s fijos)
+const AUTO_REFRESH_JITTER_MS = 20000; // variación aleatoria de hasta ±20s por cliente
+function scheduleAutoRefresh(){
+  const jitter = Math.floor(Math.random()*AUTO_REFRESH_JITTER_MS*2) - AUTO_REFRESH_JITTER_MS;
+  const delay = Math.max(30000, AUTO_REFRESH_BASE_MS + jitter);
+  setTimeout(async ()=>{
+    try{
+      if(!document.hidden && APP.user && APP.profile){
+        await loadAll();
+        render();
+      }
+    }catch(e){ console.error("Auto-refresh falló:", e); }
+    finally{ scheduleAutoRefresh(); } // reprogramar con un nuevo jitter aleatorio
+  }, delay);
+}
+scheduleAutoRefresh();
 
 
 async function doDeletePenalty(uid, penId){
