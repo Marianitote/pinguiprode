@@ -211,7 +211,7 @@ function buildFixture(){
     {slot:82,label:"P82 · 1°G vs 3°(A/E/H/I/J)",date:"1 jul", kickoff:"2026-07-01T17:00:00-03:00", fifaDate:"2026-07-01"},
     {slot:83,label:"P83 · 2°K vs 2°L",          date:"2 jul", kickoff:"2026-07-02T20:00:00-03:00", fifaDate:"2026-07-02"},
     {slot:84,label:"P84 · 1°H vs 2°J",          date:"2 jul", kickoff:"2026-07-02T16:00:00-03:00", fifaDate:"2026-07-02"},
-    {slot:85,label:"P85 · 1°B vs 3°(E/F/G/I/J)",date:"3 jul", kickoff:"2026-07-03T00:00:00-03:00", fifaDate:"2026-07-03"},
+    {slot:85,label:"P85 · 1°B vs 3°(E/F/G/I/J)",date:"2 jul", kickoff:"2026-07-03T00:00:00-03:00", fifaDate:"2026-07-02"},
     {slot:86,label:"P86 · 1°J vs 2°H",          date:"3 jul", kickoff:"2026-07-03T19:00:00-03:00", fifaDate:"2026-07-03"},
     {slot:87,label:"P87 · 1°K vs 3°(D/E/I/J/L)",date:"3 jul", kickoff:"2026-07-03T22:30:00-03:00", fifaDate:"2026-07-03"},
     {slot:88,label:"P88 · 2°D vs 2°G",          date:"3 jul", kickoff:"2026-07-03T15:00:00-03:00", fifaDate:"2026-07-03"},
