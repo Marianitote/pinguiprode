@@ -1078,11 +1078,16 @@ function todayBlockKey(){
 // Esta es la fecha que se usa para agrupar "partidos de hoy", ventanas de comodines, etc.
 function matchArgDate(m){
   if(!m || !m.kickoff) return null;
+  // cache en el propio objeto: el kickoff de un partido no cambia en tiempo de ejecución
+  // (solo cambian home/away vía refreshElimFixture), así que evitamos recrear los
+  // formateadores de Intl.DateTimeFormat -que son costosos- en cada llamada.
+  if(m._argDate) return m._argDate;
   const tz='America/Argentina/Buenos_Aires';
   const d=new Date(m.kickoff);
   const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
   if(h<4) d.setDate(d.getDate()-1);
-  return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+  m._argDate = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+  return m._argDate;
 }
 
 /* Día "actual": el día calendario ARG del bloque de hoy (8am-4am).
