@@ -648,7 +648,7 @@ function teamsInStage(matches){
 function mainPointsByDay(pred, day){
   if(!pred||!day) return 0;
   let pts=0;
-  const matches = FIXTURE.filter(m=>matchArgDate(m)===day);
+  const matches = FIXTURE.filter(m=>fifaDateOf(m)===day);
   matches.forEach(mt=>{
     if(mt.phase==="grupos"){
       const m=pred.main||{}, res=APP.results.main||{};
@@ -1073,36 +1073,20 @@ function todayBlockKey(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
 }
 
-// Fecha calendario ARG del kickoff de un partido, respetando el corte de 4am
-// (un partido que arranca a la 1am ARG cuenta como del día anterior, igual que todayBlockKey).
-// Esta es la fecha que se usa para agrupar "partidos de hoy", ventanas de comodines, etc.
-function matchArgDate(m){
-  if(!m || !m.kickoff) return null;
-  // cache en el propio objeto: el kickoff de un partido no cambia en tiempo de ejecución
-  // (solo cambian home/away vía refreshElimFixture), así que evitamos recrear los
-  // formateadores de Intl.DateTimeFormat -que son costosos- en cada llamada.
-  if(m._argDate) return m._argDate;
-  const tz='America/Argentina/Buenos_Aires';
-  const d=new Date(m.kickoff);
-  const h=parseInt(new Intl.DateTimeFormat('en-CA',{timeZone:tz,hour:'2-digit',hour12:false}).format(d));
-  if(h<4) d.setDate(d.getDate()-1);
-  m._argDate = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
-  return m._argDate;
-}
-
-/* Día "actual": el día calendario ARG del bloque de hoy (8am-4am).
-   Esta es la fuente para "Partidos de hoy" y para los comodines.
-   OJO: esto es la fecha ARG del kickoff, no necesariamente la "fecha FIFA" oficial
-   del partido (que puede diferir por husos horarios) — usar matchArgDate(m) para
-   comparar partidos contra este valor, no fifaDateOf(m). */
+/* Día "actual": la fecha calendario de Argentina, tal cual (sin corte especial de horario).
+   IMPORTANTE — dos cosas separadas, no se derivan una de la otra:
+   · A qué DÍA pertenece un partido → fifaDateOf(m) (fecha oficial FIFA, fija por partido).
+   · A qué HORA se muestra ese partido → siempre horario de Argentina (eso nunca cambió,
+     se calcula directo del kickoff ISO al formatear, sin pasar por esta función).
+   "Hoy" es sólo el valor contra el que comparamos fifaDateOf(m) para armar "Partidos de hoy"
+   y las ventanas de comodines. */
 function todayFifaDate(){
   return todayBlockKey();
 }
 
 // ¿hay partidos hoy de la fase X?
 function phaseOfDay(day){
-  // miramos qué FIXTURE cae en ese día calendario ARG; devolvemos su fase (o null)
-  const m = FIXTURE.find(mt=>matchArgDate(mt)===day);
+  const m = FIXTURE.find(mt=>fifaDateOf(mt)===day);
   return m?m.phase:null;
 }
 
@@ -1113,9 +1097,9 @@ function windowOpenNow(){
   return hh>=6 && hh<12;
 }
 
-// ¿día de partidos? (al menos un partido en FIXTURE con ese día calendario ARG)
+// ¿día de partidos? (al menos un partido en FIXTURE con esa fecha FIFA oficial)
 function dayHasMatches(day){
-  return FIXTURE.some(m=>matchArgDate(m)===day);
+  return FIXTURE.some(m=>fifaDateOf(m)===day);
 }
 
 function quotaLeft(uid,type){
