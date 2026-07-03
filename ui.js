@@ -379,20 +379,19 @@ function renderInicio(v){
       return rows;
     }
 
-    // días con partidos, ordenados (más reciente primero) — fecha FIFA oficial, para el historial
-    const diasConPartidos=[...new Set(FIXTURE.filter(m=>fifaDateOf(m)).map(m=>fifaDateOf(m)))].sort().reverse();
+    // días con partidos, ordenados (más reciente primero) — fecha ARG real del kickoff
+    // (con corte de 4am), la misma que usamos para "hoy". Antes esto usaba la fecha FIFA
+    // oficial mientras "hoy" usaba la fecha ARG: un partido de madrugada podía quedar
+    // fechado distinto en cada lado y desaparecer un día entero. Ahora todo usa el mismo criterio.
+    const diasConPartidos=[...new Set(FIXTURE.filter(m=>matchArgDate(m)).map(m=>matchArgDate(m)))].sort().reverse();
     const hoyFifa=todayFifaDate();
-    // partidos de hoy: por fecha ARG real del kickoff (respeta el corte de 4am),
-    // no por fecha FIFA oficial — así no se pierde ningún partido de la noche anterior.
     const hoyMatches = FIXTURE.filter(m=>matchArgDate(m)===hoyFifa);
-    const hoyKeys = new Set(hoyMatches.map(m=>m.phase==='grupos'?('g'+m.id):('e'+m.slot)));
     const rowsHoy=renderDayMatches(hoyMatches);
     // días anteriores que ya tienen al menos un resultado cargado o ya pasaron
-    // (excluimos los partidos que ya se muestran arriba en "hoy" para no duplicarlos)
     const anteriores=diasConPartidos.filter(d=>d<hoyFifa);
     let prevHtml='';
     anteriores.forEach(d=>{
-      const matchesDia = FIXTURE.filter(m=>fifaDateOf(m)===d && !hoyKeys.has(m.phase==='grupos'?('g'+m.id):('e'+m.slot)));
+      const matchesDia = FIXTURE.filter(m=>matchArgDate(m)===d);
       const r=renderDayMatches(matchesDia);
       if(r) prevHtml+=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--aqua);margin-bottom:6px">📅 ${d}</div>${r}</div>`;
     });
