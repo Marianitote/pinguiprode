@@ -890,14 +890,16 @@ function rewasabiTotal(uid){
       pts+=approxPts(uid, q.id, rw, res);
       return;
     }
-    // country_phase: pais + fase — 10+10
+    // country_phase: pais + fase — 10+10. La respuesta correcta de país puede ser una
+    // lista (varios países empatados en la misma fase), no solo uno.
     if(q.type==="country_phase"){
-      const resPais = res[q.id+"_pais"];
+      const resPaisRaw = res[q.id+"_pais"];
       const resFase = res[q.id+"_fase"];
       const predPais = rw[q.id+"_pais"];
       const predFase = rw[q.id+"_fase"];
-      if(!resPais||!predPais) return;
-      const paisOk = norm(predPais)===norm(resPais);
+      if(!resPaisRaw||!predPais) return;
+      const resPaisList = Array.isArray(resPaisRaw) ? resPaisRaw : [resPaisRaw];
+      const paisOk = resPaisList.some(rp=>norm(predPais)===norm(rp));
       const faseOk = resFase&&predFase&&norm(predFase)===norm(resFase);
       if(paisOk) pts+=(q.ptsPais||10);
       if(paisOk&&faseOk) pts+=(q.ptsFase||10);
