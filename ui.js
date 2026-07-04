@@ -2313,27 +2313,29 @@ function admRewasabi(area){
     let inputHtml="";
     let acertaronRW="";
     if(q.type==="country_phase"){
-      const vp=res[q.id+"_pais"]||"", vf=res[q.id+"_fase"]||"";
+      const vpRaw=res[q.id+"_pais"];
+      const vp = Array.isArray(vpRaw) ? vpRaw : (vpRaw?[vpRaw]:[]);
+      const vf=res[q.id+"_fase"]||"";
       inputHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <select style="flex:1;min-width:140px" onchange="admSetRewasabi('${q.id}_pais',this.value)">
-          <option value="">— País —</option>
-          ${r32Teams.map(t=>{ const td=TEAMS[t]; return `<option value="${t}" ${vp===t?'selected':''}>${td?td.f+' '+td.n:t}</option>`; }).join('')}
+        <select multiple style="flex:1;min-width:140px;height:96px" onchange="admSetRewasabi('${q.id}_pais',Array.from(this.selectedOptions).map(o=>o.value))">
+          ${r32Teams.map(t=>{ const td=TEAMS[t]; return `<option value="${t}" ${vp.includes(t)?'selected':''}>${td?td.f+' '+td.n:t}</option>`; }).join('')}
         </select>
-        <select style="flex:1;min-width:140px" onchange="admSetRewasabi('${q.id}_fase',this.value)">
+        <select style="flex:1;min-width:140px;height:32px" onchange="admSetRewasabi('${q.id}_fase',this.value)">
           <option value="">— Fase —</option>
           ${FASES_ELIM_RW.map(f=>`<option value="${f}" ${vf===f?'selected':''}>${f}</option>`).join('')}
         </select>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        Si quedaron varios países eliminados en la misma fase, seleccioná todos (mantené Ctrl/Cmd o tocá y arrastrá).<br>
         ✅ País + Fase: <b style="color:white">20pts</b> &nbsp;·&nbsp; ✅ Solo País: <b style="color:white">10pts</b> &nbsp;·&nbsp; ❌ Resto: 0pts
       </div>`;
-      if(vp){
+      if(vp.length){
         const full=[], soloPais=[];
         players.forEach(p=>{
           const rw=(APP.allPreds?.[p.id]?.rewasabi||{});
           const predPais=rw[q.id+"_pais"], predFase=rw[q.id+"_fase"];
           if(!predPais) return;
-          const paisOk = norm(predPais)===norm(vp);
+          const paisOk = vp.some(c=>norm(predPais)===norm(c));
           if(!paisOk) return;
           const faseOk = vf&&predFase&&norm(predFase)===norm(vf);
           if(faseOk) full.push(p.display_name); else soloPais.push(p.display_name);
