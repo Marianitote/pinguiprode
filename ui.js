@@ -298,9 +298,11 @@ function renderInicio(v){
     const pendingElim = elimStageOpen && !stageSent(elimStageOpen);
     const pendingRw = rwWindowOpen && !rewasabiSent;
     if(!pendingElim && !pendingRw) return '';
-    // Solo mostrar una vez por sesión
-    const splashKey = 'splash_'+Date.now().toString().slice(0,-5); // cada 10min como máximo
-    const sessionKey = 'splashSeen_'+(elimStageOpen||'rw');
+    // Solo mostrar una vez por sesión — SPLASH_FORCE_VERSION cambia la "llave" que se guarda
+    // en el navegador de cada uno; si la subís (2->3->4...), es como si nadie lo hubiera visto
+    // todavía, así que vuelve a aparecer una vez más a todos apenas carguen la app.
+    const SPLASH_FORCE_VERSION = 2;
+    const sessionKey = 'splashSeen_'+(elimStageOpen||'rw')+'_v'+SPLASH_FORCE_VERSION;
     if(sessionStorage.getItem(sessionKey)) return '';
     sessionStorage.setItem(sessionKey,'1');
     const items = [];
