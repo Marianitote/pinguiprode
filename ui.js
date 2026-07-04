@@ -982,10 +982,16 @@ function prAreaElimNew(area, stage){
         <p class="note" style="margin-top:4px">Faltan ${hh>0?hh+'h ':''} ${mm}min</p>
       </div></div>`;
     } else if(w && now > new Date(w.close).getTime()){
+      const myElimClosed = APP.myPred?.elim||{};
+      const matchesClosed = FIXTURE.filter(m=>m.phase===(stage==="tpfinal"?"tp":stage)||
+        (stage==="tpfinal"&&m.phase==="final")).sort((a,b)=>a.slot-b.slot);
+      const rowsClosed = matchesClosed.filter(m=>m.home&&m.away)
+        .map(m=>elimMatchRow(m, myElimClosed[m.slot]||{}, true, stage)).join('');
       area.innerHTML=`<div class="card"><div class="empty"><div class="big">🔒</div>
         <p>La ventana de carga para esta fase ya cerró.</p>
-        <p class="note">Los pronósticos fueron bloqueados automáticamente.</p>
-      </div></div>`;
+        <p class="note">Los pronósticos fueron bloqueados automáticamente. Podés ver lo que cargaste, pero ya no se puede modificar.</p>
+      </div></div>
+      ${rowsClosed}`;
     } else {
       area.innerHTML=`<div class="card"><div class="empty"><div class="big">⏳</div>
         <p>Esta fase todavía no está habilitada.</p>
