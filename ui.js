@@ -2715,7 +2715,11 @@ function admVerGrupos(uid, btn){
     let rows='';
     partidos.forEach(f=>{
       const v=main[f.id]||{};
-      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}</b>`:'<span style="color:#aaa">—</span>';
+      const real=(APP.results?.main||{})[f.id]||{};
+      const hasReal=real.h!=null&&real.h!=='';
+      const score=(v.h!=null&&v.h!=='')
+        ?`<b>${v.h}-${v.a}</b>${hasReal?`<br><span style="color:var(--muted);font-size:10px">Real: ${real.h}-${real.a}</span>`:''}`
+        :'<span style="color:#aaa">—</span>';
       rows+=matchRow(esc(f.home),score,esc(f.away));
     });
     const filled=partidos.filter(f=>{const v=main[f.id]||{};return v.h!=null&&v.h!=='';}).length;
@@ -2739,8 +2743,18 @@ function admVerGrupos(uid, btn){
     let rows='';
     matches.forEach(m=>{
       const v=elim[m.slot]||{};
+      const real=(APP.results?.elim||{})[m.slot]||{};
       const ht=TEAMS[m.home],at=TEAMS[m.away];
-      const score=(v.h!=null&&v.h!=='')?`<b>${v.h}-${v.a}${+v.h===+v.a&&v.pen?` (${v.pen==='1'?ht?.n||m.home:at?.n||m.away})`:''}</b>`:'<span style="color:#aaa">—</span>';
+      const penName=(pen,fallbackH,fallbackA)=>pen==='1'?(ht?.n||fallbackH):(at?.n||fallbackA);
+      const predScore=(v.h!=null&&v.h!=='')?`${v.h}-${v.a}${+v.h===+v.a&&v.pen?` (${penName(v.pen,m.home,m.away)})`:''}`:'—';
+      const hasReal=real.h!=null&&real.h!=='';
+      const realScore=hasReal?`${real.h}-${real.a}${+real.h===+real.a&&real.pen?` (${penName(real.pen,m.home,m.away)})`:''}`:null;
+      // si hubo empate real y todavía no se cargó quién avanzó por penales, lo marcamos
+      // bien visible — es justo lo que hace que un "acertaste el marcador" no dé los 5 puntos.
+      const penPendiente = hasReal && +real.h===+real.a && !real.pen;
+      const score=(v.h!=null&&v.h!=='')
+        ?`<b>Tu pred: ${predScore}</b>${hasReal?`<br><span style="color:var(--muted);font-size:10px">Real: ${realScore}${penPendiente?' <span style="color:var(--gold)">(falta cargar penal)</span>':''}</span>`:''}`
+        :'<span style="color:#aaa">—</span>';
       rows+=matchRow(ht?ht.f+' '+ht.n:m.home, score, at?at.f+' '+at.n:m.away);
     });
     const filled=matches.filter(m=>{const v=elim[m.slot]||{};return v.h!=null&&v.h!=='';}).length;
