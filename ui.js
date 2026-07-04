@@ -349,7 +349,13 @@ function renderInicio(v){
         const resultStr = hasRes
           ? `<span style="color:#22c55e;font-weight:700">✅ ${r.h}-${r.a}</span>`
           : `<span style="color:var(--muted)">${hora}</span>`;
-        const predStr=p.h!=null&&p.h!==''?`${p.h}-${p.a}`:`<span style="color:var(--muted)">—</span>`;
+        const predTie = isElim && p.h!=null && p.h!=='' && +p.h===+p.a;
+        const predPenTeam = predTie && p.pen!=null && p.pen!==''
+          ? (p.pen==='1' ? (homeTeam?.n||m.home) : (awayTeam?.n||m.away))
+          : null;
+        const predStr=p.h!=null&&p.h!==''
+          ?`${p.h}-${p.a}${predTie?(predPenTeam?` (${predPenTeam})`:` <span style="color:var(--gold);font-size:11px">(falta penal)</span>`):''}`
+          :`<span style="color:var(--muted)">—</span>`;
         let acertaronStr='';
         if(hasRes){
           const players=(APP.profiles||[]).filter(pl=>!pl.is_admin);
