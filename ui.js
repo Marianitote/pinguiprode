@@ -2120,6 +2120,11 @@ async function syncESPN(){
   const btn = document.getElementById('espnSyncBtn');
   if(btn){ btn.disabled=true; btn.textContent='🔄 Sincronizando...'; }
   try{
+    // Traemos los datos frescos de la base ANTES de comparar contra ESPN. Si alguien
+    // corrigió elim_fixture (qué equipos van en cada partido) directo por SQL, sin pasar
+    // por la app, la memoria del navegador puede quedar desactualizada — y si sincronizamos
+    // con ese mapeo viejo, el resultado real puede terminar guardado en el partido equivocado.
+    await loadAll();
     // Pedimos un rango (ayer + hoy, en calendario ARG) en vez de confiar en el
     // "hoy" implícito de ESPN, que a veces no coincide con el día ARG y deja
     // afuera partidos que terminaron tarde en la noche.
