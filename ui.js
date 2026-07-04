@@ -2309,6 +2309,7 @@ function admRewasabi(area){
 
   rqs.forEach((q,qi)=>{
     let inputHtml="";
+    let acertaronRW="";
     if(q.type==="country_phase"){
       const vp=res[q.id+"_pais"]||"", vf=res[q.id+"_fase"]||"";
       inputHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -2324,11 +2325,31 @@ function admRewasabi(area){
       <div style="font-size:11px;color:var(--muted);margin-top:6px">
         ✅ País + Fase: <b style="color:white">20pts</b> &nbsp;·&nbsp; ✅ Solo País: <b style="color:white">10pts</b> &nbsp;·&nbsp; ❌ Resto: 0pts
       </div>`;
+      if(vp){
+        const full=[], soloPais=[];
+        players.forEach(p=>{
+          const rw=(APP.allPreds?.[p.id]?.rewasabi||{});
+          const predPais=rw[q.id+"_pais"], predFase=rw[q.id+"_fase"];
+          if(!predPais) return;
+          const paisOk = norm(predPais)===norm(vp);
+          if(!paisOk) return;
+          const faseOk = vf&&predFase&&norm(predFase)===norm(vf);
+          if(faseOk) full.push(p.display_name); else soloPais.push(p.display_name);
+        });
+        acertaronRW=`<div class="acertaron">
+          <span style="color:var(--aqua)">✅ País+Fase (20pts): ${full.length?full.join(', '):'nadie'}</span><br>
+          <span style="color:var(--gold)">👍 Solo país (10pts): ${soloPais.length?soloPais.join(', '):'nadie'}</span>
+        </div>`;
+      }
     } else if(q.type==="bonus"){
       inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('bonus_${q.id}',this.value)">
         <option value="">— Ganador —</option>
         ${players.map(p=>`<option value="${p.id}" ${res["bonus_"+q.id]===p.id?'selected':''}>${esc(p.display_name)}</option>`).join('')}
       </select>`;
+      if(res["bonus_"+q.id]){
+        const winner=players.find(p=>p.id===res["bonus_"+q.id]);
+        acertaronRW=`<div class="acertaron"><span style="color:var(--aqua)">🎁 Ganador asignado: ${winner?esc(winner.display_name):'?'}</span></div>`;
+      }
     } else if(q.type==="player"){
       inputHtml=`<select style="width:100%;margin-top:8px" onchange="admSetRewasabi('${q.id}',this.value)">
         <option value="">— elegir —</option>
@@ -2342,12 +2363,39 @@ function admRewasabi(area){
     } else {
       inputHtml=`<input type="${q.type==='approx'?'number':'text'}" style="width:100%;margin-top:8px" value="${esc(res[q.id]||'')}" onchange="admSetRewasabi('${q.id}',this.value)">`;
     }
+    // "quién acertó" para los tipos que se comparan contra la respuesta de cada jugador
+    // (player, participant, text, yesno, num, choice, team). country_phase y bonus ya
+    // se calculan arriba con su propia lógica; approx se calcula más abajo.
+    if(!acertaronRW && q.type!=="approx" && res[q.id]!=null && res[q.id]!==""){
+      const ganadores = players.filter(p=>{
+        const rw=(APP.allPreds?.[p.id]?.rewasabi||{});
+        return matchesResult(rw[q.id], res[q.id]);
+      }).map(p=>p.display_name);
+      acertaronRW=`<div class="acertaron">${ganadores.length?`<span style="color:var(--aqua)">✅ Acertaron: ${ganadores.join(', ')}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>'}</div>`;
+    }
+    if(q.type==="approx" && res[q.id]!=null && res[q.id]!==""){
+      const resNum=parseFloat(res[q.id]);
+      if(!isNaN(resNum)){
+        const entries=players.map(p=>{
+          const rw=(APP.allPreds?.[p.id]?.rewasabi||{});
+          return {name:p.display_name, val:parseFloat(rw[q.id])};
+        }).filter(e=>!isNaN(e.val));
+        if(entries.length){
+          const minDist=Math.min(...entries.map(e=>Math.abs(e.val-resNum)));
+          const ganadores=entries.filter(e=>Math.abs(e.val-resNum)===minDist).map(e=>e.name);
+          acertaronRW=`<div class="acertaron"><span style="color:var(--aqua)">✅ Más cerca (${q.pts}pts): ${ganadores.join(', ')}</span></div>`;
+        } else {
+          acertaronRW=`<div class="acertaron"><span style="color:var(--muted)">Nadie cargó respuesta todavía</span></div>`;
+        }
+      }
+    }
     html+=`<div class="card" style="margin-top:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1;font-size:13px;font-weight:600">${qi+1}. ${esc(q.t)}</div>
         <span style="color:var(--gold);font-size:12px;font-weight:700">+${q.pts}pts</span>
       </div>
       ${inputHtml}
+      ${acertaronRW}
     </div>`;
   });
   area.innerHTML=html;
