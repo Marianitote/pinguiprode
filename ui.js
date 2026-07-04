@@ -307,7 +307,7 @@ function renderInicio(v){
     if(pendingElim) items.push(`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
       <span style="font-size:24px">⚽</span>
       <div style="flex:1"><div style="font-weight:700">Principal · ${esc(STAGE_LABEL[elimStageOpen]||elimStageOpen)}</div><div style="font-size:12px;color:var(--muted)">La ventana de carga está abierta. Confirmá antes de que cierre.</div></div>
-      <button class="btn danger sm" onclick="closeModal();TAB='principal';PR_PHASE='${elimStageOpen}';render()">Cargar</button>
+      <button class="btn danger sm" onclick="closeModal();TAB='principal';PR_PHASE='${elimStageOpen}';render()">Cargá tus partidos de ${esc(STAGE_LABEL[elimStageOpen]||elimStageOpen)}</button>
     </div>`);
     if(pendingRw) items.push(`<div style="display:flex;align-items:center;gap:10px;padding:10px 0">
       <span style="font-size:24px">🎲</span>
