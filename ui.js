@@ -1063,13 +1063,16 @@ function prAreaElimNew(area, stage){
 }
 
 function elimMatchRow(m, pred, sent, stage){
-  const dis = sent?"disabled":"";
+  const res = (APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot];
+  const hasRes = res&&res.h!=null&&res.h!=="";
+  // se bloquea si la fase entera está enviada, O si este partido puntual ya tiene resultado
+  // real cargado (evita predecir con el resultado ya conocido, ej: si el COMIPRO reabre la
+  // fase para un jugador rezagado a mitad de camino, no puede "adivinar" los ya jugados).
+  const dis = (sent||hasRes)?"disabled":"";
   const ht=TEAMS[m.home], at=TEAMS[m.away];
   const hora = m.kickoff ? new Date(m.kickoff).toLocaleTimeString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hour:'2-digit',minute:'2-digit'}) : "";
   const tie = pred.h!=null&&pred.a!=null&&pred.h!==""&&pred.a!==""&&(+pred.h===+pred.a);
   const answered = pred.h!=null&&pred.h!==""&&pred.a!=null&&pred.a!==""&&(!tie||pred.pen==="0"||pred.pen==="1");
-  const res = (APP.results?.elim||{})[String(m.slot)]||(APP.results?.elim||{})[m.slot];
-  const hasRes = res&&res.h!=null&&res.h!=="";
   // acertaron
   let acertaronStr="";
   if(hasRes){
