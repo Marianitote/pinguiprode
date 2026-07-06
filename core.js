@@ -1185,6 +1185,7 @@ function validateNitro(by){
   if(q[qKey]<=0) return "Ya usaste tus 2 nitros de esta fase.";
   if(askedNitroToday(by)) return "Ya tenés un nitro pedido para hoy.";
   if(askedSangToday(by)) return "No podés usar Nitro y Sanguijuela el mismo día.";
+  if(wasChallengedToday(by)) return "Fuiste sanguijueleado en este bloque: no podés usar Nitro hasta el próximo.";
   const tb=standings(); const me=tb.find(r=>r.id===by);
   if(!me) return "Jugador no encontrado.";
   if(me.pos===1||me.pos===2) return "El 1° y 2° no pueden usar nitro.";
