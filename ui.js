@@ -301,7 +301,7 @@ function renderInicio(v){
     // Solo mostrar una vez por sesión — SPLASH_FORCE_VERSION cambia la "llave" que se guarda
     // en el navegador de cada uno; si la subís (2->3->4...), es como si nadie lo hubiera visto
     // todavía, así que vuelve a aparecer una vez más a todos apenas carguen la app.
-    const SPLASH_FORCE_VERSION = 2;
+    const SPLASH_FORCE_VERSION = 3;
     const sessionKey = 'splashSeen_'+(elimStageOpen||'rw')+'_v'+SPLASH_FORCE_VERSION;
     if(sessionStorage.getItem(sessionKey)) return '';
     sessionStorage.setItem(sessionKey,'1');
