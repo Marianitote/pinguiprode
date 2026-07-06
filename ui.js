@@ -637,10 +637,10 @@ function renderInicio(v){
       const wOpen2=windowOpenNow(); const hasMatches2=dayHasMatches(todayFifaDate());
       const tb2=standings(); const meRow2=tb2.find(r=>r.id===APP.user?.id);
       const reteables=tb2.filter(r=>r.id!==APP.user?.id && meRow2 && meRow2.pos!==1 && (meRow2.pos-r.pos)>0 && (meRow2.pos-r.pos)<=3);
-      const yaSang = !!askedSangToday(APP.user?.id) || !!wasChallengedToday(APP.user?.id);
+      const yaSang = !!askedSangToday(APP.user?.id);
       const enabled = reteables.length>0 && hasMatches2 && wOpen2 && !yaSang;
       const opts2 = reteables.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
-      const disabledReason = yaSang ? (wasChallengedToday(APP.user?.id)?'Fuiste sanguijueleado en este bloque':'Ya aplicaste sanguijuela hoy') : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
+      const disabledReason = yaSang ? 'Ya aplicaste sanguijuela hoy' : !hasMatches2||!wOpen2 ? 'Ventana cerrada (6-12hs con partidos)' : reteables.length===0 ? 'No tenés rivales reteables ahora' : '';
       return `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:15px">🩸 Aplicar sanguijuela a:</span>
         <select id="sangTarget" ${!enabled?'disabled':''} style="flex:1;min-width:150px;opacity:${enabled?1:0.5}">
@@ -1723,12 +1723,12 @@ function standingsTableHTML(opts){
       const reteable = me && me.pos!==1 && (me.pos-r.pos)>0 && (me.pos-r.pos)<=3;
       const recibidas = sangRecibidas(r.id);
       const queLeQuedan = Math.max(0, 3 - recibidas); // cuántas más puede recibir
-      const yaSangHoy = !!askedSangToday(me?.id) || !!wasChallengedToday(me?.id);
+      const yaSangHoy = !!askedSangToday(me?.id);
       const targetAgotado = recibidas >= 3;
       const yoAgotado = sangQuedan(me?.id||"") <= 0;
       const tip = targetAgotado ? `${esc(r.name)} ya recibió 3 retos esta fase (máximo)`
         : yoAgotado ? "Agotaste tus sanguijuelas de esta fase"
-        : yaSangHoy ? (wasChallengedToday(me?.id) ? "Te sanguijuelearon hoy" : "Ya aplicaste sanguijuela hoy")
+        : yaSangHoy ? "Ya aplicaste sanguijuela hoy"
         : !ventanaAbierta ? "Ventana cerrada (6-12hs con partidos)"
         : `Retar · puede recibir ${queLeQuedan} reto${queLeQuedan!==1?'s':'' } más esta fase`;
       const disabled = targetAgotado || yoAgotado || yaSangHoy || !ventanaAbierta;
@@ -1832,12 +1832,11 @@ function renderComodines(v){
     // sanguijuela recibida (cuántas veces me retaron esta fase)
     const sangRecibidasFase = APP.comodines.filter(c=>c.type==="sang"&&c.target_user===uid&&phaseKey.includes(c.phase)).length;
     const ventana = hasMatchesToday && wOpen;
-    const sangDisabled = !ventana || sangRestantes===0 || !!askedSangToday(uid) || !!wasChallengedToday(uid) || !!askedNitroToday(uid);
+    const sangDisabled = !ventana || sangRestantes===0 || !!askedSangToday(uid) || !!askedNitroToday(uid);
     const nitroDisabled = !ventana || nitroRestantes===0 || !!askedNitroToday(uid) || !!askedSangToday(uid) || !!wasChallengedToday(uid);
     const sangTip = sangRestantes===0 ? "Agotaste tus sanguijuelas de esta fase"
       : !ventana ? "Ventana cerrada (6-12hs con partidos)"
       : askedSangToday(uid) ? "Ya usaste sanguijuela hoy"
-      : wasChallengedToday(uid) ? "Fuiste sanguijueleado hoy"
       : askedNitroToday(uid) ? "Usaste nitro hoy" : "";
     const nitroTip = nitroRestantes===0 ? "Agotaste tus nitros de esta fase"
       : !ventana ? "Ventana cerrada (6-12hs con partidos)"
