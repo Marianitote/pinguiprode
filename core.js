@@ -950,6 +950,7 @@ function standings(){
   if(_standingsCache) return _standingsCache;
   const rows=APP.profiles.filter(p=>{
     if(p.is_admin) return false;
+    if(p.active===false) return false; // jugador oculto (ej: no completó una fase) — su historial pasado queda intacto, solo desaparece de la tabla/comodines de ahora en más
     const e=(p.email||"").toLowerCase(), n=(p.display_name||"").toLowerCase();
     if(e.includes("nahuelito")||n.includes("nahuelito")) return false;
     if(e.includes("bot")&&e.includes("pinguiprode")) return false;
