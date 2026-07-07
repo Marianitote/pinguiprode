@@ -302,7 +302,7 @@ function renderInicio(v){
         ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
         <div style="font-size:13px;color:var(--muted);margin-top:4px">${_last.total} pts · Puesto #${_last.pos}</div>
-        ${_cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ Lleva ${_streak} días seguidos en el último puesto 🕸️</div>`:''}
+        ${_cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ <b>${_streak}</b> días seguidos en el último puesto 🕸️</div>`:''}
       </div>`;
     })()}
     <div class="card"><div class="sec-title">Accesos rápidos · gestión</div>
@@ -727,7 +727,7 @@ function renderInicio(v){
       ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
-      ${cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ Lleva ${streak} días seguidos en el último puesto 🕸️</div>`:''}
+      ${cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ <b>${streak}</b> días seguidos en el último puesto 🕸️</div>`:''}
     </div>`;
   })()}
   ${(()=>{
