@@ -6,6 +6,38 @@ const app=$("#app");
 let TAB="inicio";
 function toast(m,k){const t=$("#toast");t.textContent=m;t.className="toast show "+(k||"");setTimeout(()=>t.className="toast",2600);}
 function esc(s){return(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+// Telaraña decorativa dibujada en SVG (hilos + arcos + una arañita colgando de un hilo),
+// para usar en las esquinas de tarjetas tipo "lleva muchos días en el último puesto".
+// mirror=true la espeja horizontalmente para la esquina opuesta.
+function cobwebCornerSVG(mirror){
+  return `<svg width="58" height="58" viewBox="0 0 58 58" style="position:absolute;top:-2px;${mirror?'right':'left'}:-2px;${mirror?'transform:scaleX(-1)':''}" fill="none">
+    <g stroke="rgba(210,210,225,0.65)" stroke-width="1">
+      <line x1="0" y1="0" x2="58" y2="0"/>
+      <line x1="0" y1="0" x2="58" y2="19"/>
+      <line x1="0" y1="0" x2="58" y2="38"/>
+      <line x1="0" y1="0" x2="38" y2="58"/>
+      <line x1="0" y1="0" x2="19" y2="58"/>
+      <line x1="0" y1="0" x2="0" y2="58"/>
+      <path d="M 14 0 Q 11 11 0 14"/>
+      <path d="M 29 0 Q 21 21 0 29"/>
+      <path d="M 44 0 Q 30 30 0 44"/>
+      <path d="M 58 0 Q 34 34 0 58"/>
+    </g>
+    <line x1="34" y1="34" x2="41" y2="45" stroke="rgba(210,210,225,0.6)" stroke-width="1"/>
+    <g transform="translate(41,47)">
+      <ellipse cx="0" cy="0" rx="3.2" ry="4.2" fill="#23232e"/>
+      <circle cx="0" cy="-4.5" r="2.2" fill="#23232e"/>
+      <g stroke="#23232e" stroke-width="1" stroke-linecap="round">
+        <line x1="-2.5" y1="-2" x2="-7" y2="-4"/>
+        <line x1="-2.8" y1="0" x2="-8" y2="1"/>
+        <line x1="-2.5" y1="2" x2="-7" y2="5"/>
+        <line x1="2.5" y1="-2" x2="7" y2="-4"/>
+        <line x1="2.8" y1="0" x2="8" y2="1"/>
+        <line x1="2.5" y1="2" x2="7" y2="5"/>
+      </g>
+    </g>
+  </svg>`;
+}
 function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
 function isAdmin(){return APP.profile?.is_admin;}
 function modal(html){let m=document.createElement("div");m.className="modal-bg";m.id="modalBg";m.innerHTML=`<div class="modal">${html}</div>`;m.onclick=e=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
@@ -238,7 +270,7 @@ function renderInicio(v){
       const _streak=pelelaStreak(_last.id);
       const _cobweb=_streak>=3;
       return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
-        ${_cobweb?`<span style="position:absolute;top:-6px;left:-6px;font-size:32px;transform:rotate(0deg)">🕸️</span><span style="position:absolute;top:-6px;right:-6px;font-size:32px;transform:scaleX(-1)">🕸️</span>`:''}
+        ${_cobweb?cobwebCornerSVG(false)+cobwebCornerSVG(true):''}
         <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
         ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
@@ -663,7 +695,7 @@ function renderInicio(v){
     const streak=pelelaStreak(last.id);
     const cobweb=streak>=3;
     return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
-      ${cobweb?`<span style="position:absolute;top:-6px;left:-6px;font-size:32px">🕸️</span><span style="position:absolute;top:-6px;right:-6px;font-size:32px;transform:scaleX(-1)">🕸️</span>`:''}
+      ${cobweb?cobwebCornerSVG(false)+cobwebCornerSVG(true):''}
       <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
       ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
