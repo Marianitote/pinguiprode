@@ -235,11 +235,15 @@ function renderInicio(v){
       const _last=standings()[standings().length-1];
       if(!_last) return '';
       const _av=avatarUrl(_last.name);
-      return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06)">
+      const _streak=pelelaStreak(_last.id);
+      const _cobweb=_streak>=3;
+      return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
+        ${_cobweb?`<span style="position:absolute;top:-6px;left:-6px;font-size:32px;transform:rotate(0deg)">🕸️</span><span style="position:absolute;top:-6px;right:-6px;font-size:32px;transform:scaleX(-1)">🕸️</span>`:''}
         <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
-        ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px">`:''}
+        ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
         <div style="font-size:13px;color:var(--muted);margin-top:4px">${_last.total} pts · Puesto #${_last.pos}</div>
+        ${_cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ Lleva ${_streak} días seguidos en el último puesto 🕸️</div>`:''}
       </div>`;
     })()}
     <div class="card"><div class="sec-title">Accesos rápidos · gestión</div>
@@ -656,11 +660,15 @@ function renderInicio(v){
     const last=tb3[tb3.length-1];
     if(!last) return '';
     const av=avatarUrl(last.name);
-    return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06)">
+    const streak=pelelaStreak(last.id);
+    const cobweb=streak>=3;
+    return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
+      ${cobweb?`<span style="position:absolute;top:-6px;left:-6px;font-size:32px">🕸️</span><span style="position:absolute;top:-6px;right:-6px;font-size:32px;transform:scaleX(-1)">🕸️</span>`:''}
       <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
-      ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px">`:``}
+      ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
+      ${cobweb?`<div style="font-size:12px;color:#b8b8c8;margin-top:8px;font-style:italic">🕸️ Lleva ${streak} días seguidos en el último puesto 🕸️</div>`:''}
     </div>`;
   })()}
   ${(()=>{
