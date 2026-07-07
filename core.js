@@ -1012,7 +1012,13 @@ function pelelaStreak(uid){
   const maxPosHoy = Math.max(...tb.map(r=>r.pos));
   if(me.pos!==maxPosHoy) return 0; // hoy no es el último, racha en 0
   let streak = 1; // cuenta hoy
-  const snaps = (APP.allSnapshots||[]).slice().sort((a,b)=>b.date_key.localeCompare(a.date_key)); // más reciente primero
+  // solo snapshots con clave de fecha real (YYYY-MM-DD) — hay algunos viejos tipo
+  // "grupos-1/2/3" de un formato anterior que, al ordenar como texto, quedan mezclados
+  // fuera de orden cronológico (la letra "g" ordena después que cualquier número) y
+  // cortaban la racha antes de tiempo.
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  const snaps = (APP.allSnapshots||[]).filter(s=>isoDate.test(s.date_key))
+    .slice().sort((a,b)=>b.date_key.localeCompare(a.date_key)); // más reciente primero
   for(const s of snaps){
     const pos = s.positions||{};
     const vals = Object.values(pos);
