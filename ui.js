@@ -3814,6 +3814,14 @@ async function admSetElimRes(slot, key, val){
     await adminSaveResults({elim});
     invalidateStandings();
     toast("Resultado guardado","ok");
+    // refrescar la vista admin actual — sin esto el selector "¿Quién avanza?" (o
+    // cualquier otro estado derivado del resultado) no aparecía hasta navegar afuera
+    // y volver, porque esta función nunca disparaba un re-render.
+    const admArea = $("#admArea");
+    if(admArea){
+      if(ADM==="elim") admElim(admArea);
+      else if(ADM==="resultados") admResultados(admArea);
+    }
   }catch(e){ toast(e.message,"err"); }
 }
 
