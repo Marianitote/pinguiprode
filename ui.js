@@ -8,10 +8,13 @@ function toast(m,k){const t=$("#toast");t.textContent=m;t.className="toast show 
 function esc(s){return(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 // Telaraña decorativa dibujada en SVG: irregular y asimétrica a propósito (hilos de
 // largos distintos, alguno roto a medio camino, arcos que no cierran, polvo) — busca
-// sensación de abandono, no una telaraña prolija de catálogo. mirror=true la espeja
-// horizontalmente para la esquina opuesta.
-function cobwebCornerSVG(mirror){
-  return `<svg width="62" height="62" viewBox="0 0 62 62" style="position:absolute;top:-3px;${mirror?'right':'left'}:-3px;${mirror?'transform:scaleX(-1) rotate(-4deg)':'transform:rotate(3deg)'};opacity:0.85" fill="none">
+// sensación de abandono, no una telaraña prolija de catálogo.
+// mirror=true la espeja horizontalmente para la esquina opuesta. scale = multiplicador
+// de tamaño (1 = tamaño base ~62px). extraSpider=true agrega una segunda arañita más.
+function cobwebCornerSVG(mirror, scale, extraSpider){
+  scale = scale||1;
+  const size = Math.round(62*scale);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 62 62" style="position:absolute;top:-3px;${mirror?'right':'left'}:-3px;${mirror?'transform:scaleX(-1) rotate(-4deg)':'transform:rotate(3deg)'};opacity:0.85;z-index:2;pointer-events:none" fill="none">
     <g stroke="rgba(200,200,215,0.6)" stroke-width="1" stroke-linecap="round">
       <!-- hilos radiales, ángulos y largos disparejos, algunos con un quiebre -->
       <polyline points="0,0 41,3 61,0"/>
@@ -46,6 +49,20 @@ function cobwebCornerSVG(mirror){
         <line x1="2.2" y1="2" x2="6.5" y2="4.8"/>
       </g>
     </g>
+    ${extraSpider?`
+    <line x1="48" y1="12" x2="53" y2="26" stroke="rgba(200,200,215,0.55)" stroke-width="1"/>
+    <g transform="translate(53,29) rotate(-14)">
+      <ellipse cx="0" cy="0" rx="2.3" ry="3.1" fill="#3a3a46"/>
+      <circle cx="-0.4" cy="-3.3" r="1.5" fill="#3a3a46"/>
+      <g stroke="#3a3a46" stroke-width="0.8" stroke-linecap="round">
+        <line x1="-1.8" y1="-1.5" x2="-5.5" y2="-2.5"/>
+        <line x1="-2" y1="0" x2="-5.2" y2="1"/>
+        <line x1="-1.7" y1="1.6" x2="-4.5" y2="4.3"/>
+        <line x1="1.8" y1="-1.6" x2="4.8" y2="-3.5"/>
+        <line x1="2" y1="0.1" x2="6" y2="0.4"/>
+        <line x1="1.6" y1="1.5" x2="4.8" y2="3.5"/>
+      </g>
+    </g>`:''}
   </svg>`;
 }
 function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
@@ -279,8 +296,8 @@ function renderInicio(v){
       const _av=avatarUrl(_last.name);
       const _streak=pelelaStreak(_last.id);
       const _cobweb=_streak>=3;
-      return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
-        ${_cobweb?cobwebCornerSVG(false)+cobwebCornerSVG(true):''}
+      return `<div style="margin:16px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
+        ${_cobweb?cobwebCornerSVG(false,6,true)+cobwebCornerSVG(true,2,false):''}
         <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
         ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
@@ -704,8 +721,8 @@ function renderInicio(v){
     const av=avatarUrl(last.name);
     const streak=pelelaStreak(last.id);
     const cobweb=streak>=3;
-    return `<div style="margin:16px 0;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative;overflow:hidden">
-      ${cobweb?cobwebCornerSVG(false)+cobwebCornerSVG(true):''}
+    return `<div style="margin:16px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
+      ${cobweb?cobwebCornerSVG(false,6,true)+cobwebCornerSVG(true,2,false):''}
       <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
       ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
