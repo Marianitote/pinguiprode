@@ -6,34 +6,44 @@ const app=$("#app");
 let TAB="inicio";
 function toast(m,k){const t=$("#toast");t.textContent=m;t.className="toast show "+(k||"");setTimeout(()=>t.className="toast",2600);}
 function esc(s){return(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
-// Telaraña decorativa dibujada en SVG (hilos + arcos + una arañita colgando de un hilo),
-// para usar en las esquinas de tarjetas tipo "lleva muchos días en el último puesto".
-// mirror=true la espeja horizontalmente para la esquina opuesta.
+// Telaraña decorativa dibujada en SVG: irregular y asimétrica a propósito (hilos de
+// largos distintos, alguno roto a medio camino, arcos que no cierran, polvo) — busca
+// sensación de abandono, no una telaraña prolija de catálogo. mirror=true la espeja
+// horizontalmente para la esquina opuesta.
 function cobwebCornerSVG(mirror){
-  return `<svg width="58" height="58" viewBox="0 0 58 58" style="position:absolute;top:-2px;${mirror?'right':'left'}:-2px;${mirror?'transform:scaleX(-1)':''}" fill="none">
-    <g stroke="rgba(210,210,225,0.65)" stroke-width="1">
-      <line x1="0" y1="0" x2="58" y2="0"/>
-      <line x1="0" y1="0" x2="58" y2="19"/>
-      <line x1="0" y1="0" x2="58" y2="38"/>
-      <line x1="0" y1="0" x2="38" y2="58"/>
-      <line x1="0" y1="0" x2="19" y2="58"/>
-      <line x1="0" y1="0" x2="0" y2="58"/>
-      <path d="M 14 0 Q 11 11 0 14"/>
-      <path d="M 29 0 Q 21 21 0 29"/>
-      <path d="M 44 0 Q 30 30 0 44"/>
-      <path d="M 58 0 Q 34 34 0 58"/>
+  return `<svg width="62" height="62" viewBox="0 0 62 62" style="position:absolute;top:-3px;${mirror?'right':'left'}:-3px;${mirror?'transform:scaleX(-1) rotate(-4deg)':'transform:rotate(3deg)'};opacity:0.85" fill="none">
+    <g stroke="rgba(200,200,215,0.6)" stroke-width="1" stroke-linecap="round">
+      <!-- hilos radiales, ángulos y largos disparejos, algunos con un quiebre -->
+      <polyline points="0,0 41,3 61,0"/>
+      <polyline points="0,0 34,17 52,21"/>
+      <polyline points="0,0 22,29 33,44"/>
+      <polyline points="0,0 12,26 9,48"/>
+      <polyline points="0,0 4,20 0,34"/>
+      <polyline points="0,0 46,10 60,15"/>
+      <!-- arcos irregulares que conectan los hilos, ninguno cierra del todo -->
+      <path d="M 12 1 Q 9 8 3 11"/>
+      <path d="M 27 2 Q 19 15 8 24 Q 6 27 5 30"/>
+      <path d="M 44 6 Q 28 24 15 33"/>
+      <path d="M 56 12 Q 32 33 18 43 Q 15 46 13 49"/>
+      <!-- hilo suelto, roto, sin llegar a ningún lado -->
+      <polyline points="20 4, 24 12, 21 19" stroke-dasharray="1 2.5" opacity="0.55"/>
     </g>
-    <line x1="34" y1="34" x2="41" y2="45" stroke="rgba(210,210,225,0.6)" stroke-width="1"/>
-    <g transform="translate(41,47)">
-      <ellipse cx="0" cy="0" rx="3.2" ry="4.2" fill="#23232e"/>
-      <circle cx="0" cy="-4.5" r="2.2" fill="#23232e"/>
-      <g stroke="#23232e" stroke-width="1" stroke-linecap="round">
-        <line x1="-2.5" y1="-2" x2="-7" y2="-4"/>
-        <line x1="-2.8" y1="0" x2="-8" y2="1"/>
-        <line x1="-2.5" y1="2" x2="-7" y2="5"/>
-        <line x1="2.5" y1="-2" x2="7" y2="-4"/>
-        <line x1="2.8" y1="0" x2="8" y2="1"/>
-        <line x1="2.5" y1="2" x2="7" y2="5"/>
+    <!-- polvo -->
+    <circle cx="30" cy="8" r="0.8" fill="rgba(210,210,220,0.5)"/>
+    <circle cx="10" cy="33" r="0.6" fill="rgba(210,210,220,0.45)"/>
+    <circle cx="42" cy="18" r="0.7" fill="rgba(210,210,220,0.4)"/>
+    <!-- arañita colgando, un poco ladeada, patas dispares -->
+    <line x1="22" y1="29" x2="27" y2="41" stroke="rgba(200,200,215,0.55)" stroke-width="1"/>
+    <g transform="translate(27,44) rotate(8)">
+      <ellipse cx="0" cy="0" rx="3" ry="4" fill="#26262f"/>
+      <circle cx="-0.5" cy="-4.3" r="2" fill="#26262f"/>
+      <g stroke="#26262f" stroke-width="1" stroke-linecap="round">
+        <line x1="-2.4" y1="-2" x2="-7.5" y2="-3.2"/>
+        <line x1="-2.8" y1="0" x2="-7" y2="1.5"/>
+        <line x1="-2.3" y1="2.2" x2="-6" y2="6"/>
+        <line x1="2.4" y1="-2.1" x2="6.5" y2="-4.8"/>
+        <line x1="2.8" y1="0.2" x2="8" y2="0.5"/>
+        <line x1="2.2" y1="2" x2="6.5" y2="4.8"/>
       </g>
     </g>
   </svg>`;
