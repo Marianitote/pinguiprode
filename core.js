@@ -45,19 +45,21 @@ async function createProfile(displayName){
 /* ---------- DATOS ---------- */
 async function loadAll(){
   // cargar todo en paralelo para mayor velocidad
-  const [profsRes, mpRes, rsRes, cmRes, allPRes, bonusRes] = await Promise.all([
+  const [profsRes, mpRes, rsRes, cmRes, allPRes, bonusRes, snapsRes] = await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('predictions').select('*').eq('user_id',APP.user.id).maybeSingle(),
     sb.from('results').select('*').eq('id',1).maybeSingle(),
     sb.from('comodines').select('*').order('created_at'),
     sb.from('predictions').select('user_id,main,wasabi,rewasabi,extra,bracket,penalties,elim'),
     sb.from('bonuses').select('*').order('date'),
+    sb.from('standings_snapshots').select('date_key,positions').order('date_key'),
   ]);
   APP.profiles=profsRes.data||[];
   APP.myPred=mpRes.data||null;
   if(rsRes.data) APP.results=rsRes.data;
   APP.comodines=cmRes.data||[];
   APP.bonuses=bonusRes.data||[];
+  APP.allSnapshots=snapsRes.data||[]; // historial de posiciones día a día (para rachas, ej: "pelela del momento")
   (allPRes.data||[]).forEach(p=>{ _predCache[p.user_id]=p; });
   // poblar APP.allPreds para los paneles de ui.js (comodines, "quién acertó", etc.)
   // el admin lo sobrescribe luego con datos completos vía adminLoadAllPreds()
@@ -999,6 +1001,28 @@ function dateEndKickoff(phase,jor){
 // snapshot actual de posiciones (id -> pos)
 function currentPositions(){
   const map={}; standings().forEach(r=>map[r.id]=r.pos); return map;
+}
+// ¿Cuántos días consecutivos (incluido hoy) lleva un jugador como último de la tabla?
+// Usa el historial de standings_snapshots (uno por día ya cerrado) + la posición actual.
+function pelelaStreak(uid){
+  if(!uid) return 0;
+  const tb = standings();
+  const me = tb.find(r=>r.id===uid);
+  if(!me) return 0;
+  const maxPosHoy = Math.max(...tb.map(r=>r.pos));
+  if(me.pos!==maxPosHoy) return 0; // hoy no es el último, racha en 0
+  let streak = 1; // cuenta hoy
+  const snaps = (APP.allSnapshots||[]).slice().sort((a,b)=>b.date_key.localeCompare(a.date_key)); // más reciente primero
+  for(const s of snaps){
+    const pos = s.positions||{};
+    const vals = Object.values(pos);
+    if(!vals.length) break;
+    const maxPosDia = Math.max(...vals);
+    const suyo = pos[uid];
+    if(suyo==null) break; // no hay dato de ese día para este jugador, cortamos la racha ahí
+    if(suyo===maxPosDia) streak++; else break;
+  }
+  return streak;
 }
 /* Al cargar la app: si alguna fecha ya cerró y no tiene snapshot, lo crea.
    Guarda como "lastSnapshot" la foto de la última fecha cerrada (para las flechas). */
