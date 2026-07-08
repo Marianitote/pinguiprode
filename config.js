@@ -270,7 +270,13 @@ const PHASES=[
 ];
 
 /* Puntajes Tarjeta Principal */
-const PTS={ grupos:{exact:5,result:3,gd:1,pos:1}, ko:{exact:7,result:4,advance:3}, elim:{exact:2,result:2,gd:1, clas_r16:1,clas_qf:3,clas_sf:2,clas_fin:3},
+const PTS={ grupos:{exact:5,result:3,gd:1,pos:1}, ko:{exact:7,result:4,advance:3},
+  // OJO: clas_r16/clas_qf/clas_sf/clas_fin quedan todos en 1 porque así puntúa realmente
+  // clasStagePoints() (core.js) — +1 por equipo acertado en la cadena de bracket, sin
+  // importar la fase. Antes decían 1/3/2/3 pero esos valores NUNCA se aplicaban (los usaba
+  // solo elimClasPoints(), una función vieja que quedó sin usar en ningún lado desde que se
+  // migró al sistema de clasStagePoints). Confirmado con el COMIPRO: se deja así (Opción B).
+  elim:{exact:2,result:2,gd:1, clas_r16:1,clas_qf:1,clas_sf:1,clas_fin:1},
   // Cuadro de honor (planilla COMIPRO): Campeón +4, Sub +3, 3° +2, Botas +3/+2/+1, Balones +3/+2/+1
   extra:{champion:4,runnerup:3,third:2,fourth:1, boot_gold:3,boot_silver:2,boot_bronze:1, ball_gold:3,ball_silver:2,ball_bronze:1},
   // Puntos extra del cuadro autocompletado (Punto 30)
