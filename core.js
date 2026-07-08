@@ -86,7 +86,12 @@ async function loadAll(){
       withTimeout(adminLoadAllPreds(), 'adminLoadAllPreds'),
     ]);
   } else {
-    // jugador: solo el snapshot más reciente (1 fila, sin inserts)
+    // jugador: snapshot más reciente para mostrar en su pantalla, Y de paso intenta
+    // generar el snapshot del día si falta (igual que hace el admin) — así el "Pelela
+    // del momento" y las rachas no dependen de que el admin específicamente haya
+    // abierto la app ese día, alcanza con que cualquier jugador la haya abierto.
+    // Si los permisos de la base no dejan insertar a un jugador normal, esto falla en
+    // silencio sin romper nada más (queda como estaba antes).
     try{
       const {data:snap} = await sb.from('standings_snapshots')
         .select('date_key,positions')
@@ -95,6 +100,7 @@ async function loadAll(){
         .maybeSingle();
       APP.lastSnapshot = snap?.positions||null;
     }catch(e){ APP.lastSnapshot=null; }
+    withTimeout(syncSnapshots(), 'syncSnapshots (jugador)');
   }
 }
 
