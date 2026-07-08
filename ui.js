@@ -3004,7 +3004,7 @@ function buildHistorialTableHTML(uid, wasabiSnaps){
     {id:"nitros",   icon:"🔥", label:"Nitros",                fn: nitrosDia,    days:"all"},
     {id:"sangs",    icon:"🩸", label:"Sanguijuelas",          fn: sangDia,      days:"all"},
     {id:"posGrupo", icon:"🏟️", label:"Pos. exactas grupo",    fn: d=>d===lastGruposDay?groupPositionPoints(uid):0, days:"grupos_last"},
-    {id:"r32",      icon:"⚔️", label:"Partidos R32",          fn: elimDia,      days:"elim"},
+    {id:"r32",      icon:"⚔️", label:"Partidos Elim. (R32→Final)", fn: elimDia,      days:"elim"},
     {id:"wasabi",   icon:"🌶️", label:"Wasabi",                fn: wasabiDia,    days:"all"},
     {id:"clasElim", icon:"🏆", label:"Clasif. a R32",         fn: clasElimDia,  days:"elim"},
     {id:"clasR16",  icon:"🎯", label:"Clasif. a Octavos",     fn: clasR16Dia,   days:"elim"},
