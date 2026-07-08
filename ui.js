@@ -1033,9 +1033,16 @@ function prAreaElimNew(area, stage){
         <p>Primero confirmá la etapa anterior.</p>
       </div></div>`;
     } else if(ov==="closed"){
+      const myElimClosed2 = APP.myPred?.elim||{};
+      const matchesClosed2 = FIXTURE.filter(m=>m.phase===(stage==="tpfinal"?"tp":stage)||
+        (stage==="tpfinal"&&m.phase==="final")).sort((a,b)=>a.slot-b.slot);
+      const rowsClosed2 = matchesClosed2.filter(m=>m.home&&m.away)
+        .map(m=>elimMatchRow(m, myElimClosed2[m.slot]||{}, true, stage)).join('');
       area.innerHTML=`<div class="card"><div class="empty"><div class="big">🔒</div>
         <p>Esta fase está cerrada por el COMIPRO.</p>
-      </div></div>`;
+        <p class="note">Podés ver lo que cargaste, pero ya no se puede modificar.</p>
+      </div></div>
+      ${rowsClosed2}`;
     } else if(w && now < new Date(w.open).getTime()){
       // Aún no abrió — mostrar countdown
       const abre = new Date(w.open);
