@@ -1009,7 +1009,11 @@ function currentPositions(){
   const map={}; standings().forEach(r=>map[r.id]=r.pos); return map;
 }
 // ¿Cuántos días consecutivos (incluido hoy) lleva un jugador como último de la tabla?
-// Usa el historial de standings_snapshots (uno por día ya cerrado) + la posición actual.
+// Usa el historial de standings_snapshots (uno por día ya cerrado CON partidos) + la
+// posición actual. Recorre calendario día por día (no solo los que tienen snapshot),
+// así un día sin partidos programados (ej: entre Octavos y Cuartos) no corta la racha
+// por error — solo se corta si hubo partidos ese día y no hay snapshot, o si el jugador
+// no fue el último.
 function pelelaStreak(uid){
   if(!uid) return 0;
   const tb = standings();
@@ -1018,15 +1022,17 @@ function pelelaStreak(uid){
   const maxPosHoy = Math.max(...tb.map(r=>r.pos));
   if(me.pos!==maxPosHoy) return 0; // hoy no es el último, racha en 0
   let streak = 1; // cuenta hoy
-  // solo snapshots con clave de fecha real (YYYY-MM-DD) — hay algunos viejos tipo
-  // "grupos-1/2/3" de un formato anterior que, al ordenar como texto, quedan mezclados
-  // fuera de orden cronológico (la letra "g" ordena después que cualquier número) y
-  // cortaban la racha antes de tiempo.
   const isoDate = /^\d{4}-\d{2}-\d{2}$/;
-  const snaps = (APP.allSnapshots||[]).filter(s=>isoDate.test(s.date_key))
-    .slice().sort((a,b)=>b.date_key.localeCompare(a.date_key)); // más reciente primero
-  for(const s of snaps){
-    const pos = s.positions||{};
+  const snapMap = {};
+  (APP.allSnapshots||[]).forEach(s=>{ if(isoDate.test(s.date_key)) snapMap[s.date_key]=s.positions; });
+  const tz='America/Argentina/Buenos_Aires';
+  const cursor = new Date();
+  for(let i=0;i<120;i++){ // tope de seguridad
+    cursor.setDate(cursor.getDate()-1);
+    const day = new Intl.DateTimeFormat('en-CA',{timeZone:tz}).format(cursor);
+    if(!dayHasMatches(day)) continue; // día sin partidos programados: no corta la racha
+    const pos = snapMap[day];
+    if(!pos) break; // hubo partidos pero falta el snapshot — no se puede confirmar, corta
     const vals = Object.values(pos);
     if(!vals.length) break;
     const maxPosDia = Math.max(...vals);
