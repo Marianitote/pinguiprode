@@ -304,7 +304,7 @@ function renderInicio(v){
       const _cobweb=_streak>=3;
       return `<div style="margin:28px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
         ${_cobweb?cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
-        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO 🎃</div>
         ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
         <div style="font-size:13px;color:var(--muted);margin-top:4px">${_last.total} pts · Puesto #${_last.pos}</div>
@@ -729,7 +729,7 @@ function renderInicio(v){
     const cobweb=streak>=3;
     return `<div style="margin:28px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
       ${cobweb?cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
-      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO 🎃</div>
       ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
