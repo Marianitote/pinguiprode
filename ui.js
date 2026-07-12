@@ -2730,7 +2730,9 @@ function admTarjetas(area){
     html+=`<div class="card flat"><div class="sec-title">🎲 Re-Wasabi</div>
       <p class="note">${rwAnswered}/${rwTotal} respondidas${rewasabiLocked?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
       <button class="btn sm" style="margin-top:10px" onclick="admVerRewasabi('${ADM_VIEWUID}',this)">👁 Ver Re-Wasabi</button>
+      <button class="btn sm" style="margin-top:10px;margin-left:6px;background:rgba(34,197,94,0.15);color:#22c55e" onclick="admVerAciertosRewasabi('${ADM_VIEWUID}',this)">✅ Ver aciertos (con puntos)</button>
       <div id="admRewasabiArea"></div>
+      <div id="admAciertosRewasabiArea"></div>
     </div>`;
   }
   // WASABI resumen con botón Ver
@@ -2739,7 +2741,9 @@ function admTarjetas(area){
   html+=`<div class="card flat"><div class="sec-title">🌶️ Wasabi</div>
     <p class="note">${wasabiCount}/55 preguntas respondidas${sentWasabi?' · <b style="color:var(--aqua)">✅ Enviada</b>':' · <span style="color:#f59e0b">⏳ No enviada</span>'}.</p>
     <button class="btn sm" style="margin-top:10px" onclick="admVerWasabi('${ADM_VIEWUID}',this)">👁 Ver Wasabi</button>
-    <div id="admWasabiArea"></div></div>`;
+    <button class="btn sm" style="margin-top:10px;margin-left:6px;background:rgba(34,197,94,0.15);color:#22c55e" onclick="admVerAciertosWasabi('${ADM_VIEWUID}',this)">✅ Ver aciertos (con puntos)</button>
+    <div id="admWasabiArea"></div>
+    <div id="admAciertosWasabiArea"></div></div>`;
   // PRINCIPAL (resumen: cantidad cargada + acceso por fase)
   const mainCount=Object.keys(pred.main||{}).filter(k=>{const m=pred.main[k];return m&&m.h!==""&&m.h!=null;}).length;
   const sentGroups=!!(pred.sent_at?.grupos);
@@ -2812,6 +2816,71 @@ function admVerWasabi(uid, btn){
   });
   area.innerHTML=html;
 }
+/* Desglose de SOLO las preguntas Wasabi que un jugador acertó, con el puntaje de cada una.
+   Reutiliza exactamente la misma lógica de acierto que wasabiTotal() en core.js, pregunta por
+   pregunta, para que la suma de esta vista siempre cierre con el total oficial. */
+function admVerAciertosWasabi(uid, btn){
+  const area = document.getElementById('admAciertosWasabiArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='✅ Ver aciertos (con puntos)'; return; }
+  btn.textContent='🔼 Ocultar aciertos';
+  const pred = APP.allPreds?.[uid]||{};
+  const w = pred.wasabi||{};
+  const res = APP.results.wasabi||{};
+  const auto = autoWasabiAnswers();
+  const rows=[];
+  APP.wasabiQs.forEach((q,i)=>{
+    let pts=0, tuResp='', correcta='';
+    if(q.type==="bonus"){
+      if(res["bonus_"+q.id]!==uid) return;
+      pts=q.pts;
+      const winner=APP.profiles.find(p=>p.id===uid);
+      tuResp='(asignado como ganador)';
+      correcta=winner?winner.display_name:'';
+    } else if(["w5","w6","w7","w8"].includes(q.id)){
+      if(!APP.results.auto_wasabi_enabled) return;
+      const correctNames=auto[q.id]||[];
+      if(!correctNames.length) return;
+      const ans=w[q.id];
+      if(!ans||!correctNames.some(n=>norm(n)===norm(ans))) return;
+      pts=q.pts; tuResp=ans; correcta=correctNames.join(' / ');
+    } else if(q.id==="w1"){
+      const r1=(APP.results.main||{})["1"];
+      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
+      const exactCount=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+        const m=(predFor(p.id).main)||{}; const pr=m["1"];
+        return pr && +pr.h===+r1.h && +pr.a===+r1.a;
+      }).length;
+      const playerAns=parseFloat(w["w1"]);
+      if(isNaN(playerAns)||playerAns!==exactCount) return;
+      pts=q.pts; tuResp=String(playerAns); correcta=String(exactCount);
+    } else if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts=approxPts(uid,q.id);
+      if(pts<=0) return;
+      tuResp=w[q.id]??''; correcta=String(res[q.id]);
+    } else {
+      if(res[q.id]==null||res[q.id]==="") return;
+      if(!matchesResult(w[q.id],res[q.id])) return;
+      pts=q.pts; tuResp=w[q.id]??''; correcta=String(res[q.id]);
+    }
+    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
+  });
+  const totalPts=rows.reduce((s,r)=>s+r.pts,0);
+  const oficial=wasabiTotal(uid);
+  let html=`<div style="margin-top:10px;padding:10px;background:rgba(34,197,94,0.08);border-radius:8px">
+    <b style="color:#22c55e">${rows.length} acertadas</b> · <b style="color:var(--aqua)">+${totalPts} pts</b>
+    ${totalPts!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (wasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
+  </div>`;
+  if(!rows.length){
+    html+=`<p class="note" style="margin-top:8px">Todavía no tiene ninguna Wasabi acertada resuelta.</p>`;
+  } else {
+    html+=rows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+      <span>Respondió: <b>${esc(String(r.tuResp))}</b> · Correcta: <b>${esc(String(r.correcta))}</b> · <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span></span>
+    </div>`).join('');
+  }
+  area.innerHTML=html;
+}
 function admVerRewasabi(uid, btn){
   const area=$("#admRewasabiArea");
   if(!area) return;
@@ -2841,6 +2910,67 @@ function admVerRewasabi(uid, btn){
     </div>`;
   });
   area.innerHTML=`<div style="margin-top:10px">${html}</div>`;
+}
+/* Desglose de SOLO las preguntas Re-Wasabi que un jugador acertó, con el puntaje de cada una.
+   Reutiliza exactamente la misma lógica de acierto que rewasabiTotal() en core.js. */
+function admVerAciertosRewasabi(uid, btn){
+  const area = document.getElementById('admAciertosRewasabiArea');
+  if(area.innerHTML){ area.innerHTML=''; btn.textContent='✅ Ver aciertos (con puntos)'; return; }
+  btn.textContent='🔼 Ocultar aciertos';
+  const pred = APP.allPreds?.[uid]||{};
+  const rw = pred.rewasabi||{};
+  const res = APP.results.rewasabi||{};
+  const rqs = APP.rewasabiQs||[...SEED_REWASABI];
+  const rows=[];
+  rqs.forEach((q,i)=>{
+    let pts=0, tuResp='', correcta='';
+    if(q.type==="bonus"){
+      if(res["bonus_"+q.id]!==uid) return;
+      pts=q.pts;
+      const winner=APP.profiles.find(p=>p.id===uid);
+      tuResp='(asignado como ganador)';
+      correcta=winner?winner.display_name:'';
+    } else if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts=approxPts(uid,q.id);
+      if(pts<=0) return;
+      tuResp=rw[q.id]??''; correcta=String(res[q.id]);
+    } else if(q.type==="country_phase"){
+      const resPaisRaw=res[q.id+"_pais"];
+      const resFase=res[q.id+"_fase"];
+      const predPais=rw[q.id+"_pais"];
+      const predFase=rw[q.id+"_fase"];
+      if(!resPaisRaw||!predPais) return;
+      const resPaisList=Array.isArray(resPaisRaw)?resPaisRaw:[resPaisRaw];
+      const paisOk=resPaisList.some(rp=>norm(predPais)===norm(rp));
+      const faseOk=resFase&&predFase&&norm(predFase)===norm(resFase);
+      if(!paisOk) return;
+      pts=(q.ptsPais||10)+(faseOk?(q.ptsFase||10):0);
+      const td=TEAMS[predPais];
+      tuResp=`${td?td.f+' '+td.n:predPais}${predFase?' · '+predFase:''}`;
+      correcta=`${resPaisList.map(rp=>{const t=TEAMS[rp];return t?t.f+' '+t.n:rp;}).join(' / ')}${resFase?' · '+resFase:''}`;
+    } else {
+      if(res[q.id]==null||res[q.id]==="") return;
+      if(!matchesResult(rw[q.id],res[q.id])) return;
+      pts=q.pts; tuResp=rw[q.id]??''; correcta=String(res[q.id]);
+    }
+    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
+  });
+  const totalPts=rows.reduce((s,r)=>s+r.pts,0);
+  const oficial=rewasabiTotal(uid);
+  let html=`<div style="margin-top:10px;padding:10px;background:rgba(34,197,94,0.08);border-radius:8px">
+    <b style="color:#22c55e">${rows.length} acertadas</b> · <b style="color:var(--aqua)">+${totalPts} pts</b>
+    ${totalPts!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (rewasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
+  </div>`;
+  if(!rows.length){
+    html+=`<p class="note" style="margin-top:8px">Todavía no tiene ninguna Re-Wasabi acertada resuelta.</p>`;
+  } else {
+    html+=rows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+      <span>Respondió: <b>${esc(String(r.tuResp))}</b> · Correcta: <b>${esc(String(r.correcta))}</b> · <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span></span>
+    </div>`).join('');
+  }
+  area.innerHTML=html;
 }
 function admVerGrupos(uid, btn){
   const area = document.getElementById('admGruposArea');
