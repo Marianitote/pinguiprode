@@ -1960,19 +1960,23 @@ function standingsTableHTML(opts){
     const penBadge = r.penalty>0 ? `<span title="Penalización: -${r.penalty}pts" style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px">⚡-${r.penalty}</span>` : "";
     const bonTotal = bonusTotal(r.id);
     const bonBadge = bonTotal>0 ? `<span title="Bonificación: +${bonTotal}pts" style="color:#22c55e;font-size:11px;font-weight:700;margin-left:4px">✨+${bonTotal}</span>` : "";
+    // Columna "Was" combinada: Wasabi + Re-Wasabi juntos, para que se entienda de un vistazo
+    // y la suma Princ + Was + (clas/bonus/penal, sin columna propia) se acerque más al Total.
+    const wasCombinado = (r.wasabi||0) + rewasabiTotal(r.id);
     out+=`<tr class="${r.id===APP.user.id?'me':''} zone-${displayZone(r)}">
       <td><span class="rank ${r.zone==='elite'?'r1':r.zone==='midfield'?'r2':'r3'}">${r.pos}</span>${arrow}</td>
       <td class="name">${esc(r.name)}${recvHoyBadge}${aplSangBadge}${aplNitroBadge}${r.id===APP.user.id?' <span class="note">(vos)</span>':''}${penBadge}${bonBadge}</td>
-      <td>${r.main+r.extra}</td><td>${r.wasabi}</td><td class="pts">${r.total}</td>
+      <td>${r.main+r.extra}</td><td>${wasCombinado}</td><td class="pts">${r.total}</td>
       ${opts.inline?`<td>${actions(r)}</td>`:""}</tr>`;
   });
   const headLast = opts.inline?'<th style="font-size:10px;text-align:center;line-height:1.5">Comodines<br><span style="font-weight:400;color:var(--muted)">🔥 disponibles / 🩸 por recibir</span></th>':'';
   const zonaRef = allZero ? "" : `<span class="zone-band elite"></span>La élite · <span class="zone-band midfield"></span>Midfield · <span class="zone-band pobreza"></span>Zona de pobreza &nbsp;·&nbsp;`;
   const glos=`<div class="note" style="margin-top:10px;font-size:11.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px">
     <b>Referencias:</b> ${zonaRef}
+    <b>Was+RW</b> = Wasabi + Re-Wasabi combinados &nbsp;·&nbsp;
     <span style="color:#ef4444">🩸</span><i>N</i> = sanguijuelas aplicadas esta fase &nbsp;·&nbsp; 🔥<i>N</i> = nitros usados esta fase &nbsp;·&nbsp; ⚡ = penalización &nbsp;·&nbsp; <span style="color:#22c55e">✨</span> = puntos extra</div>`;
   return `<div style="overflow-x:auto;margin-top:10px"><table>
-      <tr><th>#</th><th class="name">Jugador <span style="font-size:10px;font-weight:400;color:var(--muted)">(comodines usados)</span></th><th>Princ</th><th>Was</th><th>Total</th>${headLast}</tr>
+      <tr><th>#</th><th class="name">Jugador <span style="font-size:10px;font-weight:400;color:var(--muted)">(comodines usados)</span></th><th>Princ</th><th title="Wasabi + Re-Wasabi combinados">Was+RW</th><th>Total</th>${headLast}</tr>
       ${out}
     </table></div>${glos}`;
 }
