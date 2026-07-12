@@ -1552,9 +1552,12 @@ function renderRewasabi(v){
     if(q.type==="country_phase"){
       const ansPais=rw[q.id+"_pais"]||"";
       const ansFase=rw[q.id+"_fase"]||"";
-      const resPais=resRw[q.id+"_pais"];
+      const resPaisRaw=resRw[q.id+"_pais"];
       const resFase=resRw[q.id+"_fase"];
-      const paisOk=resPais&&norm(ansPais)===norm(resPais);
+      // La respuesta correcta de país puede ser una lista (varios países empatados en la
+      // misma fase), no solo uno — misma lógica que rewasabiTotal() en core.js.
+      const resPaisList = resPaisRaw ? (Array.isArray(resPaisRaw)?resPaisRaw:[resPaisRaw]) : [];
+      const paisOk = resPaisList.length>0 && resPaisList.some(rp=>norm(ansPais)===norm(rp));
       const faseOk=resFase&&norm(ansFase)===norm(resFase);
       inputHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <select style="flex:1;min-width:140px" ${dis} onchange="setRewasabi('${q.id}_pais',this.value)">
@@ -1569,10 +1572,11 @@ function renderRewasabi(v){
       <div style="font-size:11px;color:var(--muted);margin-top:6px">
         ✅ País + Fase: <b style="color:white">20pts</b> &nbsp;·&nbsp; ✅ Solo País: <b style="color:white">10pts</b> &nbsp;·&nbsp; ❌ Resto: 0pts
       </div>`;
-      if(resPais){
+      if(resPaisList.length){
         const pts = (paisOk?(q.ptsPais||10):0)+(paisOk&&faseOk?(q.ptsFase||10):0);
+        const resPaisDisplay = resPaisList.map(rp=>{ const td=TEAMS[rp]; return td?(td.f+' '+td.n):rp; }).join(' / ');
         inputHtml+=`<div class="acertaron" style="margin-top:6px">
-          <div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${resPais}${resFase?' · '+resFase:''}</b></div>
+          <div style="font-size:11px;color:var(--muted)">Resultado: <b style="color:white">${resPaisDisplay}${resFase?' · '+resFase:''}</b></div>
           <span style="color:${pts>0?'var(--aqua)':'var(--muted)'}">Pts: <b>${pts>0?'+'+pts:0}</b></span>
         </div>`;
       }
