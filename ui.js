@@ -71,6 +71,47 @@ function cobwebCornerSVG(corner, scale, extraSpider){
     </g>`:''}
   </svg>`;
 }
+function pumpkinCornerSVG(size){
+  size = size||120;
+  return `<svg width="${size}" height="${Math.round(size*0.94)}" viewBox="0 0 120 112" style="position:absolute;bottom:-10px;right:-8px;transform:rotate(-6deg);opacity:0.95;z-index:1;pointer-events:none" fill="none">
+    <!-- contorno oscuro (mismas lobulaciones, un poco mas grandes) -->
+    <g fill="#3d1f12">
+      <ellipse cx="60" cy="64" rx="30" ry="45"/>
+      <ellipse cx="41" cy="66" rx="25" ry="41"/>
+      <ellipse cx="79" cy="66" rx="25" ry="41"/>
+      <ellipse cx="25" cy="68" rx="20" ry="34"/>
+      <ellipse cx="95" cy="68" rx="20" ry="34"/>
+    </g>
+    <!-- cuerpo naranja -->
+    <g fill="#f4922e">
+      <ellipse cx="60" cy="64" rx="27" ry="42"/>
+      <ellipse cx="41" cy="66" rx="22" ry="38"/>
+      <ellipse cx="79" cy="66" rx="22" ry="38"/>
+      <ellipse cx="25" cy="68" rx="17" ry="31"/>
+      <ellipse cx="95" cy="68" rx="17" ry="31"/>
+    </g>
+    <!-- surcos y brillos -->
+    <g fill="none" stroke-linecap="round">
+      <path d="M48,30 Q44,66 51,100" stroke="#df7d20" stroke-width="3" opacity="0.75"/>
+      <path d="M72,30 Q77,66 69,100" stroke="#df7d20" stroke-width="3" opacity="0.75"/>
+      <path d="M34,42 Q28,68 34,94" stroke="#ffb457" stroke-width="3" opacity="0.6"/>
+      <path d="M86,42 Q92,68 86,94" stroke="#df7d20" stroke-width="3" opacity="0.6"/>
+    </g>
+    <!-- tallo -->
+    <path d="M54,26 C51,14 56,7 62,7 C67,7 67,17 64,26 Z" fill="#6b4a2a" stroke="#3d1f12" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- hoja -->
+    <path d="M64,17 C79,5 98,7 103,13 C92,20 75,22 66,19 Z" fill="#57b85a" stroke="#3d1f12" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M70,15 Q86,12 99,14" stroke="#2f7d3e" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <!-- cara feliz -->
+    <ellipse cx="46" cy="59" rx="8" ry="13" fill="#3d1f12"/>
+    <ellipse cx="74" cy="59" rx="8" ry="13" fill="#3d1f12"/>
+    <circle cx="43" cy="53" r="2.6" fill="#ffffff"/>
+    <circle cx="71" cy="53" r="2.6" fill="#ffffff"/>
+    <ellipse cx="60" cy="69" rx="3" ry="2.2" fill="#3d1f12"/>
+    <path d="M42,74 Q60,80 78,74 Q74,95 60,95 Q46,95 42,74 Z" fill="#3d1f12"/>
+    <ellipse cx="60" cy="90" rx="8" ry="5" fill="#ef6f57"/>
+  </svg>`;
+}
 function team(c){const t=TEAMS[c];return t?`<span class="flag">${t.f}</span><span class="nm">${t.n}</span>`:`<span class="nm" style="color:var(--muted)">—</span>`;}
 function isAdmin(){return APP.profile?.is_admin;}
 function modal(html){let m=document.createElement("div");m.className="modal-bg";m.id="modalBg";m.innerHTML=`<div class="modal">${html}</div>`;m.onclick=e=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
@@ -303,8 +344,8 @@ function renderInicio(v){
       const _streak=pelelaStreak(_last.id);
       const _cobweb=_streak>=3;
       return `<div style="margin:28px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
-        ${_cobweb?cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
-        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO 🎃</div>
+        ${_cobweb?pumpkinCornerSVG(132)+cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
         ${_av?`<img src="${_av}" alt="${esc(_last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${_cobweb?'filter:grayscale(30%)':''}">`:''}
         <div style="font-size:16px;font-weight:700">${esc(_last.name)}</div>
         <div style="font-size:13px;color:var(--muted);margin-top:4px">${_last.total} pts · Puesto #${_last.pos}</div>
@@ -728,8 +769,8 @@ function renderInicio(v){
     const streak=pelelaStreak(last.id);
     const cobweb=streak>=3;
     return `<div style="margin:28px 40px;border:2px solid var(--gold);border-radius:16px;padding:16px;text-align:center;background:rgba(255,206,71,0.06);position:relative">
-      ${cobweb?cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
-      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO 🎃</div>
+      ${cobweb?pumpkinCornerSVG(132)+cobwebCornerSVG('tl',3,true)+cobwebCornerSVG('tr',3,false)+cobwebCornerSVG('bl',3,false)+cobwebCornerSVG('br',3,true):''}
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:var(--gold);margin-bottom:10px">🥴 EL PELELA DEL MOMENTO</div>
       ${av?`<img src="${av}" alt="${esc(last.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:8px;${cobweb?'filter:grayscale(30%)':''}">`:``}
       <div style="font-size:16px;font-weight:700">${esc(last.name)}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">${last.total} pts · Puesto #${last.pos}</div>
