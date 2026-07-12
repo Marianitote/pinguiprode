@@ -1515,6 +1515,33 @@ function renderRewasabi(v){
     <p class="note">Preguntas especiales de la fase eliminatoria. No computan para comodines.</p>
     ${sent||windowClosed?'<div class="lock-banner" style="margin-top:10px">🔒 Re-Wasabi enviada o ventana cerrada.</div>':''}
   </div>`;
+  // Resumen de puntaje real: respuestas correctas + bonus, separado, usando el mismo
+  // desglose que usa el admin (rewasabiAciertosDetalle) para que siempre cierre con rewasabiTotal().
+  {
+    const {rows:aciertos, bonusRows, totalNoBonus, totalBonus} = rewasabiAciertosDetalle(APP.user.id);
+    html+=`<div class="card" style="margin-top:10px">
+      <div class="sec-title" style="color:var(--aqua)">🏆 Tu puntaje Re-Wasabi</div>
+      <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap">
+        <div class="pill">✅ Respuestas correctas: <b>${aciertos.length}</b></div>
+        <div class="pill" style="color:var(--aqua)">🎲 Total puntos Re-Wasabi: <b>${totalNoBonus} pts</b></div>
+        <div class="pill" style="color:var(--gold)">🎁 Total puntos bonus: <b>${totalBonus} pts</b></div>
+      </div>
+      ${aciertos.length?`<details style="margin-top:10px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px">Ver el detalle de tus respuestas correctas</summary>
+        <div style="margin-top:8px">${aciertos.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+          <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+          <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span>
+        </div>`).join('')}</div>
+      </details>`:''}
+      ${bonusRows.length?`<details style="margin-top:8px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--gold)">Ver el detalle de tus puntos bonus</summary>
+        <div style="margin-top:8px">${bonusRows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+          <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+          <span style="color:var(--gold);font-weight:700">+${r.pts} pts</span>
+        </div>`).join('')}</div>
+      </details>`:''}
+    </div>`;
+  }
 
   rqs.forEach((q,qi)=>{
     const ans = rw[q.id]||"";
@@ -1672,6 +1699,33 @@ function renderWasabi(v){
       <div class="pill" style="flex:1">📋 Respondidas: <b>${answered}/${totalNonBonus}</b></div>
       ${sent?'<span style="color:var(--gold);font-weight:700">🔒 Enviada</span>':'<span style="color:var(--muted)">(Sin enviar)</span>'}
     </div></div>`;
+  // Resumen de puntaje real: respuestas correctas + bonus, separado, usando el mismo
+  // desglose que usa el admin (wasabiAciertosDetalle) para que siempre cierre con wasabiTotal().
+  {
+    const {rows:aciertos, bonusRows, totalNoBonus, totalBonus} = wasabiAciertosDetalle(APP.user.id);
+    html+=`<div class="card" style="margin-top:10px">
+      <div class="sec-title" style="color:var(--aqua)">🏆 Tu puntaje Wasabi</div>
+      <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap">
+        <div class="pill">✅ Respuestas correctas: <b>${aciertos.length}</b></div>
+        <div class="pill" style="color:var(--aqua)">🌶️ Total puntos Wasabi: <b>${totalNoBonus} pts</b></div>
+        <div class="pill" style="color:var(--gold)">🎁 Total puntos bonus: <b>${totalBonus} pts</b></div>
+      </div>
+      ${aciertos.length?`<details style="margin-top:10px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px">Ver el detalle de tus respuestas correctas</summary>
+        <div style="margin-top:8px">${aciertos.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+          <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+          <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span>
+        </div>`).join('')}</div>
+      </details>`:''}
+      ${bonusRows.length?`<details style="margin-top:8px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--gold)">Ver el detalle de tus puntos bonus</summary>
+        <div style="margin-top:8px">${bonusRows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+          <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
+          <span style="color:var(--gold);font-weight:700">+${r.pts} pts</span>
+        </div>`).join('')}</div>
+      </details>`:''}
+    </div>`;
+  }
   // Mapa de IDs → encabezado de sección que se inserta ANTES de esa pregunta
   const SECTION_HEADERS = {
     "w1":  { label:"Preguntas Generales",                  icon:"🌍", color:"#3b82f6" },
@@ -2823,53 +2877,13 @@ function admVerAciertosWasabi(uid, btn){
   const area = document.getElementById('admAciertosWasabiArea');
   if(area.innerHTML){ area.innerHTML=''; btn.textContent='✅ Ver aciertos (con puntos)'; return; }
   btn.textContent='🔼 Ocultar aciertos';
-  const pred = APP.allPreds?.[uid]||{};
-  const w = pred.wasabi||{};
-  const res = APP.results.wasabi||{};
-  const auto = autoWasabiAnswers();
-  const rows=[];
-  APP.wasabiQs.forEach((q,i)=>{
-    let pts=0, tuResp='', correcta='';
-    if(q.type==="bonus"){
-      if(res["bonus_"+q.id]!==uid) return;
-      pts=q.pts;
-      const winner=APP.profiles.find(p=>p.id===uid);
-      tuResp='(asignado como ganador)';
-      correcta=winner?winner.display_name:'';
-    } else if(["w5","w6","w7","w8"].includes(q.id)){
-      if(!APP.results.auto_wasabi_enabled) return;
-      const correctNames=auto[q.id]||[];
-      if(!correctNames.length) return;
-      const ans=w[q.id];
-      if(!ans||!correctNames.some(n=>norm(n)===norm(ans))) return;
-      pts=q.pts; tuResp=ans; correcta=correctNames.join(' / ');
-    } else if(q.id==="w1"){
-      const r1=(APP.results.main||{})["1"];
-      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
-      const exactCount=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-        const m=(predFor(p.id).main)||{}; const pr=m["1"];
-        return pr && +pr.h===+r1.h && +pr.a===+r1.a;
-      }).length;
-      const playerAns=parseFloat(w["w1"]);
-      if(isNaN(playerAns)||playerAns!==exactCount) return;
-      pts=q.pts; tuResp=String(playerAns); correcta=String(exactCount);
-    } else if(q.type==="approx"){
-      if(res[q.id]==null||res[q.id]==="") return;
-      pts=approxPts(uid,q.id);
-      if(pts<=0) return;
-      tuResp=w[q.id]??''; correcta=String(res[q.id]);
-    } else {
-      if(res[q.id]==null||res[q.id]==="") return;
-      if(!matchesResult(w[q.id],res[q.id])) return;
-      pts=q.pts; tuResp=w[q.id]??''; correcta=String(res[q.id]);
-    }
-    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
-  });
-  const totalPts=rows.reduce((s,r)=>s+r.pts,0);
+  const {rows, bonusRows, totalNoBonus, totalBonus} = wasabiAciertosDetalle(uid);
   const oficial=wasabiTotal(uid);
+  const sumaTotal=totalNoBonus+totalBonus;
   let html=`<div style="margin-top:10px;padding:10px;background:rgba(34,197,94,0.08);border-radius:8px">
-    <b style="color:#22c55e">${rows.length} acertadas</b> · <b style="color:var(--aqua)">+${totalPts} pts</b>
-    ${totalPts!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (wasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
+    <div><b style="color:#22c55e">${rows.length} respuestas correctas</b> · <b style="color:var(--aqua)">+${totalNoBonus} pts</b></div>
+    <div style="margin-top:4px"><b style="color:var(--gold)">🎁 Bonus (alertas WhatsApp)</b> · <b style="color:var(--gold)">+${totalBonus} pts</b></div>
+    ${sumaTotal!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (wasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
   </div>`;
   if(!rows.length){
     html+=`<p class="note" style="margin-top:8px">Todavía no tiene ninguna Wasabi acertada resuelta.</p>`;
@@ -2877,6 +2891,12 @@ function admVerAciertosWasabi(uid, btn){
     html+=rows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
       <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
       <span>Respondió: <b>${esc(String(r.tuResp))}</b> · Correcta: <b>${esc(String(r.correcta))}</b> · <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span></span>
+    </div>`).join('');
+  }
+  if(bonusRows.length){
+    html+=`<div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--gold)">🎁 Bonus ganadas</div>`;
+    html+=bonusRows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span> · <span style="color:var(--gold);font-weight:700">+${r.pts} pts</span>
     </div>`).join('');
   }
   area.innerHTML=html;
@@ -2917,50 +2937,13 @@ function admVerAciertosRewasabi(uid, btn){
   const area = document.getElementById('admAciertosRewasabiArea');
   if(area.innerHTML){ area.innerHTML=''; btn.textContent='✅ Ver aciertos (con puntos)'; return; }
   btn.textContent='🔼 Ocultar aciertos';
-  const pred = APP.allPreds?.[uid]||{};
-  const rw = pred.rewasabi||{};
-  const res = APP.results.rewasabi||{};
-  const rqs = APP.rewasabiQs||[...SEED_REWASABI];
-  const rows=[];
-  rqs.forEach((q,i)=>{
-    let pts=0, tuResp='', correcta='';
-    if(q.type==="bonus"){
-      if(res["bonus_"+q.id]!==uid) return;
-      pts=q.pts;
-      const winner=APP.profiles.find(p=>p.id===uid);
-      tuResp='(asignado como ganador)';
-      correcta=winner?winner.display_name:'';
-    } else if(q.type==="approx"){
-      if(res[q.id]==null||res[q.id]==="") return;
-      pts=approxPts(uid,q.id);
-      if(pts<=0) return;
-      tuResp=rw[q.id]??''; correcta=String(res[q.id]);
-    } else if(q.type==="country_phase"){
-      const resPaisRaw=res[q.id+"_pais"];
-      const resFase=res[q.id+"_fase"];
-      const predPais=rw[q.id+"_pais"];
-      const predFase=rw[q.id+"_fase"];
-      if(!resPaisRaw||!predPais) return;
-      const resPaisList=Array.isArray(resPaisRaw)?resPaisRaw:[resPaisRaw];
-      const paisOk=resPaisList.some(rp=>norm(predPais)===norm(rp));
-      const faseOk=resFase&&predFase&&norm(predFase)===norm(resFase);
-      if(!paisOk) return;
-      pts=(q.ptsPais||10)+(faseOk?(q.ptsFase||10):0);
-      const td=TEAMS[predPais];
-      tuResp=`${td?td.f+' '+td.n:predPais}${predFase?' · '+predFase:''}`;
-      correcta=`${resPaisList.map(rp=>{const t=TEAMS[rp];return t?t.f+' '+t.n:rp;}).join(' / ')}${resFase?' · '+resFase:''}`;
-    } else {
-      if(res[q.id]==null||res[q.id]==="") return;
-      if(!matchesResult(rw[q.id],res[q.id])) return;
-      pts=q.pts; tuResp=rw[q.id]??''; correcta=String(res[q.id]);
-    }
-    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
-  });
-  const totalPts=rows.reduce((s,r)=>s+r.pts,0);
+  const {rows, bonusRows, totalNoBonus, totalBonus} = rewasabiAciertosDetalle(uid);
   const oficial=rewasabiTotal(uid);
+  const sumaTotal=totalNoBonus+totalBonus;
   let html=`<div style="margin-top:10px;padding:10px;background:rgba(34,197,94,0.08);border-radius:8px">
-    <b style="color:#22c55e">${rows.length} acertadas</b> · <b style="color:var(--aqua)">+${totalPts} pts</b>
-    ${totalPts!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (rewasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
+    <div><b style="color:#22c55e">${rows.length} respuestas correctas</b> · <b style="color:var(--aqua)">+${totalNoBonus} pts</b></div>
+    <div style="margin-top:4px"><b style="color:var(--gold)">🎁 Bonus (alertas WhatsApp)</b> · <b style="color:var(--gold)">+${totalBonus} pts</b></div>
+    ${sumaTotal!==oficial?`<div style="color:#f59e0b;font-size:11px;margin-top:4px">⚠️ El total oficial (rewasabiTotal) da ${oficial}. Revisar diferencia.</div>`:''}
   </div>`;
   if(!rows.length){
     html+=`<p class="note" style="margin-top:8px">Todavía no tiene ninguna Re-Wasabi acertada resuelta.</p>`;
@@ -2968,6 +2951,12 @@ function admVerAciertosRewasabi(uid, btn){
     html+=rows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
       <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span><br>
       <span>Respondió: <b>${esc(String(r.tuResp))}</b> · Correcta: <b>${esc(String(r.correcta))}</b> · <span style="color:#22c55e;font-weight:700">+${r.pts} pts</span></span>
+    </div>`).join('');
+  }
+  if(bonusRows.length){
+    html+=`<div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--gold)">🎁 Bonus ganadas</div>`;
+    html+=bonusRows.map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span style="color:var(--muted)">${r.n}. ${esc(r.texto)}</span> · <span style="color:var(--gold);font-weight:700">+${r.pts} pts</span>
     </div>`).join('');
   }
   area.innerHTML=html;
