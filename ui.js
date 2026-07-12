@@ -3078,7 +3078,14 @@ function buildHistorialTableHTML(uid, wasabiSnaps){
     ROWS.forEach(r=>{ acum+=vals[r.id][d]||0; });
     acumByDay[d]=acum;
   });
-  const lastSnap=Object.keys(wasabiSnaps).sort().pop();
+  // Solo contamos snapshots fechados hasta el último día VISIBLE en esta tabla.
+  // Si el snapshot más reciente quedó con fecha de un día que no aparece como
+  // columna (ej: se cargó el resultado hoy y hoy no hay partido), esos puntos
+  // no deben desaparecer: caen en wasabiSinSnap y se muestran en la fila de
+  // rescate "🌶️ Wasabi (sin snapshot)" sobre la última columna visible.
+  const lastVisibleDay = daysWithRes.length ? daysWithRes[daysWithRes.length-1] : null;
+  const snapKeysVisible = Object.keys(wasabiSnaps).filter(k=>!lastVisibleDay || k<=lastVisibleDay).sort();
+  const lastSnap = snapKeysVisible.length ? snapKeysVisible[snapKeysVisible.length-1] : null;
   const wasabiViaSnaps=lastSnap?wasabiTotalAtDay(uid,wasabiSnaps[lastSnap]):0;
   const wasabiSinSnap=wasabiTotal(uid)-wasabiViaSnaps;
   if(wasabiSinSnap!==0 && daysWithRes.length){
@@ -3129,11 +3136,13 @@ function buildHistorialTableHTML(uid, wasabiSnaps){
     </tr>`;
   });
 
-  if(wasabiSinSnap>0){
+  if(wasabiSinSnap!==0 && daysWithRes.length){
+    const snColor = wasabiSinSnap>0 ? '#f59e0b' : '#ef4444';
+    const snFmt = fmt(wasabiSinSnap);
     html+=`<tr style="background:rgba(245,158,11,0.08)">
-      <td style="position:sticky;left:0;z-index:2;background:rgba(245,158,11,0.08);font-size:12px;padding:7px 10px;white-space:nowrap;color:#f59e0b;border-bottom:1px solid var(--line)">🌶️ Wasabi (sin snapshot)</td>
-      ${daysWithRes.map((_,i)=>i===daysWithRes.length-1?`<td style="font-size:12px;text-align:right;padding:5px 8px;color:#f59e0b;font-weight:600;border-bottom:1px solid var(--line)">+${wasabiSinSnap}</td>`:`<td style="font-size:12px;text-align:right;padding:5px 8px;color:var(--muted);border-bottom:1px solid var(--line)">—</td>`).join("")}
-      <td style="font-size:12px;text-align:right;padding:5px 8px;color:#f59e0b;font-weight:800;border-bottom:1px solid var(--line)">+${wasabiSinSnap}</td>
+      <td style="position:sticky;left:0;z-index:2;background:rgba(245,158,11,0.08);font-size:12px;padding:7px 10px;white-space:nowrap;color:${snColor};border-bottom:1px solid var(--line)">🌶️ Wasabi (sin snapshot)</td>
+      ${daysWithRes.map((_,i)=>i===daysWithRes.length-1?`<td style="font-size:12px;text-align:right;padding:5px 8px;color:${snColor};font-weight:600;border-bottom:1px solid var(--line)">${snFmt}</td>`:`<td style="font-size:12px;text-align:right;padding:5px 8px;color:var(--muted);border-bottom:1px solid var(--line)">—</td>`).join("")}
+      <td style="font-size:12px;text-align:right;padding:5px 8px;color:${snColor};font-weight:800;border-bottom:1px solid var(--line)">${snFmt}</td>
     </tr>`;
   }
 
@@ -3679,7 +3688,9 @@ async function admHistorial(area){
     </tr>`;
   players.forEach(p=>{
     const wasabiReal = wasabiTotal(p.id);
-    const lastSnapKeys = Object.keys(wasabiSnaps).sort();
+    // Solo snapshots fechados hasta el último día visible (misma lógica que buildHistorialTableHTML)
+    const lastVisibleDay = daysWithRes.length ? daysWithRes[daysWithRes.length-1] : null;
+    const lastSnapKeys = Object.keys(wasabiSnaps).filter(k=>!lastVisibleDay || k<=lastVisibleDay).sort();
     const wasabiViaSnaps = lastSnapKeys.length ? wasabiTotalAtDay(p.id, wasabiSnaps[lastSnapKeys[lastSnapKeys.length-1]]) : 0;
     const wasabiSinSnap = wasabiReal - wasabiViaSnaps;
     const honor=extraTotal(p.id);
