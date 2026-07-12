@@ -881,6 +881,57 @@ function bonusTotal(uid){
   return (APP.bonuses||[]).filter(b=>b.user_id===uid).reduce((s,b)=>s+(+b.pts||0),0);
 }
 
+/* Desglose de aciertos Wasabi de un jugador, separando preguntas normales de las bonus
+   (alertar por WhatsApp). Reutiliza pregunta por pregunta la MISMA lógica de acierto que
+   wasabiTotal(), para que rows+bonusRows siempre sumen exactamente wasabiTotal(uid).
+   Se usa tanto en la vista de admin (Ver tarjetas) como en la vista del propio jugador. */
+function wasabiAciertosDetalle(uid){
+  const w = (predFor(uid).wasabi)||{};
+  const res = APP.results.wasabi||{};
+  const auto = autoWasabiAnswers();
+  const rows=[], bonusRows=[];
+  APP.wasabiQs.forEach((q,i)=>{
+    if(q.type==="bonus"){
+      if(res["bonus_"+q.id]===uid) bonusRows.push({n:i+1, texto:q.t, pts:q.pts});
+      return;
+    }
+    let pts=0, tuResp='', correcta='';
+    if(["w5","w6","w7","w8"].includes(q.id)){
+      if(!APP.results.auto_wasabi_enabled) return;
+      const correctNames=auto[q.id]||[];
+      if(!correctNames.length) return;
+      const ans=w[q.id];
+      if(!ans||!correctNames.some(n=>norm(n)===norm(ans))) return;
+      pts=q.pts; tuResp=ans; correcta=correctNames.join(' / ');
+    } else if(q.id==="w1"){
+      const r1=(APP.results.main||{})["1"];
+      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
+      const exactCount=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
+        const m=(predFor(p.id).main)||{}; const pr=m["1"];
+        return pr && +pr.h===+r1.h && +pr.a===+r1.a;
+      }).length;
+      const playerAns=parseFloat(w["w1"]);
+      if(isNaN(playerAns)||playerAns!==exactCount) return;
+      pts=q.pts; tuResp=String(playerAns); correcta=String(exactCount);
+    } else if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts=approxPts(uid,q.id);
+      if(pts<=0) return;
+      tuResp=w[q.id]??''; correcta=String(res[q.id]);
+    } else {
+      if(res[q.id]==null||res[q.id]==="") return;
+      if(!matchesResult(w[q.id],res[q.id])) return;
+      pts=q.pts; tuResp=w[q.id]??''; correcta=String(res[q.id]);
+    }
+    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
+  });
+  return {
+    rows, bonusRows,
+    totalNoBonus: rows.reduce((s,r)=>s+r.pts,0),
+    totalBonus: bonusRows.reduce((s,r)=>s+r.pts,0)
+  };
+}
+
 // Scoring RE-WASABI
 function rewasabiTotal(uid){
   const rw=(predFor(uid).rewasabi)||{};
@@ -921,6 +972,53 @@ function rewasabiTotal(uid){
 }
 
 function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+clasR16Points(uid)+clasQFPoints(uid)+clasSFPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+
+/* Desglose de aciertos Re-Wasabi de un jugador, separando preguntas normales de las bonus.
+   Reutiliza pregunta por pregunta la MISMA lógica de acierto que rewasabiTotal(), para que
+   rows+bonusRows siempre sumen exactamente rewasabiTotal(uid). */
+function rewasabiAciertosDetalle(uid){
+  const rw = (predFor(uid).rewasabi)||{};
+  const res = APP.results.rewasabi||{};
+  const rqs = APP.rewasabiQs||[...SEED_REWASABI];
+  const rows=[], bonusRows=[];
+  rqs.forEach((q,i)=>{
+    if(q.type==="bonus"){
+      if(res["bonus_"+q.id]===uid) bonusRows.push({n:i+1, texto:q.t, pts:q.pts});
+      return;
+    }
+    let pts=0, tuResp='', correcta='';
+    if(q.type==="approx"){
+      if(res[q.id]==null||res[q.id]==="") return;
+      pts=approxPts(uid,q.id);
+      if(pts<=0) return;
+      tuResp=rw[q.id]??''; correcta=String(res[q.id]);
+    } else if(q.type==="country_phase"){
+      const resPaisRaw=res[q.id+"_pais"];
+      const resFase=res[q.id+"_fase"];
+      const predPais=rw[q.id+"_pais"];
+      const predFase=rw[q.id+"_fase"];
+      if(!resPaisRaw||!predPais) return;
+      const resPaisList=Array.isArray(resPaisRaw)?resPaisRaw:[resPaisRaw];
+      const paisOk=resPaisList.some(rp=>norm(predPais)===norm(rp));
+      const faseOk=resFase&&predFase&&norm(predFase)===norm(resFase);
+      if(!paisOk) return;
+      pts=(q.ptsPais||10)+(faseOk?(q.ptsFase||10):0);
+      const td=TEAMS[predPais];
+      tuResp=`${td?td.f+' '+td.n:predPais}${predFase?' · '+predFase:''}`;
+      correcta=`${resPaisList.map(rp=>{const t=TEAMS[rp];return t?t.f+' '+t.n:rp;}).join(' / ')}${resFase?' · '+resFase:''}`;
+    } else {
+      if(res[q.id]==null||res[q.id]==="") return;
+      if(!matchesResult(rw[q.id],res[q.id])) return;
+      pts=q.pts; tuResp=rw[q.id]??''; correcta=String(res[q.id]);
+    }
+    rows.push({n:i+1, texto:q.t, tuResp, correcta, pts});
+  });
+  return {
+    rows, bonusRows,
+    totalNoBonus: rows.reduce((s,r)=>s+r.pts,0),
+    totalBonus: bonusRows.reduce((s,r)=>s+r.pts,0)
+  };
+}
 
 async function adminApplyBonus(uid, pts, reason){
   const {error}=await sb.from('bonuses').insert({user_id:uid, pts:+pts, reason, date:new Date().toISOString()});
