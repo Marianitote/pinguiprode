@@ -365,6 +365,8 @@ const FIFA_NEXT_PAIRS = {
   97:[89,90], 98:[93,94], 99:[91,92], 100:[95,96],
   // slot de SF → [slot QF, slot QF]
   101:[97,98], 102:[99,100],
+  // slot de Final → [slot SF, slot SF] — los GANADORES de las semis (misma regla de siempre)
+  104:[101,102],
 };
 
 /* Devuelve el equipo (string) que la predicción del jugador hace avanzar en un slot de
@@ -380,12 +382,33 @@ function predictedWinner(pred, slot, home, away){
   if(pe.pen==="0") return away;
   return null;
 }
+/* Espejo de predictedWinner: devuelve el equipo que la predicción del jugador hace PERDER
+   (y por lo tanto jugar el Tercer Puesto). Único uso: slot 103, el único cruce del cuadro
+   donde "avanzar" significa haber predicho correctamente al perdedor, no al ganador. */
+function predictedLoser(pred, slot, home, away){
+  const pe=(pred.elim||{})[String(slot)];
+  if(!pe||pe.h==null||pe.h===""||pe.a==null||pe.a==="") return null;
+  const h=+pe.h, a=+pe.a;
+  if(h>a) return away;   // ganó local → perdió visitante
+  if(a>h) return home;   // ganó visitante → perdió local
+  if(pe.pen==="1") return away; // ganó local por penales → perdió visitante
+  if(pe.pen==="0") return home;
+  return null;
+}
 
-/* Genérica: dado el slot de un cruce de una fase NUEVA (r16/qf/sf), calcula qué equipos
+/* Genérica: dado el slot de un cruce de una fase NUEVA (r16/qf/sf/final), calcula qué equipos
    predijo el jugador para local/visitante, recorriendo recursivamente los cruces previos
-   con los equipos reales ya conocidos (results.elim_fixture) como base de cada ronda. */
+   con los equipos reales ya conocidos (results.elim_fixture) como base de cada ronda.
+   Caso especial: slot 103 (Tercer Puesto) toma los PERDEDORES predichos de 101/102, no los
+   ganadores — es el único cruce del cuadro con esa regla. */
 function predictedTeamsForSlot(pred, slot){
   const real = (APP.results?.elim_fixture||{})[slot]||(APP.results?.elim_fixture||{})[String(slot)];
+  if(slot===103){
+    const [teamsA, teamsB] = [predictedTeamsForSlot(pred, 101), predictedTeamsForSlot(pred, 102)];
+    const loserA = predictedLoser(pred, 101, teamsA.home, teamsA.away);
+    const loserB = predictedLoser(pred, 102, teamsB.home, teamsB.away);
+    return {home:loserA, away:loserB};
+  }
   const prevPair = FIFA_NEXT_PAIRS[slot];
   if(!prevPair){
     // R32: los equipos vienen directo del fixture real (no hay fase anterior que predecir)
@@ -417,6 +440,9 @@ function clasStagePoints(uid, stageSlots){
 function clasR16Points(uid){ return clasStagePoints(uid, [89,90,91,92,93,94,95,96]); }
 function clasQFPoints(uid){ return clasStagePoints(uid, [97,98,99,100]); }
 function clasSFPoints(uid){ return clasStagePoints(uid, [101,102]); }
+/* Final + Tercer puesto juntos: +1 por cada uno de los 2 finalistas acertados (slot 104)
+   y +1 por cada uno de los 2 perdedores-semifinalistas acertados (slot 103) → hasta +4. */
+function clasFinalPoints(uid){ return clasStagePoints(uid, [103,104]); }
 
 function clasR32Points(uid){
   // Compara el bracket de R32 que se desprende de la predicción de GRUPOS del jugador
@@ -971,7 +997,7 @@ function rewasabiTotal(uid){
   return pts;
 }
 
-function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+clasR16Points(uid)+clasQFPoints(uid)+clasSFPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
+function grandTotal(uid){ return mainTotal(uid)+extraTotal(uid)+clasR32Points(uid)+clasR16Points(uid)+clasQFPoints(uid)+clasSFPoints(uid)+clasFinalPoints(uid)+wasabiTotal(uid)+rewasabiTotal(uid)-penaltyTotal(uid)+bonusTotal(uid); }
 
 /* Desglose de aciertos Re-Wasabi de un jugador, separando preguntas normales de las bonus.
    Reutiliza pregunta por pregunta la MISMA lógica de acierto que rewasabiTotal(), para que
