@@ -3163,16 +3163,19 @@ function buildHistorialTableHTML(uid, wasabiSnaps){
   function clasElimDia(d){
     return d===lastGruposDay ? totalClasElim : 0;
   }
-  // Clasif. a R16/QF/SF → todos los puntos en el último día de la fase anterior (r32/r16/qf)
+  // Clasif. a R16/QF/SF/Final → todos los puntos en el último día de la fase anterior (r32/r16/qf/sf)
   const lastR32Day = allDays.filter(d=>FIXTURE.some(m=>m.phase==="r32"&&fifaDateOf(m)===d)).pop()||null;
   const lastR16Day = allDays.filter(d=>FIXTURE.some(m=>m.phase==="r16"&&fifaDateOf(m)===d)).pop()||null;
   const lastQFDay  = allDays.filter(d=>FIXTURE.some(m=>m.phase==="qf"&&fifaDateOf(m)===d)).pop()||null;
+  const lastSFDay  = allDays.filter(d=>FIXTURE.some(m=>m.phase==="sf"&&fifaDateOf(m)===d)).pop()||null;
   const totalClasR16 = clasR16Points(uid);
   const totalClasQF  = clasQFPoints(uid);
   const totalClasSF  = clasSFPoints(uid);
+  const totalClasFinal = clasFinalPoints(uid);
   function clasR16Dia(d){ return d===lastR32Day ? totalClasR16 : 0; }
   function clasQFDia(d){ return d===lastR16Day ? totalClasQF : 0; }
   function clasSFDia(d){ return d===lastQFDay ? totalClasSF : 0; }
+  function clasFinalDia(d){ return d===lastSFDay ? totalClasFinal : 0; }
   function penalDia(d){
     let pts=0;
     penalties.forEach(p=>{ if(p.date&&p.date.slice(0,10)===d) pts-=(+p.pts||0); });
@@ -3191,6 +3194,7 @@ function buildHistorialTableHTML(uid, wasabiSnaps){
     {id:"clasR16",  icon:"🎯", label:"Clasif. a Octavos",     fn: clasR16Dia,   days:"elim"},
     {id:"clasQF",   icon:"🎯", label:"Clasif. a Cuartos",     fn: clasQFDia,    days:"elim"},
     {id:"clasSF",   icon:"🎯", label:"Clasif. a Semis",       fn: clasSFDia,    days:"elim"},
+    {id:"clasFinal",icon:"🏅", label:"Clasif. a la Final",    fn: clasFinalDia, days:"elim"},
     {id:"penal",    icon:"⚡", label:"Penal/Bonus",           fn: penalDia,     days:"all"},
     {id:"rewasabi", icon:"🎲", label:"Re-Wasabi",             fn: ()=>0,        days:"none"},
     {id:"honor",    icon:"📋", label:"Cuadro de Honor",       fn: ()=>extraTotal(uid), days:"honor_last"},
