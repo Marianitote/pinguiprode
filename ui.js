@@ -1125,9 +1125,8 @@ function prAreaElimNew(area, stage){
   // partidos de esta fase del fixture oficial
   const matches = FIXTURE.filter(m=>m.phase===(stage==="tpfinal"?"tp":stage)||
     (stage==="tpfinal"&&m.phase==="final")).sort((a,b)=>a.slot-b.slot);
-  // para tpfinal: tp + final + cuadro de honor
+  // (el filtro de arriba YA incluye "final" cuando stage==="tpfinal" — no hay que volver a agregarlo)
   const isTpFinal = stage==="tpfinal";
-  if(isTpFinal) matches.push(...FIXTURE.filter(m=>m.phase==="final"));
 
   // verificar que los equipos estén cargados
   const allHaveTeams = matches.every(m=>m.home&&m.away);
