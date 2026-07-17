@@ -35,7 +35,7 @@ const REGLAMENTO_2026 = {
     "2 nitros por fase.",
     "Se piden en la ventana de 6:00 a 12:00 (hora argentina) de cualquier día con partidos, y valen para los partidos de ESE día. El cupo es por fase (no por día).",
     "Multiplica por 3 los puntos de la Tarjeta Principal del día en que se usa.",
-    "El 1° y el 2° no pueden usar nitro.",
+    "El 1° y el 2° no pueden usar nitro (excepto en las últimas dos fechas: 3er puesto y Final, donde pueden usarlo todos).",
     "No son acumulables entre fases.",
   ],
   interaccion: [
