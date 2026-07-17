@@ -867,7 +867,7 @@ function renderInicio(v){
   })()}
   <div class="card flat"><div class="sec-title">Comodines · resumen</div>
     <p class="note" style="line-height:1.7"><b>🩸 Sanguijuela:</b> 3 por fase. Retás hasta 3 puestos arriba; el 1º no retá. Si hacés más puntos que el retado en su día, te llevás los suyos; si hacés menos, perdés el 50% de lo que él sacó; si empatan, no pasa nada.<br>
-    <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2°.<br>
+    <b>🔥 Nitro:</b> 2 por fase, multiplica x3 tus puntos de Principal del día. No lo usan 1º ni 2° — excepto en 3er puesto y Final, donde pueden usarlo todos.<br>
     <span style="color:var(--muted)">Se piden cualquier día de la fase entre las 6 y las 12 (hora argentina) y valen para los partidos de ese día. Ojo: no podés usar ambos en el mismo día.</span></p></div>
     <div class="card" style="margin-top:16px">
     <div class="sec-title">🗂️ Estado de tus tarjetas</div>
