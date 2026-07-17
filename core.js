@@ -1355,7 +1355,10 @@ function validateNitro(by){
   if(wasChallengedToday(by)) return "Fuiste sanguijueleado en este bloque: no podés usar Nitro hasta el próximo.";
   const tb=standings(); const me=tb.find(r=>r.id===by);
   if(!me) return "Jugador no encontrado.";
-  if(me.pos===1||me.pos===2) return "El 1° y 2° no pueden usar nitro.";
+  // En los últimos dos partidos (3er puesto + Final) se levanta la restricción:
+  // ahí pueden usar Nitro TODOS, incluido el 1° y el 2°.
+  const esUltimaFecha = phase==="tp"||phase==="final";
+  if(!esUltimaFecha && (me.pos===1||me.pos===2)) return "El 1° y 2° no pueden usar nitro.";
   return null;
 }
 
