@@ -2091,8 +2091,12 @@ function openNitro(){
   const day=todayFifaDate(); const phase=phaseOfDay(day);
   const phaseLbl = phase ? ({grupos:"Fase de Grupos",r32:"Ronda de 32",r16:"Octavos",qf:"Cuartos",sf:"Semifinales",tp:"3er puesto",final:"Final"}[phase]||phase) : "—";
   const dayLbl = new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'numeric',month:'long'}).format(new Date());
+  const esUltimaFecha = phase==="tp"||phase==="final";
+  const reglaTxt = esUltimaFecha
+    ? "En 3er puesto y Final pueden usarlo todos, incluido el 1° y el 2°."
+    : "No lo usan 1° ni 2° — excepto en las últimas dos fechas (3er puesto y Final).";
   modal(`<h3>🔥 Usar nitro</h3>
-    <p class="note">Multiplica x3 tus puntos de Principal de <b>HOY (${dayLbl})</b>. No lo usan 1° ni 2°.</p>
+    <p class="note">Multiplica x3 tus puntos de Principal de <b>HOY (${dayLbl})</b>. ${reglaTxt}</p>
     <div class="pill" style="margin-top:10px">📅 Día: ${dayLbl} · ${phaseLbl}</div>
     <div class="row" style="margin-top:18px"><button class="btn gold full" onclick="confirmNitro()">Activar nitro x3</button><button class="btn ghost full" onclick="closeModal()">Cancelar</button></div>`);
 }
