@@ -2650,8 +2650,25 @@ function admWasabi(area){
       openSectionAdm=true;
     }
     if(AUTOQS.has(q.id)){
-      html+=`<div class="wq"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>
-        <p class="note" style="font-style:italic">Se completa de manera automática al cierre del Mundial.</p></div>`;
+      const enabled = !!APP.results.auto_wasabi_enabled;
+      const auto = autoWasabiAnswers();
+      const correctNames = auto[q.id]||[];
+      let acertaronAuto;
+      if(correctNames.length){
+        const gan = playersOnly().filter(p=>{
+          const ans=(APP.allPreds?.[p.id]?.wasabi||{})[q.id];
+          return ans && correctNames.some(n=>norm(n)===norm(ans));
+        }).map(p=>p.display_name);
+        acertaronAuto = `<div class="acertaron"><div style="font-size:12.5px;color:var(--muted);margin-bottom:2px">Respuesta (auto): <b style="color:var(--txt)">${esc(correctNames.join(', '))}</b></div>`
+          + (gan.length?`<span style="color:var(--aqua)">✅ Acertaron (+${q.pts}): ${esc(gan.join(', '))}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>')
+          + `</div>`;
+      } else {
+        acertaronAuto = `<div class="acertaron"><span style="color:var(--muted)">Todavía no se puede calcular (la tabla no tiene puntos aún).</span></div>`;
+      }
+      const estado = enabled
+        ? `<p class="note" style="font-style:italic;color:var(--aqua)">✅ Habilitada — suma puntos automáticamente.</p>`
+        : `<p class="note" style="font-style:italic">🔒 Deshabilitada — no suma puntos todavía. Habilitá las 5-8 arriba para que computen. (Abajo se muestra la vista previa.)</p>`;
+      html+=`<div class="wq ${enabled&&correctNames.length?"wq-has-result":""}"><div class="qh"><div class="qn">${i+1}</div><div class="qt">${esc(q.t)}</div><div><span class="badge w">${q.pts}</span></div></div>${estado}${acertaronAuto}</div>`;
       return;
     }
     const val=q.type==="bonus"?res["bonus_"+q.id]:res[q.id];
