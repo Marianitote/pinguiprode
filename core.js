@@ -768,7 +768,7 @@ function sangDelta(uid){
 }
 function extraTotal(uid){
   const ex=(predFor(uid).extra)||{}, res=APP.results.extra||{}; let pts=0;
-  Object.keys(PTS.extra).forEach(k=>{ if(res[k]&&ex[k]&&norm(ex[k])===norm(res[k])) pts+=PTS.extra[k]; });
+  Object.keys(PTS.extra).forEach(k=>{ if(matchesHonor(k, ex[k], res[k])) pts+=PTS.extra[k]; });
   return pts;
 }
 /* Calcula los nombres "correctos" de quién sale 1°/2°/anteúltimo/último,
@@ -1066,6 +1066,27 @@ function matchesResult(playerAns, resultVal){
     return String(resultVal).split(",").map(v=>norm(v.trim())).some(v=>v===pNorm);
   }
   return pNorm===norm(resultVal);
+}
+
+/* Cuadro de Honor: las casillas de país (champion/runnerup/third/fourth) se comparan
+   por igualdad exacta (ya normalizada, tolera mayúsculas y tildes). Las de botas/balones
+   son texto libre con nombre de jugador, así que además toleran "nombre completo vs
+   apellido" (ej: "Lionel Messi" acierta contra "Messi", "Kylian Mbappe" contra "Mbappé"). */
+const HONOR_NAME_KEYS = new Set(["boot_gold","boot_silver","boot_bronze","ball_gold","ball_silver","ball_bronze"]);
+function matchesName(a,b){
+  const na=norm(a), nb=norm(b);
+  if(!na||!nb) return false;
+  if(na===nb) return true;                                  // igual (sin tildes ni mayúsc)
+  const ta=na.split(/\s+/), tb=nb.split(/\s+/);
+  if(ta[ta.length-1]===tb[tb.length-1]) return true;        // mismo apellido (última palabra)
+  const shorter = ta.length<=tb.length?ta:tb;
+  const longer  = new Set(ta.length<=tb.length?tb:ta);
+  return shorter.every(t=>longer.has(t));                   // nombre parcial contenido en el completo
+}
+function matchesHonor(key, playerAns, resultVal){
+  if(playerAns==null||playerAns===""||resultVal==null||resultVal==="") return false;
+  return HONOR_NAME_KEYS.has(key) ? matchesName(playerAns, resultVal)
+                                  : norm(playerAns)===norm(resultVal);
 }
 
 /* devuelve las predicciones de un uid (admin tiene todas; jugador solo la suya) */
