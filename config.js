@@ -300,10 +300,10 @@ const PLANTEL_ARG = [
 
 /* (La Tarjeta Picada se eliminó del prode — no había tiempo para definirla bien.) */
 const SEED_WASABI = [
-  {id:"w1", t:"Cantidad de participantes que aciertan el resultado exacto de México - Sudáfrica", pts:10, type:"num"},
+  {id:"w1", t:"Cantidad de participantes que aciertan el resultado exacto de México - Sudáfrica", pts:10, type:"approx", ac:"Gana el más cercano al valor final."},
   {id:"w2", t:"Cantidad de participantes que aciertan al campeón", pts:10, type:"num", ac:"Los puntos se dan al finalizar el mundial y NO cuentan para el uso de comodines", noComo:true},
   {id:"w3", t:"Cantidad de rojas en todo el mundial", pts:10, type:"num"},
-  {id:"w4", t:"Cantidad de amarillas en todo el mundial", pts:10, type:"num"},
+  {id:"w4", t:"Cantidad de amarillas en todo el mundial", pts:10, type:"approx", ac:"Gana el más cercano al valor final."},
   {id:"w5", t:"¿Qué participante sale primero?", pts:16, type:"participant", ac:"Previo a la contabilización de los puntos de las preguntas 5, 6, 7 y 8", noComo:true},
   {id:"w6", t:"¿Qué participante sale segundo?", pts:10, type:"participant", noComo:true},
   {id:"w7", t:"¿Qué participante sale último?", pts:18, type:"participant", noComo:true},
@@ -356,7 +356,7 @@ const SEED_WASABI = [
   {id:"w55", t:"¿Aparece algún streaker (invasor de cancha) durante el torneo? (Sí/No)", pts:10, type:"yesno"},
   {id:"w56", t:"Primer país en quedar eliminado matemáticamente del Mundial", pts:12, type:"team", ac:"Bonus +3 si acertás el partido"},
   {id:"w57", t:"¿En qué minuto del partido inaugural (México vs Sudáfrica) se mete el primer gol?", pts:10, type:"approx"},
-  {id:"w58", t:"Cantidad de partidos que se definen por penales en eliminatorias", pts:8, type:"num", ac:"Gana el más cercano. Si no hay gol, todos suman 0"},
+  {id:"w58", t:"Cantidad de partidos que se definen por penales en eliminatorias", pts:8, type:"approx", ac:"Gana el más cercano al valor final."},
   {id:"w59", t:"¿Algún jugador se saca la camiseta para festejar y se come amarilla? (Sí/No)", pts:10, type:"yesno"},
   {id:"w60", t:"¿Qué jugador del PingüiProde pierde más puntos por sanciones del COMIPRO?", pts:6, type:"participant"},
 ];
