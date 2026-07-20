@@ -872,21 +872,7 @@ function wasabiTotal(uid){
       if(ans && correctNames.some(n=>norm(n)===norm(ans))) pts+=q.pts;
       return;
     }
-    // w1: cantidad de jugadores que acertaron el resultado exacto del partido inaugural (auto)
-    if(q.id==="w1"){
-      const resMain=APP.results.main||{};
-      const r1=resMain["1"];
-      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
-      const exactCount = APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-        const m=(predFor(p.id).main)||{};
-        const pred=m["1"];
-        return pred && +pred.h===+r1.h && +pred.a===+r1.a;
-      }).length;
-      const playerAns = parseFloat(w["w1"]);
-      if(isNaN(playerAns)) return;
-      if(playerAns===exactCount) pts+=q.pts;
-      return;
-    }
+    // w1 ahora es aproximación (más cercano al valor cargado) — cae en el bloque approx de abajo
     // preguntas de aproximación (minutos)
     if(q.type==="approx"){
       if(res[q.id]==null||res[q.id]==="") return;
@@ -929,16 +915,6 @@ function wasabiAciertosDetalle(uid){
       const ans=w[q.id];
       if(!ans||!correctNames.some(n=>norm(n)===norm(ans))) return;
       pts=q.pts; tuResp=ans; correcta=correctNames.join(' / ');
-    } else if(q.id==="w1"){
-      const r1=(APP.results.main||{})["1"];
-      if(!r1||r1.h==null||r1.h===""||r1.a==null||r1.a==="") return;
-      const exactCount=APP.profiles.filter(p=>!p.is_admin).filter(p=>{
-        const m=(predFor(p.id).main)||{}; const pr=m["1"];
-        return pr && +pr.h===+r1.h && +pr.a===+r1.a;
-      }).length;
-      const playerAns=parseFloat(w["w1"]);
-      if(isNaN(playerAns)||playerAns!==exactCount) return;
-      pts=q.pts; tuResp=String(playerAns); correcta=String(exactCount);
     } else if(q.type==="approx"){
       if(res[q.id]==null||res[q.id]==="") return;
       pts=approxPts(uid,q.id);
