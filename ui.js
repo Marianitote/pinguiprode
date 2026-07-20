@@ -2436,17 +2436,23 @@ function admResultados(area){
   }else a.innerHTML=`<div class="meta">${ms[0]?.label.split(' · ')[0]||''}</div>${ms.map(m=>admMatchKO(m)).join("")}`;
   // cuadro honor
   const ex=APP.results.extra||{};
+  const players = APP.profiles.filter(p=>!p.is_admin);
+  const honorAc=(id)=>{
+    if(ex[id]==null||ex[id]==="") return "";
+    const gan=players.filter(p=>matchesHonor(id,(APP.allPreds?.[p.id]?.extra||{})[id],ex[id])).map(p=>p.display_name);
+    return `<div class="acertaron">${gan.length?`<span style="color:var(--aqua)">✅ Acertaron (+${PTS.extra[id]}): ${esc(gan.join(', '))}</span>`:'<span style="color:var(--muted)">Nadie acertó</span>'}</div>`;
+  };
   const tsel=(id)=>`<select onchange="setResExtra('${id}',this.value)"><option value="">—</option>${Object.keys(TEAMS).map(c=>`<option ${ex[id]===c?'selected':''} value="${c}">${TEAMS[c].f} ${TEAMS[c].n}</option>`).join("")}</select>`;
   const isel=(id)=>`<input value="${esc(ex[id]||'')}" onchange="setResExtra('${id}',this.value)">`;
   $("#exReal").innerHTML=`
-    <div><label class="field">🏆 Campeón</label>${tsel('champion')}</div><div><label class="field">🥈 Subcampeón</label>${tsel('runnerup')}</div>
-    <div><label class="field">🥉 3er puesto</label>${tsel('third')}</div><div><label class="field">4° puesto</label>${tsel('fourth')}</div>
-    <div><label class="field">👟 Bota de Oro <span class="note">máx. goleador</span></label>${isel('boot_gold')}</div>
-    <div><label class="field">👟 Bota de Plata <span class="note">2º goleador</span></label>${isel('boot_silver')}</div>
-    <div><label class="field">👟 Bota de Bronce <span class="note">3º goleador</span></label>${isel('boot_bronze')}</div>
-    <div><label class="field">⚽ Balón de Oro <span class="note">mejor jugador</span></label>${isel('ball_gold')}</div>
-    <div><label class="field">⚽ Balón de Plata <span class="note">2º mejor</span></label>${isel('ball_silver')}</div>
-    <div><label class="field">⚽ Balón de Bronce <span class="note">3º mejor</span></label>${isel('ball_bronze')}</div>`;
+    <div><label class="field">🏆 Campeón</label>${tsel('champion')}${honorAc('champion')}</div><div><label class="field">🥈 Subcampeón</label>${tsel('runnerup')}${honorAc('runnerup')}</div>
+    <div><label class="field">🥉 3er puesto</label>${tsel('third')}${honorAc('third')}</div><div><label class="field">4° puesto</label>${tsel('fourth')}${honorAc('fourth')}</div>
+    <div><label class="field">👟 Bota de Oro <span class="note">máx. goleador</span></label>${isel('boot_gold')}${honorAc('boot_gold')}</div>
+    <div><label class="field">👟 Bota de Plata <span class="note">2º goleador</span></label>${isel('boot_silver')}${honorAc('boot_silver')}</div>
+    <div><label class="field">👟 Bota de Bronce <span class="note">3º goleador</span></label>${isel('boot_bronze')}${honorAc('boot_bronze')}</div>
+    <div><label class="field">⚽ Balón de Oro <span class="note">mejor jugador</span></label>${isel('ball_gold')}${honorAc('ball_gold')}</div>
+    <div><label class="field">⚽ Balón de Plata <span class="note">2º mejor</span></label>${isel('ball_silver')}${honorAc('ball_silver')}</div>
+    <div><label class="field">⚽ Balón de Bronce <span class="note">3º mejor</span></label>${isel('ball_bronze')}${honorAc('ball_bronze')}</div>`;
 }
 function acertaronMatch(m){
   const isElimM2 = m.phase!=='grupos';
